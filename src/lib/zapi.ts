@@ -33,41 +33,80 @@ async function proxy<T>(
   body?: unknown,
   queryParams?: Record<string, string>,
 ): Promise<T> {
-  const { data: result, error: fnError } = await supabase.functions.invoke<ProxyResponse<T>>(
-    'zapi-proxy',
-    {
-      body: {
-        instanceId: cfg.instanceId.trim(),
-        token: cfg.token.trim(),
-        clientToken: cfg.clientToken?.trim() || '',
-        path,
-        method,
-        body,
-        queryParams,
-      },
-    },
-  );
-
-  if (fnError) {
-    if (fnError.message.includes('Function not found') || fnError.message.includes('404')) {
-      throw new Error(`As Edge Functions não estão publicadas no Supabase! Rode 'npx supabase functions deploy' no terminal. Erro original: ${fnError.message}`);
+  // PRIMEIRA TENTATIVA: Acesso direto do navegador (Funciona na Z-API moderna com CORS liberado)
+  try {
+    let url = `https://api.z-api.io/instances/${cfg.instanceId.trim()}/token/${cfg.token.trim()}/${path}`;
+    if (queryParams && Object.keys(queryParams).length > 0) {
+      url += '?' + new URLSearchParams(queryParams).toString();
     }
-    throw new Error(`Erro na função proxy: ${fnError.message}`);
-  }
-  if (!result) {
-    throw new Error('Resposta vazia do proxy');
-  }
-  if (!result.ok) {
-    const s = result.status;
-    const detail = result.data ? JSON.stringify(result.data) : '';
-    throw new Error(
-      s === 400 ? `Credenciais inválidas (400). Verifique o Instance ID e o Token.${detail ? ' Detalhe: ' + detail : ''}`
-      : s === 401 ? 'Não autorizado (401). Token incorreto.'
-      : s === 404 ? 'Instância não encontrada (404) ou Edge Function ausente. Rode npx supabase functions deploy.'
-      : `Erro Z-API ${s}${detail ? ': ' + detail : ''}`,
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const ct = cfg.clientToken?.trim();
+    if (ct && ct !== cfg.token.trim()) {
+      headers['Client-Token'] = ct;
+    }
+    
+    // Teste de chamada direta
+    const res = await fetch(url, { 
+      method, 
+      headers, 
+      body: method !== 'GET' && body ? JSON.stringify(body) : undefined 
+    });
+    
+    const text = await res.text();
+    let data: any;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    
+    if (!res.ok) {
+      const s = res.status;
+      // Erros legítimos da API Z-API
+      if (s === 400) throw new Error('Credenciais inválidas ou requisição mal formatada (400). Verifique Instance ID e Token.');
+      if (s === 401) throw new Error('Não autorizado (401). O Token está incorreto.');
+      if (s === 404) throw new Error('Instância ou rota não encontrada (404). Verifique o Instance ID.');
+      throw new Error(`Erro Z-API ${s}: ${JSON.stringify(data)}`);
+    }
+    return data;
+  } catch (err: any) {
+    // Se o erro foi um dos nossos (400, 401, 404 jogados acima), não faça fallback para o Supabase, pois a credencial de fato está errada!
+    if (err.message.includes('(400)') || err.message.includes('(401)') || err.message.includes('(404)')) {
+      throw err;
+    }
+    
+    // SEGUNDA TENTATIVA: CORS bloqueou o acesso direto, tenta via Edge Function do Supabase (Proxy)
+    const { data: result, error: fnError } = await supabase.functions.invoke<ProxyResponse<T>>(
+      'zapi-proxy',
+      {
+        body: {
+          instanceId: cfg.instanceId.trim(),
+          token: cfg.token.trim(),
+          clientToken: cfg.clientToken?.trim() || '',
+          path,
+          method,
+          body,
+          queryParams,
+        },
+      },
     );
+
+    if (fnError) {
+      // Se a função não foi publicada (o usuário não rodou deploy), e a primeira tentativa também falhou:
+      if (fnError.message.includes('Function not found') || fnError.message.includes('not found') || fnError.message.includes('404')) {
+        throw new Error(`As credenciais falharam no teste direto e o Proxy de retaguarda não está ativado no Supabase (Edge Functions ausentes). Certifique-se de que os dados estão 100% corretos ou publique as funções.`);
+      }
+      throw new Error(`Falha no proxy de segurança: ${fnError.message}`);
+    }
+    
+    if (!result) throw new Error('Resposta vazia do servidor proxy de segurança.');
+    
+    if (!result.ok) {
+      const s = result.status;
+      if (s === 400) throw new Error('Credenciais inválidas (400) via Proxy. Verifique Instance ID e Token.');
+      if (s === 401) throw new Error('Não autorizado (401) via Proxy. O Token está incorreto.');
+      if (s === 404) throw new Error('Instância não encontrada (404) via Proxy. Verifique o Instance ID.');
+      throw new Error(`Erro desconhecido via Proxy Z-API (Status ${s})`);
+    }
+    
+    return result.data;
   }
-  return result.data;
 }
 
 // ── Status ───────────────────────────────────────────────────────────────────
