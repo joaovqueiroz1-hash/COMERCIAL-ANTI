@@ -1,4 +1,4 @@
--- Create Z-API Config Table
+-- 1. Z-API CONFIG
 CREATE TABLE IF NOT EXISTS public.zapi_config (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   instance_id TEXT NOT NULL,
@@ -10,13 +10,15 @@ CREATE TABLE IF NOT EXISTS public.zapi_config (
 
 ALTER TABLE public.zapi_config ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can view zapi config" ON public.zapi_config;
 CREATE POLICY "Authenticated users can view zapi config"
   ON public.zapi_config FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can insert/update zapi config" ON public.zapi_config;
 CREATE POLICY "Authenticated users can insert/update zapi config"
   ON public.zapi_config FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- Create WhatsApp Messages Table
+-- 2. WHATSAPP MESSAGES
 CREATE TABLE IF NOT EXISTS public.whatsapp_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
@@ -32,13 +34,15 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_messages (
 
 ALTER TABLE public.whatsapp_messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can view whatsapp_messages" ON public.whatsapp_messages;
 CREATE POLICY "Authenticated users can view whatsapp_messages"
   ON public.whatsapp_messages FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can insert whatsapp_messages" ON public.whatsapp_messages;
 CREATE POLICY "Authenticated users can insert whatsapp_messages"
   ON public.whatsapp_messages FOR INSERT TO authenticated WITH CHECK (true);
 
--- Attempt to enable real-time
+-- 3. HABILITAR MENSAGENS EM TEMPO REAL
 DO $$ 
 BEGIN
   IF NOT EXISTS (
@@ -51,7 +55,3 @@ EXCEPTION
   WHEN undefined_object THEN
     CREATE PUBLICATION supabase_realtime FOR TABLE public.whatsapp_messages;
 END $$;
-
-CREATE TRIGGER update_zapi_config_updated_at 
-  BEFORE UPDATE ON public.zapi_config 
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
