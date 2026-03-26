@@ -1,0 +1,203 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 224 22% 6%;
+    --foreground: 210 15% 93%;
+    --card: 224 20% 9%;
+    --card-foreground: 210 15% 93%;
+    --popover: 224 20% 8%;
+    --popover-foreground: 210 15% 93%;
+    --primary: 215 18% 74%;
+    --primary-foreground: 224 22% 8%;
+    --secondary: 224 16% 13%;
+    --secondary-foreground: 210 15% 93%;
+    --muted: 224 16% 13%;
+    --muted-foreground: 220 12% 48%;
+    --accent: 215 18% 74%;
+    --accent-foreground: 224 22% 8%;
+    --destructive: 0 68% 62%;
+    --destructive-foreground: 0 0% 94%;
+    --border: 224 16% 16%;
+    --input: 224 16% 14%;
+    --ring: 215 18% 74%;
+    --radius: 0.75rem;
+
+    /* Backgrounds */
+    --bg-primary: 224 22% 6%;
+    --bg-secondary: 224 20% 8%;
+    --bg-tertiary: 224 16% 11%;
+    --bg-card: 224 20% 9%;
+    --border-hover: 224 16% 24%;
+    --text-primary: 210 15% 93%;
+    --text-secondary: 210 12% 65%;
+    --text-muted: 220 12% 48%;
+
+    /* Platinum / Silver palette */
+    --silver: 215 18% 74%;
+    --silver-light: 215 20% 85%;
+    --silver-dark: 215 16% 58%;
+    --silver-muted: 215 12% 38%;
+
+    --accent-gold: 215 18% 74%;
+    --accent-gold-hover: 215 18% 62%;
+    --success: 142 65% 52%;
+    --warning: 27 96% 58%;
+    --info: 213 90% 65%;
+    --danger: 0 68% 62%;
+
+    --sidebar-background: 224 22% 5%;
+    --sidebar-foreground: 210 15% 93%;
+    --sidebar-primary: 215 18% 74%;
+    --sidebar-primary-foreground: 224 22% 8%;
+    --sidebar-accent: 224 16% 12%;
+    --sidebar-accent-foreground: 210 15% 93%;
+    --sidebar-border: 224 16% 13%;
+    --sidebar-ring: 215 18% 74%;
+
+    /* WhatsApp CRM */
+    --wa-bubble-out: 215 18% 16%;
+    --wa-bubble-in: 224 16% 14%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--bg-secondary));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border-hover));
+  }
+}
+
+@layer utilities {
+  /* Platinum / Silver gradient  */
+  .gold-gradient {
+    background: linear-gradient(135deg, hsl(215, 22%, 82%), hsl(215, 18%, 58%));
+  }
+  .gold-gradient-text {
+    background: linear-gradient(135deg, hsl(215, 22%, 88%), hsl(215, 18%, 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .silver-shimmer {
+    background: linear-gradient(
+      110deg,
+      hsl(215, 22%, 80%) 0%,
+      hsl(215, 18%, 92%) 45%,
+      hsl(215, 22%, 72%) 55%,
+      hsl(215, 18%, 82%) 100%
+    );
+  }
+
+  .card-premium {
+    background: hsl(var(--bg-card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-premium:hover {
+    border-color: hsl(var(--border-hover));
+  }
+  .card-glow {
+    background: hsl(var(--bg-card));
+    border: 1px solid hsl(215, 18%, 28%);
+    border-radius: 12px;
+    box-shadow: 0 0 24px hsl(215 18% 74% / 0.08);
+  }
+  .metric-card {
+    background: linear-gradient(135deg, hsl(224, 20%, 10%), hsl(224, 20%, 8%));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+    transition: all 0.2s ease;
+  }
+  .metric-card:hover {
+    border-color: hsl(215, 18%, 32%);
+    box-shadow: 0 0 18px hsl(215 18% 74% / 0.07);
+  }
+  .sidebar-item-active {
+    background: linear-gradient(90deg, hsl(215 18% 74% / 0.12) 0%, transparent 100%);
+    border-left: 2px solid hsl(var(--silver));
+  }
+
+  /* Chat bubbles */
+  .wa-bubble-out {
+    background: hsl(215, 18%, 15%);
+    border: 1px solid hsl(215, 18%, 24%);
+    border-radius: 12px 12px 2px 12px;
+  }
+  .wa-bubble-in {
+    background: hsl(224, 16%, 13%);
+    border: 1px solid hsl(224, 16%, 20%);
+    border-radius: 12px 12px 12px 2px;
+  }
+  .wa-bubble-note {
+    background: hsl(224, 20%, 11%);
+    border: 1px solid hsl(215, 18%, 26%);
+    border-left: 3px solid hsl(var(--silver));
+    border-radius: 0 8px 8px 0;
+  }
+
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .animate-pulse-red { animation: pulse-red 1.5s ease-in-out infinite; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  .animate-float { animation: float 3s ease-in-out infinite; }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .bg-shimmer {
+    background: linear-gradient(90deg, hsl(var(--bg-card)) 0%, hsl(var(--border)) 50%, hsl(var(--bg-card)) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in { animation: fade-in 0.3s ease-out; }
+
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .animate-slide-in-right { animation: slide-in-right 0.25s ease-out; }
+
+  .status-dot-online {
+    width: 8px; height: 8px;
+    background: hsl(142, 65%, 50%);
+    border-radius: 50%;
+    box-shadow: 0 0 6px hsl(142, 65%, 50%);
+  }
+}
