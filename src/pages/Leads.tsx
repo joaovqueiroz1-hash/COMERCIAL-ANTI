@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { fetchLeads, fetchProfiles, createLead, Lead, LeadInsert } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { STATUS_LABELS, PipelineStatus, formatCurrency, getInitials } from '@/lib/types';
@@ -26,6 +27,7 @@ export default function Leads() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newLeadForm, setNewLeadForm] = useState({ nome_completo: '', whatsapp: '', nome_empresa: '', observacoes_iniciais: '' });
   
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
@@ -47,6 +49,7 @@ export default function Leads() {
       whatsapp: newLeadForm.whatsapp,
       nome_empresa: newLeadForm.nome_empresa,
       observacoes_iniciais: newLeadForm.observacoes_iniciais,
+      vendedor_id: user?.id,
       status_pipeline: 'novo_lead',
       prioridade: 'media',
     });
