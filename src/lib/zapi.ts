@@ -49,6 +49,9 @@ async function proxy<T>(
   );
 
   if (fnError) {
+    if (fnError.message.includes('Function not found') || fnError.message.includes('404')) {
+      throw new Error(`As Edge Functions não estão publicadas no Supabase! Rode 'npx supabase functions deploy' no terminal. Erro original: ${fnError.message}`);
+    }
     throw new Error(`Erro na função proxy: ${fnError.message}`);
   }
   if (!result) {
@@ -60,7 +63,7 @@ async function proxy<T>(
     throw new Error(
       s === 400 ? `Credenciais inválidas (400). Verifique o Instance ID e o Token.${detail ? ' Detalhe: ' + detail : ''}`
       : s === 401 ? 'Não autorizado (401). Token incorreto.'
-      : s === 404 ? 'Instância não encontrada (404). Verifique o Instance ID.'
+      : s === 404 ? 'Instância não encontrada (404) ou Edge Function ausente. Rode npx supabase functions deploy.'
       : `Erro Z-API ${s}${detail ? ': ' + detail : ''}`,
     );
   }

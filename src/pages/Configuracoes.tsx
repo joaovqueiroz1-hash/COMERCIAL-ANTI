@@ -480,11 +480,23 @@ export default function Configuracoes() {
             </div>
           </div>
 
-          <div className="mt-4 p-3 rounded-lg bg-secondary/60 border border-border/50 flex gap-2">
-            <Info size={13} className="text-muted-foreground shrink-0 mt-0.5" />
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              As credenciais do Z-API agora são armazenadas no servidor (Supabase) e compartilhadas com toda a equipe para uso do CRM Realtime.
-            </p>
+          <div className="mt-4 p-3 rounded-lg bg-secondary/60 border border-border/50 space-y-3">
+            <div className="flex gap-2">
+              <Info size={13} className="text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                As credenciais do Z-API agora são armazenadas no servidor (Supabase) e compartilhadas com toda a equipe para uso do CRM Realtime.
+              </p>
+            </div>
+            <div className="flex gap-2 border-t border-border/50 pt-2">
+              <AlertTriangle size={13} className="text-warning shrink-0 mt-0.5" />
+              <div className="text-[11px] text-muted-foreground leading-relaxed">
+                <strong className="text-foreground">Webhook Obrigatório:</strong> Para receber novas mensagens no sistema, vá no painel da sua instância na Z-API, abra a aba "Webhooks" e habilite as opções "Ao Receber", configurando a URL abaixo:
+                <div className="flex items-center gap-2 mt-1.5 mb-1 bg-background border border-border rounded px-2 py-1.5 focus-within:border-primary/50 transition-colors">
+                  <code className="text-primary font-mono text-[10px] sm:text-xs select-all flex-1">https://[SEU_PROJETO].supabase.co/functions/v1/zapi-webhook</code>
+                </div>
+                <p className="text-[10px] opacity-80">Substitua <code className="text-primary bg-primary/10 px-1 rounded">{"[SEU_PROJETO]"}</code> pela URL real do seu projeto Supabase atual.</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

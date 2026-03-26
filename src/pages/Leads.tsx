@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchLeads, fetchProfiles, Lead } from '@/lib/api';
+import { fetchLeads, fetchProfiles, createLead, Lead, LeadInsert } from '@/lib/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { STATUS_LABELS, PipelineStatus, formatCurrency, getInitials } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +23,34 @@ export default function Leads() {
   const [sortBy, setSortBy] = useState<string>('faturamento_desc');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newLeadForm, setNewLeadForm] = useState({ nome_completo: '', whatsapp: '', nome_empresa: '', observacoes_iniciais: '' });
+  
+  const queryClient = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: (lead: LeadInsert) => createLead(lead),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      setCreateModalOpen(false);
+      setNewLeadForm({ nome_completo: '', whatsapp: '', nome_empresa: '', observacoes_iniciais: '' });
+      setSelectedLead(data as Lead);
+      setSheetOpen(true);
+    }
+  });
+
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeadForm.nome_completo.trim()) return;
+    createMutation.mutate({
+      nome_completo: newLeadForm.nome_completo,
+      whatsapp: newLeadForm.whatsapp,
+      nome_empresa: newLeadForm.nome_empresa,
+      observacoes_iniciais: newLeadForm.observacoes_iniciais,
+      status_pipeline: 'novo_lead',
+      prioridade: 'media',
+    });
+  };
 
   const { data: leads = [], isLoading } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
@@ -65,7 +95,7 @@ export default function Leads() {
 
   return (
     <AppLayout title="Leads" subtitle={`${filtered.length} leads encontrados`}
-      actions={<Button className="gold-gradient text-primary-foreground font-semibold text-xs sm:text-sm h-8 sm:h-9 px-3 sm:px-4">+ Novo Lead</Button>}>
+      actions={<Button onClick={() => setCreateModalOpen(true)} className="gold-gradient text-primary-foreground font-semibold text-xs sm:text-sm h-8 sm:h-9 px-3 sm:px-4">+ Novo Lead</Button>}>
       
       {/* Filters */}
       <div className="card-premium p-3 sm:p-4 mb-4">
@@ -216,6 +246,38 @@ export default function Leads() {
       </div>
 
       <LeadEditSheet lead={selectedLead} profiles={profiles} open={sheetOpen} onOpenChange={setSheetOpen} />
+
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="bg-background border-border sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Adicionar Novo Lead</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateSubmit} className="space-y-4 py-4">
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Nome Completo *</Label>
+              <Input required value={newLeadForm.nome_completo} onChange={e => setNewLeadForm({ ...newLeadForm, nome_completo: e.target.value })} className="bg-secondary border-border h-9" placeholder="Ex: João Silva" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">WhatsApp</Label>
+              <Input value={newLeadForm.whatsapp} onChange={e => setNewLeadForm({ ...newLeadForm, whatsapp: e.target.value })} className="bg-secondary border-border h-9" placeholder="Ex: 5511999999999" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Empresa</Label>
+              <Input value={newLeadForm.nome_empresa} onChange={e => setNewLeadForm({ ...newLeadForm, nome_empresa: e.target.value })} className="bg-secondary border-border h-9" placeholder="Ex: Tech Solutions" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Observações (Opcional)</Label>
+              <Input value={newLeadForm.observacoes_iniciais} onChange={e => setNewLeadForm({ ...newLeadForm, observacoes_iniciais: e.target.value })} className="bg-secondary border-border h-9" placeholder="Detalhes iniciais..." />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="ghost" onClick={() => setCreateModalOpen(false)} className="text-muted-foreground h-9">Cancelar</Button>
+              <Button type="submit" disabled={createMutation.isPending} className="bg-primary hover:bg-primary/90 text-primary-foreground h-9">
+                {createMutation.isPending ? 'Salvando...' : 'Salvar Lead'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
