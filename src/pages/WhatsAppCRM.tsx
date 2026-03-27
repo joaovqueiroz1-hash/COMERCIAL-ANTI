@@ -235,7 +235,11 @@ export default function WhatsAppCRM() {
        if (isFetching) return;
        isFetching = true;
        try {
-          const zMsgs = await getMessages(zapiConfig, selectedContact.phone, 1).catch(() => [] as ZApiMessage[]);
+          const phoneToFetch = normalizePhone(selectedContact.phone);
+          const zMsgs = await getMessages(zapiConfig, phoneToFetch, 1).catch((err) => {
+             console.error("Z-API getMessages ERRO:", err);
+             return [] as ZApiMessage[];
+          });
           if (zMsgs && zMsgs.length > 0) {
              const formatted = zMsgs.map(m => {
                  const mId = m.messageId || (m as any).id || (m as any).message_id || `msg-${Date.now()}-${Math.random()}`;
