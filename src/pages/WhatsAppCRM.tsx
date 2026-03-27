@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { fetchLeads, fetchZApiConfigGlobally, createLead, createWhatsAppMessage, fetchWhatsAppMessages } from "@/lib/api";
 import { Lead, WhatsAppMessage } from "@/lib/api";
-import { sendTextMessage, ZApiConfig, normalizePhone, getChats, ZApiChat } from "@/lib/zapi";
+import { sendTextMessage, ZApiConfig, normalizePhone, getChats, getMessages, ZApiMessage, ZApiChat } from "@/lib/zapi";
 import { Loader2, Send, Search, Check, CheckCheck, Clock, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeWhatsAppKey, cleanWhatsAppNumber } from "@/lib/whatsapp-utils";
@@ -162,16 +162,74 @@ export default function WhatsAppCRM() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Carregar as mensagens do BANCO IMEDIATAMENTE ao clicar no contato
+  // Carregar as mensagens IMEDIATAMENTE e via POLLING ao clicar no contato
   useEffect(() => {
-    if (selectedContact && selectedContact.phone) {
-      fetchWhatsAppMessages(selectedContact.phone).then(msgs => {
-        setMessages(msgs || []);
-      }).catch(() => setMessages([]));
-    } else {
+    if (!zapiConfig || !selectedContact || !selectedContact.phone) {
       setMessages([]);
+      return;
     }
-  }, [selectedContact]);
+
+    let isFetching = false;
+    const loadRealtimeMessages = async () => {
+      if (isFetching) return;
+      isFetching = true;
+      try {
+         // Prioridade 1: Consultar Z-API diretamente (Bypassa o webhook quebrado)
+         const zMsgs = await getMessages(zapiConfig, selectedContact.phone, 1).catch(() => [] as ZApiMessage[]);
+         if (zMsgs && zMsgs.length > 0) {
+            const getMessageText = (m: any) => m.text?.message || m.message || '';
+            const validMsgs = zMsgs.filter(m => m.messageId && getMessageText(m));
+            const formatted = validMsgs.map(m => ({
+               id: m.messageId,
+               message_id: m.messageId,
+               phone: selectedContact.phone,
+               text_content: getMessageText(m),
+               from_me: m.fromMe,
+               sender_name: safeString(m.senderName),
+               timestamp: m.momment ? new Date(m.momment).toISOString() : new Date().toISOString(),
+               status: safeString(m.status) || 'recebido'
+            })) as WhatsAppMessage[];
+
+            setMessages(prev => {
+                const merged = [...prev];
+                let hasChange = false;
+                formatted.forEach(fm => {
+                   const idx = merged.findIndex(x => x.message_id === fm.message_id);
+                   if (idx === -1) { merged.push(fm); hasChange = true; }
+                   else if (merged[idx].status !== fm.status) { merged[idx] = fm; hasChange = true; }
+                });
+                if (hasChange || prev.length === 0) {
+                   return merged.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                }
+                return prev;
+            });
+            
+            // Cópia silenciosa pro DB (garante registro mesmo sem webhook)
+            validMsgs.forEach(m => createWhatsAppMessage({
+                lead_id: selectedContact.isLead ? selectedContact.leadId : null,
+                phone: selectedContact.phone,
+                message_id: m.messageId,
+                text_content: getMessageText(m),
+                from_me: m.fromMe,
+                sender_name: safeString(m.senderName),
+                timestamp: m.momment ? new Date(m.momment).toISOString() : new Date().toISOString(),
+                status: safeString(m.status) || 'recebido'
+            }).catch(() => {}));
+            return;
+         }
+      } catch (err) {} finally {
+         isFetching = false;
+      }
+
+      // Prioridade 2 (Fallback): Banco de Dados se Z-API der Timeout ou erro
+      const dbMsgs = await fetchWhatsAppMessages(selectedContact.phone).catch(() => []);
+      setMessages(prev => prev.length > 0 ? prev : (dbMsgs || []));
+    };
+
+    loadRealtimeMessages(); // primeira vez instantanea
+    const t = setInterval(loadRealtimeMessages, 5000); // 5s loop ultra-rápido para o chat da frente
+    return () => clearInterval(t);
+  }, [selectedContact, zapiConfig]);
 
   // SUPABASE REALTIME (Garante que se o webhook bater no banco, cai instantaneamente na tela)
   useEffect(() => {
