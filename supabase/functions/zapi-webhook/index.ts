@@ -28,7 +28,18 @@ serve(async (req) => {
     const phone = body.phone || body.senderPhone || "";
     const messageId = body.messageId || body.id || "";
     const fromMe = body.fromMe || false;
-    const textMsg = body.text?.message || body.message || "";
+    let textMsg = body.text?.message || body.message || "";
+    
+    // Tratativa para arquivos de mídia (Áudio, Imagem, Vídeo)
+    if (!textMsg) {
+       if (body.type === 'Image' || body.image) textMsg = "📷 Imagem recebida";
+       else if (body.type === 'Audio' || body.audio) textMsg = "🎤 Áudio recebido";
+       else if (body.type === 'Video' || body.video) textMsg = "🎥 Vídeo recebido";
+       else if (body.type === 'Document' || body.document) textMsg = "📄 Documento recebido";
+       else if (body.type === 'Sticker' || body.sticker) textMsg = "🖼️ Figurinha";
+       else textMsg = "Mensagem ou anexo"; // Fallback absoluto
+    }
+
     const senderName = body.senderName || "";
     const status = body.status || (fromMe ? "enviado" : "recebido");
     
@@ -40,12 +51,6 @@ serve(async (req) => {
     if (!phone || !messageId) {
        console.log("Missing phone or messageId, skipping...");
        return new Response(JSON.stringify({ ok: true, notice: "ignored" }), { headers:corsHeaders });
-    }
-
-    // Apenas mensagens de texto por hora (ou textuais)
-    if (!textMsg) {
-      console.log("Not a text message, skipping...");
-      return new Response(JSON.stringify({ ok: true, notice: "not text" }), { headers:corsHeaders });
     }
 
     // 1. Procurar o Lead pelo WhatsApp (com ou sem o "55")
