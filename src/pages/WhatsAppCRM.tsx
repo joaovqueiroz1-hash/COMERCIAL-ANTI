@@ -107,7 +107,7 @@ export default function WhatsAppCRM() {
            }
            if (a.lastMessageAt) return -1;
            if (b.lastMessageAt) return 1;
-           return a.name.localeCompare(b.name);
+           return (a.name || '').localeCompare(b.name || '');
         });
 
         setContacts(contactsList);
@@ -190,7 +190,7 @@ export default function WhatsAppCRM() {
   useEffect(() => {
     if (searchTerm) {
       setFilteredContacts(contacts.filter(c => 
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
         (c.phone && c.phone.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')))
       ));
     } else {
@@ -485,7 +485,7 @@ export default function WhatsAppCRM() {
                   <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold ${
                     selectedContact.isLead ? 'bg-primary/20 text-primary' : 'bg-red-500/20 text-red-400'
                   }`}>
-                    {selectedContact.name?.charAt(0).toUpperCase()}
+                    {(selectedContact.name || 'U').charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
