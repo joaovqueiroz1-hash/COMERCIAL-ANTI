@@ -180,6 +180,25 @@ export async function getMessages(
   return [];
 }
 
+export interface ZApiChat {
+  phone: string;
+  name: string;
+  unreadCount?: number;
+}
+
+export async function getChats(cfg: ZApiConfig, page = 1): Promise<ZApiChat[]> {
+  const result = await proxy<ZApiChat[] | { chats?: ZApiChat[] }>(
+    cfg,
+    'chats',
+    'GET',
+    undefined,
+    { page: String(page), pageSize: '20' },
+  );
+  if (Array.isArray(result)) return result;
+  if (result && 'chats' in result && Array.isArray(result.chats)) return result.chats;
+  return [];
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Normalize a Brazilian WhatsApp number to E.164 format (no +). */

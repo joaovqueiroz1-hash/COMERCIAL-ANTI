@@ -191,6 +191,18 @@ export async function fetchWhatsAppMessages(phone: string) {
   return data;
 }
 
+export async function fetchRecentWhatsAppContacts() {
+  // Pega as últimas 500 mensagens para extrair contatos recentes
+  const { data, error } = await supabase
+    .from('whatsapp_messages')
+    .select('phone, sender_name, timestamp')
+    .order('timestamp', { ascending: false })
+    .limit(500);
+    
+  if (error) throw error;
+  return data;
+}
+
 export async function createWhatsAppMessage(msg: WhatsAppMessageInsert) {
   const { data, error } = await supabase.from('whatsapp_messages').insert(msg).select().single();
   if (error) throw error;
