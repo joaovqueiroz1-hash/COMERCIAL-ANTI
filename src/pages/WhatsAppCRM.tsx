@@ -143,7 +143,8 @@ export default function WhatsAppCRM() {
            if (msgs && msgs.length > 0) {
               // Z-API retorna as mensagens ordenadas mais recentes primeiro por padrão
               // Vamos garantir a ordem cronológica para exibição
-              const validMsgs = msgs.filter(m => m.messageId && m.text?.message); // apenas textuais
+              const getMessageText = (m: any) => m.text?.message || m.message || '';
+              const validMsgs = msgs.filter(m => m.messageId && getMessageText(m)); // apenas textuais
               const sortedMsgs = validMsgs.sort((a,b) => (a.momment || 0) - (b.momment || 0));
               setMessages(sortedMsgs);
               
@@ -154,7 +155,7 @@ export default function WhatsAppCRM() {
                     lead_id: currentContact.isLead ? currentContact.leadId : null,
                     phone: currentContact.phone,
                     message_id: m.messageId,
-                    text_content: m.text!.message,
+                    text_content: getMessageText(m),
                     from_me: m.fromMe,
                     sender_name: safeString(m.senderName),
                     timestamp: m.momment ? new Date(m.momment).toISOString() : new Date().toISOString(),
@@ -193,6 +194,21 @@ export default function WhatsAppCRM() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Carregar as mensagens IMEDIATAMENTE ao clicar no contato (não esperar 8s)
+  useEffect(() => {
+    if (selectedContact && selectedContact.phone && zapiConfig) {
+      getMessages(zapiConfig, selectedContact.phone, 1).then(msgs => {
+        if (!msgs || !msgs.length) return;
+        const getMessageText = (m: any) => m.text?.message || m.message || '';
+        const validMsgs = msgs.filter(m => m.messageId && getMessageText(m));
+        const sortedMsgs = validMsgs.sort((a,b) => (a.momment || 0) - (b.momment || 0));
+        setMessages(sortedMsgs);
+      }).catch(() => {});
+    } else {
+      setMessages([]);
+    }
+  }, [selectedContact, zapiConfig]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !selectedContact || !selectedContact.phone || !zapiConfig) return;
@@ -393,7 +409,7 @@ export default function WhatsAppCRM() {
                       <div className={`max-w-[75%] rounded-lg p-2.5 shadow-sm relative text-sm ${
                         isMe ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
                       }`}>
-                        <div className="whitespace-pre-wrap break-words pr-8 pb-3">{msg.text?.message || ''}</div>
+                        <div className="whitespace-pre-wrap break-words pr-8 pb-3">{(msg.text?.message || (msg as any).message || '')}</div>
                         <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[10px] text-white/60">
                           {timeString}
                           {isMe && renderStatusIcon(msg.status)}
