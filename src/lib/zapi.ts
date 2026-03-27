@@ -169,10 +169,10 @@ export async function getMessages(
 ): Promise<ZApiMessage[]> {
   const result = await proxy<ZApiMessage[] | { messages?: ZApiMessage[] }>(
     cfg,
-    'messages',
+    `chat-messages/${phone}`,
     'GET',
     undefined,
-    { phone, page: String(page), pageSize: '50' },
+    { page: String(page), pageSize: '50' },
   );
   // Handle both array response and { messages: [...] } object response
   if (Array.isArray(result)) return result;
