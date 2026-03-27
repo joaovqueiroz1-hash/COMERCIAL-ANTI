@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { fetchLeads, fetchZApiConfigGlobally, createLead, createWhatsAppMessage } from "@/lib/api";
-import { Lead } from "@/lib/api";
-import { sendTextMessage, ZApiConfig, normalizePhone, getChats, getMessages, ZApiMessage, ZApiChat } from "@/lib/zapi";
+import { fetchLeads, fetchZApiConfigGlobally, createLead, createWhatsAppMessage, fetchWhatsAppMessages } from "@/lib/api";
+import { Lead, WhatsAppMessage } from "@/lib/api";
+import { sendTextMessage, ZApiConfig, normalizePhone, getChats, ZApiChat } from "@/lib/zapi";
 import { Loader2, Send, Search, Check, CheckCheck, Clock, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeWhatsAppKey, cleanWhatsAppNumber } from "@/lib/whatsapp-utils";
+import { supabase } from "@/integrations/supabase/client";
 
 // Helper super seguro para evitar qualquer bug de tela preta
 const safeString = (s: any) => (s || '').toString();
@@ -25,7 +26,7 @@ export default function WhatsAppCRM() {
   const [filteredContacts, setFilteredContacts] = useState<ChatContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<ChatContact | null>(null);
   
-  const [messages, setMessages] = useState<ZApiMessage[]>([]);
+  const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -60,17 +61,16 @@ export default function WhatsAppCRM() {
     init();
   }, []);
 
-  // Polling Master de Contatos (Barra Lateral) e Mensagens (Chat)
+  // Polling Master de Contatos (Barra Lateral apenas)
   useEffect(() => {
     if (!zapiConfig) return;
 
     let isSyncing = false;
 
-    const performSync = async () => {
+    const performSyncChats = async () => {
       if (isSyncing) return;
       isSyncing = true;
       try {
-        // 1. Carregar Chats Reais da Z-API e Leads do Banco
         const [remoteChats, leads] = await Promise.all([
           getChats(zapiConfig, 1).catch(() => [] as ZApiChat[]),
           fetchLeads().catch(() => [] as Lead[])
@@ -78,7 +78,7 @@ export default function WhatsAppCRM() {
 
         const mergedContacts = new Map<string, ChatContact>();
 
-        // Mapear Leads primeiro
+        // Mapear Leads
         leads.forEach(lead => {
           if (lead.whatsapp) {
             const cleanPhone = cleanWhatsAppNumber(lead.whatsapp);
@@ -96,23 +96,21 @@ export default function WhatsAppCRM() {
           }
         });
 
-        // Mapear Chats da Z-API (Sobrescrevendo ou Adicionando)
-        remoteChats.forEach(chat => {
+        // Mapear Chats da Z-API na ordem mais recente
+        remoteChats.forEach((chat, index) => {
           if (!chat.phone) return;
           const cleanPhone = cleanWhatsAppNumber(chat.phone);
           if (!cleanPhone || cleanPhone.length < 8) return;
 
-          // Se ja temos como Lead (as vezes o lead ta sem 55 no banco, vamos tentar buscar flexivel)
           const existingKey = Array.from(mergedContacts.keys()).find(k => 
              k === cleanPhone || k === '55' + cleanPhone || '55' + k === cleanPhone
           );
 
           if (existingKey) {
             const existing = mergedContacts.get(existingKey)!;
-            existing.lastMessageTime = Date.now(); // Simplificando, ele subiu no topo
-            // Vamos garantir que o nome seja o do Lead se existir
+            // Usamos um contador falso para o lastMessageTime apenas para ordenar os chats da z-api no topo
+            existing.lastMessageTime = Date.now() - index;
           } else {
-            // Novo Contato Desconhecido
             mergedContacts.set(cleanPhone, {
               id: cleanPhone,
               phone: chat.phone,
@@ -120,12 +118,11 @@ export default function WhatsAppCRM() {
               isLead: false,
               leadId: null,
               leadStatus: null,
-              lastMessageTime: Date.now() // topo da lista
+              lastMessageTime: Date.now() - index
             });
           }
         });
 
-        // Transforma o Map em array e ordena (recentes primeiro, depois os nomes)
         const sorted = Array.from(mergedContacts.values()).sort((a,b) => {
            if (a.lastMessageTime !== b.lastMessageTime) {
              return b.lastMessageTime - a.lastMessageTime;
@@ -134,36 +131,6 @@ export default function WhatsAppCRM() {
         });
 
         setContacts(sorted);
-
-        // 2. Se houver chat aberto, sincronizar as mensagens dele!
-        const currentContact = selectedContactRef.current;
-        if (currentContact && currentContact.phone) {
-           const msgs = await getMessages(zapiConfig, currentContact.phone, 1).catch(() => [] as ZApiMessage[]);
-           
-           if (msgs && msgs.length > 0) {
-              // Z-API retorna as mensagens ordenadas mais recentes primeiro por padrão
-              // Vamos garantir a ordem cronológica para exibição
-              const getMessageText = (m: any) => m.text?.message || m.message || '';
-              const validMsgs = msgs.filter(m => m.messageId && getMessageText(m)); // apenas textuais
-              const sortedMsgs = validMsgs.sort((a,b) => (a.momment || 0) - (b.momment || 0));
-              setMessages(sortedMsgs);
-              
-              // SALVAMENTO SILENCIOSO: enviamos p/ o Supabase para histórico global
-              // usando promessa sem await para não travar a UI
-              validMsgs.forEach(m => {
-                 createWhatsAppMessage({
-                    lead_id: currentContact.isLead ? currentContact.leadId : null,
-                    phone: currentContact.phone,
-                    message_id: m.messageId,
-                    text_content: getMessageText(m),
-                    from_me: m.fromMe,
-                    sender_name: safeString(m.senderName),
-                    timestamp: m.momment ? new Date(m.momment).toISOString() : new Date().toISOString(),
-                    status: safeString(m.status) || 'recebido'
-                 }).catch(() => {});
-              });
-           }
-        }
       } catch (err) {
         console.warn("Erro no sync master", err);
       } finally {
@@ -171,8 +138,8 @@ export default function WhatsAppCRM() {
       }
     };
 
-    performSync(); // Primeira passada
-    const t = setInterval(performSync, 8000); // Pollin frequente a cada 8s como um app real
+    performSyncChats(); // primeira passada
+    const t = setInterval(performSyncChats, 12000); // Poll a cada 12s para a barra lateral
     return () => clearInterval(t);
   }, [zapiConfig]);
 
@@ -195,20 +162,53 @@ export default function WhatsAppCRM() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Carregar as mensagens IMEDIATAMENTE ao clicar no contato (não esperar 8s)
+  // Carregar as mensagens do BANCO IMEDIATAMENTE ao clicar no contato
   useEffect(() => {
-    if (selectedContact && selectedContact.phone && zapiConfig) {
-      getMessages(zapiConfig, selectedContact.phone, 1).then(msgs => {
-        if (!msgs || !msgs.length) return;
-        const getMessageText = (m: any) => m.text?.message || m.message || '';
-        const validMsgs = msgs.filter(m => m.messageId && getMessageText(m));
-        const sortedMsgs = validMsgs.sort((a,b) => (a.momment || 0) - (b.momment || 0));
-        setMessages(sortedMsgs);
-      }).catch(() => {});
+    if (selectedContact && selectedContact.phone) {
+      fetchWhatsAppMessages(selectedContact.phone).then(msgs => {
+        setMessages(msgs || []);
+      }).catch(() => setMessages([]));
     } else {
       setMessages([]);
     }
-  }, [selectedContact, zapiConfig]);
+  }, [selectedContact]);
+
+  // SUPABASE REALTIME (Garante que se o webhook bater no banco, cai instantaneamente na tela)
+  useEffect(() => {
+    const channel = supabase.channel('global_crm_messages')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'whatsapp_messages' },
+        (payload) => {
+           const newMsg = (payload.new || payload.old) as WhatsAppMessage;
+           if (!newMsg || !newMsg.phone) return;
+
+           const currentContact = selectedContactRef.current;
+           if (!currentContact || !currentContact.phone) return;
+           
+           const cleanNew = cleanWhatsAppNumber(newMsg.phone);
+           const cleanCurrent = cleanWhatsAppNumber(currentContact.phone);
+
+           // Se a mensagem que chegou/editou for pro contato aberto, atualiza a tela
+           if (cleanNew === cleanCurrent || '55' + cleanNew === cleanCurrent || cleanNew === '55' + cleanCurrent) {
+              setMessages(prev => {
+                 const exists = prev.find(m => m.message_id === newMsg.message_id || m.id === newMsg.id);
+                 if (exists) {
+                    if (payload.event !== 'INSERT') {
+                       return prev.map(m => (m.message_id === newMsg.message_id) ? newMsg : m);
+                    }
+                    return prev; // já inserido pela ação de enviar
+                 }
+                 const updated = [...prev, newMsg];
+                 return updated.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+              });
+           }
+        }
+      ).subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleSend = async () => {
     if (!inputText.trim() || !selectedContact || !selectedContact.phone || !zapiConfig) return;
@@ -224,28 +224,31 @@ export default function WhatsAppCRM() {
         message: textMsg
       });
 
-      // Adicionar mensagem localmente antes do prox sync (Otimista)
-      const fakeMsg: ZApiMessage = {
-         messageId: res.messageId || `local-${Date.now()}`,
+      // Salva no banco (Vai disparar o realtime pra atualizar se quisermos, mas como fomos nós, faremos manual)
+      const fakeMsg: WhatsAppMessage = {
+         id: res.messageId || `local-${Date.now()}`,
+         lead_id: selectedContact.isLead ? selectedContact.leadId : null,
          phone: phone,
-         fromMe: true,
-         momment: Date.now(),
-         status: 'enviado',
-         text: { message: textMsg },
-         type: 'texto'
-      };
+         message_id: res.messageId || res.id || `local-${Date.now()}`,
+         text_content: textMsg,
+         from_me: true,
+         status: "enviado",
+         sender_name: "Você",
+         timestamp: new Date().toISOString(),
+         created_at: new Date().toISOString()
+      } as any;
       
       setMessages(prev => [...prev, fakeMsg]);
 
-      // Salva no banco tbm
+      // Cria a mensagem verdadeiramente no Supabase (se o webhook tbm escutar envio, ele atualiza pelo realtime dps)
       await createWhatsAppMessage({
         lead_id: selectedContact.isLead ? selectedContact.leadId : null,
         phone: phone,
-        message_id: fakeMsg.messageId,
+        message_id: fakeMsg.message_id,
         text_content: textMsg,
         from_me: true,
         status: "enviado",
-        timestamp: new Date().toISOString()
+        timestamp: fakeMsg.timestamp
       }).catch(e => console.warn("Supabase save fail", e));
 
     } catch (e: any) {
@@ -284,7 +287,7 @@ export default function WhatsAppCRM() {
 
   const renderStatusIcon = (status: string | null | undefined) => {
     const s = safeString(status).toLowerCase();
-    if (s === 'lida') return <CheckCheck size={12} className="text-blue-500" />;
+    if (s === 'lida' || s === 'read') return <CheckCheck size={12} className="text-blue-500" />;
     if (s === 'entregue' || s === 'received') return <CheckCheck size={12} className="text-muted-foreground" />;
     if (s === 'enviado' || s === 'sent') return <Check size={12} className="text-muted-foreground" />;
     return <Clock size={12} className="text-muted-foreground" />;
@@ -297,7 +300,7 @@ export default function WhatsAppCRM() {
   };
 
   return (
-    <AppLayout title="WhatsApp Realtime CRM" subtitle="CRM Funcional - Espelho exato das suas conversas">
+    <AppLayout title="WhatsApp Realtime CRM" subtitle="CRM Funcional - Integrado nativamente ao seu Banco de Dados">
       <div className="flex h-[calc(100vh-140px)] gap-4 px-4 pb-4 w-full max-w-[1400px] mx-auto">
         
         {/* Sidebar */}
@@ -399,17 +402,23 @@ export default function WhatsAppCRM() {
                    </div>
                 )}
                 
+                {messages.length === 0 && selectedContact.phone && (
+                   <div className="text-center p-3 bg-secondary/80 text-xs text-muted-foreground rounded-lg w-max mx-auto shadow-sm">
+                     Carregando histórico ou não há mensagens para exibir.
+                   </div>
+                )}
+                
                 {messages.map((msg, i) => {
-                  const isMe = msg.fromMe;
-                  const date = msg.momment ? new Date(msg.momment) : new Date();
+                  const isMe = msg.from_me;
+                  const date = msg.timestamp ? new Date(msg.timestamp) : new Date();
                   const timeString = isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                   
                   return (
-                    <div key={msg.messageId || `msg-${i}`} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div key={msg.id || msg.message_id || `msg-${i}`} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[75%] rounded-lg p-2.5 shadow-sm relative text-sm ${
                         isMe ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
                       }`}>
-                        <div className="whitespace-pre-wrap break-words pr-8 pb-3">{(msg.text?.message || (msg as any).message || '')}</div>
+                        <div className="whitespace-pre-wrap break-words pr-8 pb-3">{safeString(msg.text_content)}</div>
                         <div className="absolute bottom-1 right-2 flex items-center gap-1 text-[10px] text-white/60">
                           {timeString}
                           {isMe && renderStatusIcon(msg.status)}
