@@ -84,20 +84,42 @@ serve(async (req) => {
       leadId = leads[0].id;
     }
 
-    // 2. Inserir a Mensagem no Supabase
-    const { data: insertData, error: insertErr } = await supabaseClient
+    // 2. Verificar se a mensagem já existe (para atualizar status em vez de sobrescrever dados otimistas)
+    const { data: existingMsg } = await supabaseClient
       .from('whatsapp_messages')
-      .upsert({
-        message_id: messageId, // unique, se repetir, vai atualizar
-        lead_id: leadId,       // pode ser null se for mensagem desconhecida
-        phone: cleanPhone,
-        text_content: textMsg,
-        from_me: fromMe,
-        status: status,
-        sender_name: senderName,
-        timestamp: timestamp
-      }, { onConflict: 'message_id' })
-      .select();
+      .select('id, status')
+      .eq('message_id', messageId)
+      .maybeSingle();
+
+    let insertData, insertErr;
+
+    if (existingMsg) {
+       // Atualiza apenas status pra não sobrescrever coisas inseridas pelo CRM (como sender_name "Você")
+       const { data, error } = await supabaseClient
+         .from('whatsapp_messages')
+         .update({ status: status })
+         .eq('message_id', messageId)
+         .select();
+       insertData = data;
+       insertErr = error;
+    } else {
+       // Insere Mensagem nova
+       const { data, error } = await supabaseClient
+         .from('whatsapp_messages')
+         .insert({
+           message_id: messageId,
+           lead_id: leadId,
+           phone: cleanPhone,
+           text_content: textMsg,
+           from_me: fromMe,
+           status: status,
+           sender_name: senderName,
+           timestamp: timestamp
+         })
+         .select();
+       insertData = data;
+       insertErr = error;
+    }
 
     if (insertErr) {
       console.error("Erro ao inserir mensagem:", insertErr);

@@ -47,13 +47,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
             alt="LV"
             className="h-10 w-10 object-contain shrink-0"
           />
-          {/* Full wordmark */}
-          <div className="flex flex-col leading-tight">
-            <img
-              src={lvLogo}
-              alt="LV Business Club"
-              className="h-6 w-auto object-contain"
-            />
+          {/* Full wordmark / Texto */}
+          <div className="flex flex-col leading-tight justify-center">
+            <span className="text-sm font-bold text-foreground tracking-wide">
+              Business Club
+            </span>
             <span className="text-[9px] font-semibold tracking-[0.22em] uppercase text-muted-foreground mt-0.5">
               Mentoria High Ticket
             </span>
