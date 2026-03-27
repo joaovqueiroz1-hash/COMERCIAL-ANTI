@@ -402,11 +402,11 @@ export default function WhatsAppCRM() {
      }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getStatusIcon = (status: string | null | undefined) => {
+    switch ((status || '').toLowerCase()) {
       case 'entregue':
       case 'lida':
-        return <CheckCheck size={12} className={status.toLowerCase() === 'lida' ? "text-blue-500" : "text-muted-foreground"} />;
+        return <CheckCheck size={12} className={(status || '').toLowerCase() === 'lida' ? "text-blue-500" : "text-muted-foreground"} />;
       case 'enviado':
         return <Check size={12} className="text-muted-foreground" />;
       default:
@@ -458,7 +458,7 @@ export default function WhatsAppCRM() {
                           <span className="text-[10px] bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded border border-red-500/20 whitespace-nowrap">Desconhecido</span>
                        )}
                        {contact.isLead && contact.leadData?.status_pipeline && (
-                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded max-w-[30%] truncate">{contact.leadData.status_pipeline.replace('_',' ')}</span>
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded max-w-[30%] truncate">{(contact.leadData.status_pipeline || '').replace('_',' ')}</span>
                        )}
                     </div>
                     
