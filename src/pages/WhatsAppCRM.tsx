@@ -575,15 +575,41 @@ export default function WhatsAppCRM() {
                 </div>
                 
                 {/* Actions */}
-                {!selectedContact.isLead && selectedContact.phone && (
+                <div className="flex items-center gap-2 shrink-0">
                    <button 
-                     onClick={handleCreateLead}
-                     className="flex items-center gap-2 px-3 py-1.5 shrink-0 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                     onClick={async () => {
+                        const loadingToast = toast.loading("Buscando mensagens direto da Z-API...");
+                        try {
+                           const phoneToFetch = normalizePhone(selectedContact.phone);
+                           const msgs = await getMessages(zapiConfig!, phoneToFetch, 1);
+                           toast.dismiss(loadingToast);
+                           if (!msgs || msgs.length === 0) {
+                              toast.warning(`A Z-API retornou VAZIO para o número ${phoneToFetch}. Verifique se realmente há mensagens ou se a instância sincronizou.`);
+                           } else {
+                              toast.success(`Sucesso! Achamos ${msgs.length} mensagens na Z-API.`);
+                              // Força reload
+                              setSelectedContact({...selectedContact});
+                           }
+                        } catch (e: any) {
+                           toast.dismiss(loadingToast);
+                           toast.error("Z-API Erro NATIVO: " + e.message);
+                        }
+                     }}
+                     className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-secondary text-foreground rounded border border-border hover:bg-secondary/50 transition-colors"
                    >
-                     <UserPlus size={14} />
-                     <span className="hidden sm:inline">Tornar Lead</span>
+                     <Clock size={14} />
+                     <span className="hidden sm:inline">Sincronizar Originais</span>
                    </button>
-                )}
+                   {!selectedContact.isLead && selectedContact.phone && (
+                      <button 
+                        onClick={handleCreateLead}
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                      >
+                        <UserPlus size={14} />
+                        <span className="hidden sm:inline">Tornar Lead</span>
+                      </button>
+                   )}
+                </div>
               </div>
 
               {/* Messages Map */}

@@ -167,17 +167,32 @@ export async function getMessages(
   phone: string,
   page = 1,
 ): Promise<ZApiMessage[]> {
-  const result = await proxy<ZApiMessage[] | { messages?: ZApiMessage[] }>(
-    cfg,
-    `chat-messages/${phone}`,
-    'GET',
-    undefined,
-    { page: String(page), pageSize: '50' },
-  );
-  // Handle both array response and { messages: [...] } object response
-  if (Array.isArray(result)) return result;
-  if (result && 'messages' in result && Array.isArray(result.messages)) return result.messages;
-  return [];
+  try {
+    const result = await proxy<any>(
+      cfg,
+      `chat-messages/${phone}`,
+      'GET',
+      undefined,
+      { page: String(page), pageSize: '50' },
+    );
+    
+    // Fallbacks robustos para extrair array de mensagens de diferentes versões da Z-API
+    if (Array.isArray(result)) return result;
+    if (result && Array.isArray(result.messages)) return result.messages;
+    if (result && Array.isArray(result.data)) return result.data;
+    if (result && Array.isArray(result.chatMessages)) return result.chatMessages;
+    
+    // Se o resultado for um objeto com outras propriedades mas nós não sabemos qual é a array, procure a array.
+    if (result && typeof result === 'object') {
+       for (const key of Object.keys(result)) {
+          if (Array.isArray(result[key])) return result[key];
+       }
+    }
+    return [];
+  } catch (err) {
+    console.error("Z-API getMessages ERRO NATIVO:", err);
+    return [];
+  }
 }
 
 export interface ZApiChat {
