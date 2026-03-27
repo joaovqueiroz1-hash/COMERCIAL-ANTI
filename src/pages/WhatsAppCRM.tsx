@@ -237,16 +237,19 @@ export default function WhatsAppCRM() {
        try {
           const zMsgs = await getMessages(zapiConfig, selectedContact.phone, 1).catch(() => [] as ZApiMessage[]);
           if (zMsgs && zMsgs.length > 0) {
-             const formatted = zMsgs.filter(m => m.messageId).map(m => ({
-                 id: m.messageId,
-                 message_id: m.messageId,
-                 phone: selectedContact.phone,
-                 text_content: m.text?.message || (m as any).message || (m.type === 'Image' ? '📷 Imagem' : m.type === 'Audio' ? '🎤 Áudio' : 'Anexo'),
-                 from_me: m.fromMe,
-                 sender_name: safeString(m.senderName),
-                 timestamp: m.momment ? new Date(m.momment).toISOString() : new Date().toISOString(),
-                 status: safeString(m.status) || 'recebido'
-             })) as WhatsAppMessage[];
+             const formatted = zMsgs.map(m => {
+                 const mId = m.messageId || (m as any).id || (m as any).message_id || `msg-${Date.now()}-${Math.random()}`;
+                 return {
+                     id: mId,
+                     message_id: mId,
+                     phone: selectedContact.phone,
+                     text_content: m.text?.message || (m as any).message || (m.type === 'image' || m.type === 'Image' ? '📷 Imagem' : m.type === 'audio' || m.type === 'Audio' ? '🎤 Áudio' : m.type ? `📎 Arquivo (${m.type})` : 'Mensagem Indefinida'),
+                     from_me: !!m.fromMe,
+                     sender_name: safeString(m.senderName) || (m.fromMe ? 'Você' : selectedContact.name),
+                     timestamp: m.momment ? new Date(m.momment).toISOString() : new Date().toISOString(),
+                     status: safeString(m.status) || 'recebido'
+                 };
+             }) as WhatsAppMessage[];
              
              setMessages(prev => {
                 const merged = [...prev];
