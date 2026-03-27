@@ -235,8 +235,9 @@ export default function WhatsAppCRM() {
        if (isFetching) return;
        isFetching = true;
        try {
-          const phoneToFetch = normalizePhone(selectedContact.phone);
-          const zMsgs = await getMessages(zapiConfig, phoneToFetch, 1).catch((err) => {
+          // O chat-messages da Z-API EXIGE o id exato retornado no getChats (podendo conter @c.us etc),
+          // por isso não aplicamos o normalizePhone aqui, diferente do send-text que exige só números.
+          const zMsgs = await getMessages(zapiConfig, selectedContact.phone, 1).catch((err) => {
              console.error("Z-API getMessages ERRO:", err);
              return [] as ZApiMessage[];
           });
@@ -580,11 +581,12 @@ export default function WhatsAppCRM() {
                      onClick={async () => {
                         const loadingToast = toast.loading("Buscando mensagens direto da Z-API...");
                         try {
-                           const phoneToFetch = normalizePhone(selectedContact.phone);
+                           // A API exige o sufixo original do contato na hora de buscar mensagens
+                           const phoneToFetch = selectedContact.phone;
                            const msgs = await getMessages(zapiConfig!, phoneToFetch, 1);
                            toast.dismiss(loadingToast);
                            if (!msgs || msgs.length === 0) {
-                              toast.warning(`A Z-API retornou VAZIO para o número ${phoneToFetch}. Verifique se realmente há mensagens ou se a instância sincronizou.`);
+                              toast.warning(`A Z-API retornou VAZIO para o ID ${phoneToFetch}. Verifique se realmente há mensagens ou se a instância sincronizou.`);
                            } else {
                               toast.success(`Sucesso! Achamos ${msgs.length} mensagens na Z-API.`);
                               // Força reload
