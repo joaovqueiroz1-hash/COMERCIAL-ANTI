@@ -1,11 +1,8 @@
 /**
  * Z-API Integration — LV Business Club CRM
  *
- * All requests go through the Supabase Edge Function "zapi-proxy" to avoid
- * browser CORS restrictions when calling api.z-api.io directly.
- *
- * Credentials are stored in localStorage (never sent to our own servers,
- * only forwarded by the proxy to Z-API on each call).
+ * Tenta acesso direto ao Z-API primeiro (CORS liberado nas versões modernas).
+ * Se bloqueado por CORS, usa a Edge Function "zapi-proxy" como fallback.
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -16,8 +13,7 @@ export interface ZApiConfig {
   clientToken: string;
 }
 
-
-// ── Internal proxy caller ────────────────────────────────────────────────────
+// ── Proxy interno ─────────────────────────────────────────────────────────────
 
 interface ProxyResponse<T> {
   ok: boolean;
@@ -33,7 +29,7 @@ async function proxy<T>(
   body?: unknown,
   queryParams?: Record<string, string>,
 ): Promise<T> {
-  // PRIMEIRA TENTATIVA: Acesso direto do navegador (Funciona na Z-API moderna com CORS liberado)
+  // TENTATIVA 1: Acesso direto (Z-API moderno libera CORS)
   try {
     let url = `https://api.z-api.io/instances/${cfg.instanceId.trim()}/token/${cfg.token.trim()}/${path}`;
     if (queryParams && Object.keys(queryParams).length > 0) {
@@ -41,37 +37,33 @@ async function proxy<T>(
     }
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const ct = cfg.clientToken?.trim();
-    if (ct && ct !== cfg.token.trim()) {
-      headers['Client-Token'] = ct;
-    }
-    
-    // Teste de chamada direta
-    const res = await fetch(url, { 
-      method, 
-      headers, 
-      body: method !== 'GET' && body ? JSON.stringify(body) : undefined 
+    if (ct && ct !== cfg.token.trim()) headers['Client-Token'] = ct;
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: method !== 'GET' && body ? JSON.stringify(body) : undefined,
     });
-    
+
     const text = await res.text();
     let data: any;
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    
+
     if (!res.ok) {
       const s = res.status;
-      // Erros legítimos da API Z-API
-      if (s === 400) throw new Error('Credenciais inválidas ou requisição mal formatada (400). Verifique Instance ID e Token.');
-      if (s === 401) throw new Error('Não autorizado (401). O Token está incorreto.');
-      if (s === 404) throw new Error('Instância ou rota não encontrada (404). Verifique o Instance ID.');
+      if (s === 400) throw new Error('Credenciais inválidas (400). Verifique Instance ID e Token.');
+      if (s === 401) throw new Error('Não autorizado (401). Token incorreto.');
+      if (s === 404) throw new Error('Instância não encontrada (404). Verifique o Instance ID.');
       throw new Error(`Erro Z-API ${s}: ${JSON.stringify(data)}`);
     }
     return data;
   } catch (err: any) {
-    // Se o erro foi um dos nossos (400, 401, 404 jogados acima), não faça fallback para o Supabase, pois a credencial de fato está errada!
+    // Erros definitivos de credencial: não fazer fallback
     if (err.message.includes('(400)') || err.message.includes('(401)') || err.message.includes('(404)')) {
       throw err;
     }
-    
-    // SEGUNDA TENTATIVA: CORS bloqueou o acesso direto, tenta via Edge Function do Supabase (Proxy)
+
+    // TENTATIVA 2: Via Edge Function Supabase (contorna CORS)
     const { data: result, error: fnError } = await supabase.functions.invoke<ProxyResponse<T>>(
       'zapi-proxy',
       {
@@ -88,50 +80,47 @@ async function proxy<T>(
     );
 
     if (fnError) {
-      // Se a função não foi publicada (o usuário não rodou deploy), e a primeira tentativa também falhou:
-      if (fnError.message.includes('Function not found') || fnError.message.includes('not found') || fnError.message.includes('404')) {
-        throw new Error(`As credenciais falharam no teste direto e o Proxy de retaguarda não está ativado no Supabase (Edge Functions ausentes). Certifique-se de que os dados estão 100% corretos ou publique as funções.`);
+      if (fnError.message.includes('Function not found') || fnError.message.includes('404')) {
+        throw new Error('Proxy Supabase não encontrado. Certifique-se de ter feito deploy das Edge Functions.');
       }
-      throw new Error(`Falha no proxy de segurança: ${fnError.message}`);
+      throw new Error(`Falha no proxy: ${fnError.message}`);
     }
-    
-    if (!result) throw new Error('Resposta vazia do servidor proxy de segurança.');
-    
+
+    if (!result) throw new Error('Resposta vazia do proxy.');
+
     if (!result.ok) {
       const s = result.status;
-      if (s === 400) throw new Error('Credenciais inválidas (400) via Proxy. Verifique Instance ID e Token.');
-      if (s === 401) throw new Error('Não autorizado (401) via Proxy. O Token está incorreto.');
-      if (s === 404) throw new Error('Instância não encontrada (404) via Proxy. Verifique o Instance ID.');
-      throw new Error(`Erro desconhecido via Proxy Z-API (Status ${s})`);
+      if (s === 400) throw new Error('Credenciais inválidas (400) via Proxy.');
+      if (s === 401) throw new Error('Não autorizado (401) via Proxy.');
+      if (s === 404) throw new Error('Instância não encontrada (404) via Proxy.');
+      throw new Error(`Erro Z-API via Proxy (${s})`);
     }
-    
+
     return result.data;
   }
 }
 
-// ── Status ───────────────────────────────────────────────────────────────────
+// ── Status ────────────────────────────────────────────────────────────────────
 
 export interface ZApiStatus {
   connected: boolean;
   session?: string;
   smartphoneConnected?: boolean;
-  // Z-API may also return { value: true } in some versions
   value?: boolean;
 }
 
 export async function getZApiStatus(cfg: ZApiConfig): Promise<ZApiStatus> {
   const data = await proxy<ZApiStatus>(cfg, 'status');
-  // Normalise: some versions return { value: true } instead of { connected: true }
   if (typeof data.connected === 'undefined' && typeof data.value !== 'undefined') {
     data.connected = data.value;
   }
   return data;
 }
 
-// ── Send text message ────────────────────────────────────────────────────────
+// ── Enviar mensagem de texto ──────────────────────────────────────────────────
 
 export interface SendTextPayload {
-  phone: string;   // E.164 without +, e.g. "5511999999999"
+  phone: string;
   message: string;
 }
 
@@ -148,7 +137,7 @@ export async function sendTextMessage(
   return proxy<SendTextResult>(cfg, 'send-text', 'POST', payload);
 }
 
-// ── Get messages for a phone number ──────────────────────────────────────────
+// ── Buscar mensagens de um contato ────────────────────────────────────────────
 
 export interface ZApiMessage {
   messageId: string;
@@ -167,14 +156,15 @@ export async function getMessages(
   phone: string,
   page = 1,
 ): Promise<ZApiMessage[]> {
+  // Normaliza o telefone: remove sufixos (@s.whatsapp.net etc.) e deixa só dígitos
+  const cleanPhone = phone.replace(/@[^@]+$/, '').replace(/\D/g, '');
   const result = await proxy<ZApiMessage[] | { messages?: ZApiMessage[] }>(
     cfg,
-    `chat-messages/${phone}`,
+    `chat-messages/${cleanPhone}`,
     'GET',
     undefined,
     { page: String(page), pageSize: '50' },
   );
-  // Handle both array response and { messages: [...] } object response
   if (Array.isArray(result)) return result;
   if (result && 'messages' in result && Array.isArray(result.messages)) return result.messages;
   return [];
@@ -199,9 +189,9 @@ export async function getChats(cfg: ZApiConfig, page = 1): Promise<ZApiChat[]> {
   return [];
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Normalize a Brazilian WhatsApp number to E.164 format (no +). */
+/** Normaliza número brasileiro para formato E.164 sem '+' */
 export function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   if (digits.startsWith('55') && digits.length >= 12) return digits;
