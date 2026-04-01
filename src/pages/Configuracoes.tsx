@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { normalizeWhatsAppKey } from '@/lib/whatsapp-utils';
 import { supabase } from '@/integrations/supabase/client';
 
+
 function parseBool(val: any): boolean {
   if (typeof val === 'boolean') return val;
   if (typeof val === 'number') return val === 1;
@@ -254,14 +255,13 @@ export default function Configuracoes() {
         validLeads.push(lead);
       }
 
-      // Insert in batches of 50 via Edge Function (bypasses RLS)
+      // Insert in batches of 50 directly via Supabase client
       const BATCH_SIZE = 50;
       for (let i = 0; i < validLeads.length; i += BATCH_SIZE) {
         const batch = validLeads.slice(i, i + BATCH_SIZE);
         try {
-          const res = await supabase.functions.invoke('import-leads', { body: { leads: batch } });
-          if (res.error) throw new Error(res.error.message);
-          if (res.data?.error) throw new Error(res.data.error);
+          const { error } = await supabase.from('leads').insert(batch);
+          if (error) throw new Error(error.message);
           success += batch.length;
         } catch (err: any) {
           errors += batch.length;
