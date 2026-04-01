@@ -52,23 +52,47 @@ export default function Equipe() {
     }
     setCreating(true);
     try {
+      // Try Edge Function first (admin API — requires function deployed in Supabase)
       const res = await supabase.functions.invoke('create-user', {
         body: { email, password, nome, perfil },
       });
 
-      if (res.error || res.data?.error) {
-        toast({ title: 'Erro ao criar usuário', description: res.data?.error || res.error?.message, variant: 'destructive' });
-      } else {
+      const fnError = res.error || res.data?.error;
+
+      if (!fnError) {
+        // Edge Function succeeded
         toast({ title: 'Usuário criado com sucesso!' });
         queryClient.invalidateQueries({ queryKey: ['profiles'] });
         setOpen(false);
-        setNome('');
-        setEmail('');
-        setPassword('');
-        setPerfil('vendedor');
+        setNome(''); setEmail(''); setPassword(''); setPerfil('vendedor');
+      } else {
+        // Fallback: create via signUp (works without Edge Function)
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { nome, perfil } },
+        });
+
+        if (signUpError) throw new Error(signUpError.message);
+
+        // Upsert profile manually in case trigger didn't fire
+        if (signUpData.user) {
+          await supabase.from('profiles').upsert({
+            id: signUpData.user.id,
+            nome,
+            email,
+            perfil,
+            ativo: true,
+          });
+        }
+
+        toast({ title: 'Usuário criado com sucesso!', description: 'Peça ao usuário para confirmar o e-mail se necessário.' });
+        queryClient.invalidateQueries({ queryKey: ['profiles'] });
+        setOpen(false);
+        setNome(''); setEmail(''); setPassword(''); setPerfil('vendedor');
       }
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao criar usuário', description: err.message, variant: 'destructive' });
     }
     setCreating(false);
   };

@@ -43,7 +43,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
           <img
             src={lvLogo}
             alt="LV Business Club"
-            className="w-36 h-auto object-contain"
+            className="w-24 h-auto object-contain"
           />
         </div>
         {/* Mobile close */}
