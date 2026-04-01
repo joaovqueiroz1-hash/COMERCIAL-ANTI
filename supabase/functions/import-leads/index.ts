@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify the caller is an admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -21,51 +20,32 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Check caller is admin
-    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    // Verify caller is authenticated
+    const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) {
+    const { data: { user } } = await callerClient.auth.getUser();
+    if (!user) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check admin role
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: roleData } = await adminClient
-      .from("profiles")
-      .select("perfil")
-      .eq("id", caller.id)
-      .single();
-
-    if (!roleData || roleData.perfil !== "admin") {
-      return new Response(JSON.stringify({ error: "Apenas admins podem criar usuários" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { email, password, nome, perfil } = await req.json();
-
-    if (!email || !password || !nome || !perfil) {
-      return new Response(JSON.stringify({ error: "Campos obrigatórios: email, password, nome, perfil" }), {
+    const { leads } = await req.json();
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return new Response(JSON.stringify({ error: "Nenhum lead enviado" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create user with admin API
-    const { data, error } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { nome, perfil },
-    });
+    // Use service role to bypass RLS
+    const adminClient = createClient(supabaseUrl, serviceKey);
+    const { error } = await adminClient.from("leads").insert(leads);
 
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
@@ -74,7 +54,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ user: data.user }), {
+    return new Response(JSON.stringify({ inserted: leads.length }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

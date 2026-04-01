@@ -5,10 +5,11 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Ban, Copy
 import { getZApiStatus, ZApiConfig } from '@/lib/zapi';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { createLeadsBatch, fetchLeads, fetchZApiConfigGlobally, upsertZApiConfigGlobally, deleteZApiConfigGlobally } from '@/lib/api';
+import { fetchLeads, fetchZApiConfigGlobally, upsertZApiConfigGlobally, deleteZApiConfigGlobally } from '@/lib/api';
 import type { LeadInsert } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeWhatsAppKey } from '@/lib/whatsapp-utils';
+import { supabase } from '@/integrations/supabase/client';
 
 function parseBool(val: any): boolean {
   if (typeof val === 'boolean') return val;
@@ -22,6 +23,11 @@ function parseNumber(val: any): number {
   if (!val) return 0;
   const n = Number(String(val).replace(/[^\d.,\-]/g, '').replace(',', '.'));
   return isNaN(n) ? 0 : n;
+}
+
+function parseFuncionarios(val: any): number {
+  const n = parseNumber(val);
+  return Math.min(100000, Math.max(0, Math.floor(n)));
 }
 
 function stripAccents(s: string): string {
@@ -74,7 +80,7 @@ function mapRowToLead(row: Record<string, any>): LeadInsert | null {
     estado: row['estado'] ? String(row['estado']).trim() : null,
     eh_empresario: row['empresario'] != null ? parseBool(row['empresario']) : false,
     instagram_empresa: row['instagram'] ? String(row['instagram']).trim() : null,
-    quantidade_funcionarios: parseNumber(row['funcionarios'] || 0),
+    quantidade_funcionarios: parseFuncionarios(row['funcionarios'] || 0),
     maior_dor: row['maior_dor'] ? String(row['maior_dor']).trim() : null,
     faturamento_anual: parseNumber(row['faturamento'] || 0),
     capacidade_investimento: row['capacidade_investimento'] != null ? parseBool(row['capacidade_investimento']) : false,
@@ -248,12 +254,14 @@ export default function Configuracoes() {
         validLeads.push(lead);
       }
 
-      // Insert in batches of 50
+      // Insert in batches of 50 via Edge Function (bypasses RLS)
       const BATCH_SIZE = 50;
       for (let i = 0; i < validLeads.length; i += BATCH_SIZE) {
         const batch = validLeads.slice(i, i + BATCH_SIZE);
         try {
-          await createLeadsBatch(batch);
+          const res = await supabase.functions.invoke('import-leads', { body: { leads: batch } });
+          if (res.error) throw new Error(res.error.message);
+          if (res.data?.error) throw new Error(res.data.error);
           success += batch.length;
         } catch (err: any) {
           errors += batch.length;
