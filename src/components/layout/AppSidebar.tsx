@@ -6,7 +6,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials } from '@/lib/types';
 import lvLogo from '@/assets/Logo-LV-Branco.png';
-import lvIcon from '@/assets/LV-Icon-Branco.png';
 
 const navItems = [
   { to: '/dashboard',    label: 'Dashboard',      icon: LayoutDashboard },
@@ -39,28 +38,18 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       style={{ background: 'hsl(224, 24%, 5%)' }}
     >
       {/* ── Logo ── */}
-      <div className="px-5 pt-5 pb-4 border-b border-border/40">
-        <div className="flex items-center gap-3">
-          {/* Icon mark */}
+      <div className="px-4 pt-6 pb-5 border-b border-border/40 relative">
+        <div className="flex items-center justify-center">
           <img
-            src={lvIcon}
-            alt="LV"
-            className="h-10 w-10 object-contain shrink-0"
+            src={lvLogo}
+            alt="LV Business Club"
+            className="w-36 h-auto object-contain"
           />
-          {/* Full wordmark / Texto */}
-          <div className="flex flex-col leading-tight justify-center">
-            <span className="text-sm font-bold text-foreground tracking-wide">
-              Business Club
-            </span>
-            <span className="text-[9px] font-semibold tracking-[0.22em] uppercase text-muted-foreground mt-0.5">
-              Mentoria High Ticket
-            </span>
-          </div>
         </div>
         {/* Mobile close */}
         <button
           onClick={onClose}
-          className="md:hidden absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+          className="md:hidden absolute top-3 right-3 text-muted-foreground hover:text-foreground"
         >
           <X size={16} />
         </button>

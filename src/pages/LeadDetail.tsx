@@ -65,13 +65,17 @@ export default function LeadDetail() {
   const tipoLabel: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'Ligação', reuniao: 'Reunião', email: 'E-mail' };
 
   const statusColor: Record<string, string> = {
-    novo_lead: 'bg-info/20 text-info',
-    contato_instagram: 'bg-pink-500/20 text-pink-400',
-    contato_whatsapp: 'bg-emerald-500/20 text-emerald-400',
-    tentativa_contato: 'bg-muted text-muted-foreground',
-    contato_realizado: 'bg-warning/20 text-warning', reuniao_agendada: 'bg-primary/20 text-primary',
-    reuniao_realizada: 'bg-primary/20 text-primary', followup: 'bg-warning/20 text-warning',
-    negociacao: 'bg-info/20 text-info', fechado: 'bg-success/20 text-success', perdido: 'bg-danger/20 text-danger',
+    novo_lead:          'bg-white/10 text-white/60',
+    contato_instagram:  'bg-white/10 text-white/60',
+    contato_whatsapp:   'bg-white/10 text-white/60',
+    tentativa_contato:  'bg-white/5 text-white/40',
+    contato_realizado:  'bg-white/10 text-white/50',
+    reuniao_agendada:   'bg-white/15 text-white/80',
+    reuniao_realizada:  'bg-white/15 text-white/80',
+    followup:           'bg-white/10 text-white/70',
+    negociacao:         'bg-white/20 text-white/90',
+    fechado:            'bg-white/25 text-white',
+    perdido:            'bg-white/5 text-white/30',
   };
 
   const whatsappValidation = validateWhatsApp(lead.whatsapp);

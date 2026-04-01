@@ -86,25 +86,24 @@ export interface PipelineLog {
   alterado_em: string;
 }
 
-export const PIPELINE_COLUMNS: { key: PipelineStatus; label: string; color: string; icon?: string }[] = [
-  { key: 'novo_lead',          label: 'Novo Lead',            color: 'hsl(213, 94%, 68%)' },
-  { key: 'contato_instagram',  label: 'Contato Instagram',    color: 'hsl(329, 70%, 58%)', icon: 'instagram' },
-  { key: 'contato_whatsapp',   label: 'Contato WhatsApp',     color: 'hsl(142, 70%, 45%)', icon: 'whatsapp' },
-  { key: 'tentativa_contato',  label: 'Tentativa de Contato', color: 'hsl(0, 0%, 60%)' },
-  { key: 'contato_realizado',  label: 'Contato Realizado',    color: 'hsl(27, 96%, 61%)' },
-  { key: 'reuniao_agendada',   label: 'Reunião Agendada',     color: 'hsl(46, 65%, 52%)' },
-  { key: 'reuniao_realizada',  label: 'Reunião Realizada',    color: 'hsl(46, 65%, 52%)' },
-  { key: 'followup',           label: 'Follow-up',            color: 'hsl(27, 96%, 61%)' },
-  { key: 'negociacao',         label: 'Negociação',           color: 'hsl(213, 94%, 68%)' },
-  { key: 'fechado',            label: 'Fechado ✅',           color: 'hsl(142, 69%, 58%)' },
-  { key: 'perdido',            label: 'Perdido ❌',           color: 'hsl(0, 68%, 62%)' },
+export const PIPELINE_COLUMNS: { key: PipelineStatus; label: string; color: string }[] = [
+  { key: 'novo_lead',         label: 'Novo Lead',        color: 'hsl(0,0%,60%)' },
+  { key: 'contato_instagram', label: 'Contato Instagram', color: 'hsl(0,0%,68%)' },
+  { key: 'contato_whatsapp',  label: 'Contato WhatsApp',  color: 'hsl(0,0%,64%)' },
+  { key: 'tentativa_contato', label: 'Sem Resposta',      color: 'hsl(0,0%,42%)' },
+  { key: 'reuniao_agendada',  label: 'Reunião Agendada',  color: 'hsl(0,0%,76%)' },
+  { key: 'reuniao_realizada', label: 'Reunião Realizada', color: 'hsl(0,0%,82%)' },
+  { key: 'followup',          label: 'Follow-up',         color: 'hsl(0,0%,70%)' },
+  { key: 'negociacao',        label: 'Negociação',        color: 'hsl(0,0%,86%)' },
+  { key: 'fechado',           label: 'Fechado',           color: 'hsl(0,0%,92%)' },
+  { key: 'perdido',           label: 'Perdido',           color: 'hsl(0,0%,28%)' },
 ];
 
 export const STATUS_LABELS: Record<PipelineStatus, string> = {
   novo_lead: 'Novo Lead',
   contato_instagram: 'Contato Instagram',
   contato_whatsapp: 'Contato WhatsApp',
-  tentativa_contato: 'Tentativa de Contato',
+  tentativa_contato: 'Sem Resposta',
   contato_realizado: 'Contato Realizado',
   reuniao_agendada: 'Reunião Agendada',
   reuniao_realizada: 'Reunião Realizada',

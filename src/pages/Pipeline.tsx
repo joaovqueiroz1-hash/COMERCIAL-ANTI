@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DndContext, DragEndEvent, DragOverlay, DragOverEvent, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Flame, Clock, Plus, Search, Instagram, MessageCircle } from 'lucide-react';
+import { Flame, Clock, Plus, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
@@ -170,20 +170,12 @@ export default function Pipeline() {
           {PIPELINE_COLUMNS.map((col) => {
             const columnLeads = filteredLeads.filter(l => l.status_pipeline === col.key);
             const borderTop =
-              col.key === 'fechado'            ? 'border-t-2 border-t-success' :
-              col.key === 'perdido'            ? 'border-t-2 border-t-destructive' :
-              col.key === 'contato_instagram'  ? 'border-t-2 border-t-pink-500' :
-              col.key === 'contato_whatsapp'   ? 'border-t-2 border-t-emerald-500' : '';
+              col.key === 'fechado' ? 'border-t-2 border-t-white/50' :
+              col.key === 'perdido' ? 'border-t-2 border-t-white/15' : '';
             return (
               <DroppableColumn key={col.key} id={col.key} className={`min-w-[220px] w-[220px] shrink-0 card-premium flex flex-col ${borderTop}`}>
                 <div className="p-3 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {col.key === 'contato_instagram' && (
-                      <Instagram size={13} className="text-pink-400 shrink-0" />
-                    )}
-                    {col.key === 'contato_whatsapp' && (
-                      <MessageCircle size={13} className="text-emerald-400 shrink-0" />
-                    )}
                     <span className="text-xs font-semibold text-foreground">{col.label}</span>
                     <span className="text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">{columnLeads.length}</span>
                   </div>
