@@ -27,7 +27,7 @@ function parseFaturamento(raw: string): number {
   return isNaN(num) ? 0 : num;
 }
 
-const statuses: PipelineStatus[] = ['novo_lead', 'tentativa_contato', 'contato_realizado', 'reuniao_agendada', 'reuniao_realizada', 'followup', 'negociacao', 'fechado', 'perdido'];
+const statuses: PipelineStatus[] = ['novo_lead', 'contato_instagram', 'contato_whatsapp', 'tentativa_contato', 'contato_realizado', 'reuniao_agendada', 'reuniao_realizada', 'followup', 'negociacao', 'fechado', 'perdido'];
 
 function assignStatus(i: number): PipelineStatus {
   const distribution: PipelineStatus[] = [

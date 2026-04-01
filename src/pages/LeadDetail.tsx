@@ -65,7 +65,10 @@ export default function LeadDetail() {
   const tipoLabel: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'Ligação', reuniao: 'Reunião', email: 'E-mail' };
 
   const statusColor: Record<string, string> = {
-    novo_lead: 'bg-info/20 text-info', tentativa_contato: 'bg-muted text-muted-foreground',
+    novo_lead: 'bg-info/20 text-info',
+    contato_instagram: 'bg-pink-500/20 text-pink-400',
+    contato_whatsapp: 'bg-emerald-500/20 text-emerald-400',
+    tentativa_contato: 'bg-muted text-muted-foreground',
     contato_realizado: 'bg-warning/20 text-warning', reuniao_agendada: 'bg-primary/20 text-primary',
     reuniao_realizada: 'bg-primary/20 text-primary', followup: 'bg-warning/20 text-warning',
     negociacao: 'bg-info/20 text-info', fechado: 'bg-success/20 text-success', perdido: 'bg-danger/20 text-danger',

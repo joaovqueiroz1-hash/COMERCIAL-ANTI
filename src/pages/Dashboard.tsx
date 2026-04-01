@@ -33,7 +33,7 @@ export default function Dashboard() {
 
   // --- Metrics ---
   const leadsNovos = leads.filter((l) => l.status_pipeline === 'novo_lead').length;
-  const emContato = leads.filter((l) => ['tentativa_contato', 'contato_realizado'].includes(l.status_pipeline)).length;
+  const emContato = leads.filter((l) => ['contato_instagram', 'contato_whatsapp', 'tentativa_contato', 'contato_realizado'].includes(l.status_pipeline)).length;
   const reunioesAgendadas = leads.filter((l) => l.status_pipeline === 'reuniao_agendada').length;
   const fechados = leads.filter((l) => l.status_pipeline === 'fechado');
   const receitaFechada = fechados.reduce((sum, l) => sum + (l.faturamento_anual || 0), 0);
@@ -119,10 +119,17 @@ export default function Dashboard() {
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
-      novo_lead: 'bg-info/20 text-info', tentativa_contato: 'bg-muted text-muted-foreground',
-      contato_realizado: 'bg-warning/20 text-warning', reuniao_agendada: 'bg-primary/20 text-primary',
-      reuniao_realizada: 'bg-primary/20 text-primary', followup: 'bg-warning/20 text-warning',
-      negociacao: 'bg-info/20 text-info', fechado: 'bg-success/20 text-success', perdido: 'bg-destructive/20 text-destructive',
+      novo_lead: 'bg-info/20 text-info',
+      contato_instagram: 'bg-pink-500/20 text-pink-400',
+      contato_whatsapp: 'bg-emerald-500/20 text-emerald-400',
+      tentativa_contato: 'bg-muted text-muted-foreground',
+      contato_realizado: 'bg-warning/20 text-warning',
+      reuniao_agendada: 'bg-primary/20 text-primary',
+      reuniao_realizada: 'bg-primary/20 text-primary',
+      followup: 'bg-warning/20 text-warning',
+      negociacao: 'bg-info/20 text-info',
+      fechado: 'bg-success/20 text-success',
+      perdido: 'bg-destructive/20 text-destructive',
     };
     return map[s] || 'bg-muted text-muted-foreground';
   };

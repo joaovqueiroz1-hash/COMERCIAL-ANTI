@@ -10,13 +10,13 @@ import lvIcon from '@/assets/LV-Icon-Branco.png';
 
 const navItems = [
   { to: '/dashboard',    label: 'Dashboard',      icon: LayoutDashboard },
-  { to: '/whatsapp-crm', label: 'WhatsApp CRM',   icon: MessageSquare, badge: 'NOVO' },
   { to: '/pipeline',     label: 'Pipeline',        icon: Kanban },
   { to: '/leads',        label: 'Leads',           icon: Users },
   { to: '/agenda',       label: 'Agenda',          icon: Calendar },
   { to: '/relatorios',   label: 'Relatórios',      icon: BarChart3 },
   { to: '/equipe',       label: 'Equipe',          icon: UsersRound },
   { to: '/configuracoes',label: 'Configurações',   icon: Settings },
+  { to: '/whatsapp-crm', label: 'CRM',             icon: MessageSquare, badge: 'V2', comingSoon: true },
 ];
 
 const perfilLabels: Record<string, string> = {
@@ -77,13 +77,16 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto pb-2">
         {navItems.map((item) => {
           const isActive = location.pathname.startsWith(item.to);
+          const cs = (item as any).comingSoon;
           return (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative group ${
-                isActive
+                cs
+                  ? 'text-muted-foreground/40 cursor-default pointer-events-none'
+                  : isActive
                   ? 'sidebar-item-active text-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'
               }`}
@@ -91,16 +94,24 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
               <item.icon
                 size={17}
                 className={`shrink-0 transition-colors ${
-                  isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground/70'
+                  cs
+                    ? 'text-muted-foreground/30'
+                    : isActive
+                    ? 'text-primary'
+                    : 'text-muted-foreground group-hover:text-foreground/70'
                 }`}
               />
               <span className="flex-1 truncate">{item.label}</span>
-              {item.badge && (
-                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full gold-gradient text-primary-foreground tracking-widest shrink-0">
-                  {item.badge}
+              {(item as any).badge && (
+                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full tracking-widest shrink-0 ${
+                  cs
+                    ? 'bg-muted-foreground/20 text-muted-foreground/50'
+                    : 'gold-gradient text-primary-foreground'
+                }`}>
+                  {(item as any).badge}
                 </span>
               )}
-              {isActive && (
+              {isActive && !cs && (
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-l-full" />
               )}
             </NavLink>

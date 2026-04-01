@@ -93,7 +93,7 @@ export interface Database {
     Functions: { [_ in never]: never }
     Enums: {
       app_role: 'admin' | 'gestor' | 'vendedor'
-      pipeline_status: 'novo_lead' | 'tentativa_contato' | 'contato_realizado' | 'reuniao_agendada' | 'reuniao_realizada' | 'followup' | 'negociacao' | 'fechado' | 'perdido'
+      pipeline_status: 'novo_lead' | 'contato_instagram' | 'contato_whatsapp' | 'tentativa_contato' | 'contato_realizado' | 'reuniao_agendada' | 'reuniao_realizada' | 'followup' | 'negociacao' | 'fechado' | 'perdido'
       prioridade_type: 'alta' | 'media' | 'baixa'
       tipo_interacao: 'whatsapp' | 'ligacao' | 'reuniao' | 'email'
       interesse_type: 'baixo' | 'medio' | 'alto'
