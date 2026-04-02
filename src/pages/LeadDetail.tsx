@@ -4,11 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { fetchLead, fetchInteracoes, fetchProximasAcoes, fetchProfiles, deleteLead } from '@/lib/api';
 import { formatCurrency, getInitials, STATUS_LABELS, PipelineStatus } from '@/lib/types';
-import { ArrowLeft, Flame, MessageCircle, Phone, Video, Mail, Star, AlertTriangle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Flame, MessageCircle, Phone, Video, Mail, Star, AlertTriangle, Trash2, Instagram, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Skeleton } from '@/components/ui/skeleton';
-import { validateWhatsApp } from '@/lib/whatsapp-utils';
+import { validateWhatsApp, cleanWhatsAppNumber } from '@/lib/whatsapp-utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { InteractionForm } from '@/components/InteractionForm';
 import { ActionForm } from '@/components/ActionForm';
@@ -96,6 +96,14 @@ export default function LeadDetail() {
   const whatsappValidation = validateWhatsApp(lead.whatsapp);
   const emailWarning = lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email) ? 'Formato de e-mail inválido' : null;
 
+  const waLink = (raw: string) => {
+    const c = cleanWhatsAppNumber(raw);
+    const num = c.startsWith('55') && c.length >= 12 ? c : `55${c}`;
+    return `https://wa.me/${num}`;
+  };
+  const instaLink = (handle: string) =>
+    `https://instagram.com/${handle.replace('@', '')}`.replace('//', '/');
+
   return (
     <AppLayout title={lead.nome_completo} subtitle={lead.nome_empresa || undefined}
       actions={
@@ -173,10 +181,28 @@ export default function LeadDetail() {
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">WhatsApp</p>
-                <div className="flex items-center flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm text-foreground">{lead.whatsapp || '—'}</p>
                   {lead.whatsapp && whatsappValidation.warning && (
                     <DataFieldWarning warning={whatsappValidation.warning} />
+                  )}
+                  {lead.whatsapp && (
+                    <a href={waLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-[#25D366]/15 text-[#25D366] hover:bg-[#25D366]/30 transition-colors">
+                      <MessageCircle size={10} /> Abrir
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Instagram</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm text-foreground">{lead.instagram_empresa || '—'}</p>
+                  {lead.instagram_empresa && (
+                    <a href={instaLink(lead.instagram_empresa)} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-purple-500/15 text-purple-400 hover:bg-purple-500/30 transition-colors">
+                      <Instagram size={10} /> Abrir
+                    </a>
                   )}
                 </div>
               </div>

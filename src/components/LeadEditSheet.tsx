@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail } from 'lucide-react';
+import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram } from 'lucide-react';
 import { updateLead, fetchInteracoes, fetchProximasAcoes, Lead } from '@/lib/api';
 import { STATUS_LABELS, PipelineStatus, formatCurrency } from '@/lib/types';
-import { validateWhatsApp } from '@/lib/whatsapp-utils';
+import { validateWhatsApp, cleanWhatsAppNumber } from '@/lib/whatsapp-utils';
 import { toast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -170,7 +170,17 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                   </FieldBlock>
                   <FieldBlock label="WhatsApp" editing={editing} warning={form.whatsapp && whatsappVal.warning ? whatsappVal.warning : undefined}>
                     {editing ? <Input value={form.whatsapp || ''} onChange={e => setField('whatsapp', e.target.value)} className="h-8 text-xs bg-secondary border-border" />
-                      : <p className="text-sm text-foreground">{form.whatsapp || '—'}</p>}
+                      : (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-foreground">{form.whatsapp || '—'}</p>
+                          {form.whatsapp && (() => { const c = cleanWhatsAppNumber(form.whatsapp); const num = c.startsWith('55') && c.length >= 12 ? c : `55${c}`; return (
+                            <a href={`https://wa.me/${num}`} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[#25D366]/15 text-[#25D366] hover:bg-[#25D366]/30 transition-colors">
+                              <MessageCircle size={10} /> Abrir
+                            </a>
+                          ); })()}
+                        </div>
+                      )}
                   </FieldBlock>
                   <FieldBlock label="E-mail" editing={editing}>
                     {editing ? <Input value={form.email || ''} onChange={e => setField('email', e.target.value)} className="h-8 text-xs bg-secondary border-border" />
@@ -186,7 +196,17 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                   </FieldBlock>
                   <FieldBlock label="Instagram" editing={editing}>
                     {editing ? <Input value={form.instagram_empresa || ''} onChange={e => setField('instagram_empresa', e.target.value)} className="h-8 text-xs bg-secondary border-border" />
-                      : <p className="text-sm text-foreground">{form.instagram_empresa || '—'}</p>}
+                      : (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-foreground">{form.instagram_empresa || '—'}</p>
+                          {form.instagram_empresa && (
+                            <a href={`https://instagram.com/${form.instagram_empresa.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 hover:bg-purple-500/30 transition-colors">
+                              <Instagram size={10} /> Abrir
+                            </a>
+                          )}
+                        </div>
+                      )}
                   </FieldBlock>
                   <FieldBlock label="Origem" editing={editing}>
                     {editing ? <Input value={form.origem || ''} onChange={e => setField('origem', e.target.value)} className="h-8 text-xs bg-secondary border-border" />
@@ -280,11 +300,13 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                     ) : <p className="text-sm text-foreground">{form.capacidade_investimento ? 'Sim' : 'Não'}</p>}
                   </FieldBlock>
                   <FieldBlock label="Faturamento Anual" editing={editing}>
-                    {editing ? <Input type="number" value={form.faturamento_anual || 0} onChange={e => setField('faturamento_anual', Number(e.target.value))} className="h-8 text-xs bg-secondary border-border" />
+                    {editing
+                      ? <FaturamentoInput key={`fat-${lead?.id}`} value={form.faturamento_anual || 0} onChange={v => setField('faturamento_anual', v)} />
                       : <p className="text-sm text-primary font-medium">{formatCurrency(form.faturamento_anual || 0)}</p>}
                   </FieldBlock>
                   <FieldBlock label="Valor Acordado" editing={editing}>
-                    {editing ? <Input type="number" value={form.valor_acordado || ''} onChange={e => setField('valor_acordado', e.target.value ? Number(e.target.value) : null)} className="h-8 text-xs bg-secondary border-border" placeholder="0" />
+                    {editing
+                      ? <FaturamentoInput key={`val-${lead?.id}`} value={form.valor_acordado || 0} onChange={v => setField('valor_acordado', v > 0 ? v : null)} />
                       : <p className="text-sm font-semibold text-foreground">{form.valor_acordado ? formatCurrency(form.valor_acordado) : '—'}</p>}
                   </FieldBlock>
                   <FieldBlock label="Funcionários" editing={editing}>
@@ -413,6 +435,52 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
         </>
       )}
     </>
+  );
+}
+
+function FaturamentoInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const initUnit = (): 'K' | 'MM' => value >= 500_000 ? 'MM' : 'K';
+  const initDisplay = (u: 'K' | 'MM') => {
+    if (!value) return '';
+    const raw = u === 'MM' ? value / 1_000_000 : value / 1_000;
+    return String(parseFloat(raw.toFixed(3)));
+  };
+  const [unit, setUnit] = useState<'K' | 'MM'>(initUnit);
+  const [display, setDisplay] = useState<string>(() => initDisplay(initUnit()));
+
+  const commit = (v: string, u: 'K' | 'MM') => {
+    const num = parseFloat(v.replace(',', '.')) || 0;
+    onChange(u === 'K' ? Math.round(num * 1_000) : Math.round(num * 1_000_000));
+  };
+
+  const switchUnit = (u: 'K' | 'MM') => {
+    setUnit(u);
+    commit(display, u);
+  };
+
+  return (
+    <div className="flex gap-0">
+      <Input
+        type="number"
+        value={display}
+        onChange={e => { setDisplay(e.target.value); commit(e.target.value, unit); }}
+        className="h-8 text-xs bg-secondary border-border rounded-r-none flex-1 min-w-0"
+        placeholder="0"
+        step="0.1"
+      />
+      {(['K', 'MM'] as const).map((u, i) => (
+        <button
+          key={u}
+          type="button"
+          onClick={() => switchUnit(u)}
+          className={`px-2.5 h-8 text-xs border-y border-r border-border shrink-0 transition-colors
+            ${i === 1 ? 'rounded-r' : ''}
+            ${unit === u ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}
+        >
+          {u}
+        </button>
+      ))}
+    </div>
   );
 }
 
