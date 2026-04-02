@@ -212,38 +212,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Alerts ── */}
-      {(leadsSemContato48h.length > 0 || followupsVencidos.length > 0 || reunioesHoje.length > 0 || leadsQuentesList.length > 0) && (
-        <>
-          <SectionLabel icon={<Zap size={13} />} text="Alertas Operacionais" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-            {leadsSemContato48h.length > 0 && (
-              <AlertCard type="critical" icon={<AlertTriangle size={15} />}
-                title={`${leadsSemContato48h.length} leads sem contato há +48h`}
-                description={leadsSemContato48h.slice(0, 3).map((l) => l.nome_completo).join(', ')}
-                action={() => navigate('/leads')} />
-            )}
-            {followupsVencidos.length > 0 && (
-              <AlertCard type="warning" icon={<Clock size={15} />}
-                title={`${followupsVencidos.length} follow-ups vencidos`}
-                description="Leads aguardando retorno urgente"
-                action={() => navigate('/agenda')} />
-            )}
-            {reunioesHoje.length > 0 && (
-              <AlertCard type="info" icon={<CalendarCheck size={15} />}
-                title={`${reunioesHoje.length} reuniões hoje`}
-                description="Verifique a agenda do dia"
-                action={() => navigate('/agenda')} />
-            )}
-            {leadsQuentesList.length > 0 && (
-              <AlertCard type="hot" icon={<Flame size={15} />}
-                title={`${leadsQuentesList.length} leads quentes sem reunião`}
-                description={leadsQuentesList.slice(0, 3).map((l) => l.nome_completo).join(', ')}
-                action={() => navigate('/leads')} />
-            )}
-          </div>
-        </>
-      )}
 
       {/* ── Team Performance ── */}
       {teamData.length > 0 && (
@@ -428,24 +396,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ── Dores + Pipeline preview ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {doresData.length > 0 && (
-          <div className="card-premium p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Principais Dores dos Leads</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={doresData} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" width={110} tick={{ fill: 'hsl(45,15%,60%)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="value" fill="hsl(0,0%,55%)" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Pipeline snapshot */}
-        <div className="card-premium p-4 sm:p-5">
+      {/* ── Pipeline snapshot — full width ── */}
+      <div className="card-premium p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-foreground">Pipeline — Snapshot</h3>
             <button onClick={() => navigate('/pipeline')} className="text-[11px] text-primary hover:underline flex items-center gap-1">
@@ -473,7 +425,6 @@ export default function Dashboard() {
             })}
           </div>
         </div>
-      </div>
     </AppLayout>
   );
 }

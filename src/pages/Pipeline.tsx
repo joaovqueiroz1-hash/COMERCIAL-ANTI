@@ -39,16 +39,21 @@ function LeadCard({ lead, profiles, onClick, cardNumber }: { lead: Lead; profile
       <p className="text-xs text-muted-foreground truncate mb-2">{lead.nome_empresa || '—'}</p>
       <div className="flex flex-wrap gap-1 mb-2">
         {(lead.faturamento_anual || 0) > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/60 font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
         )}
+        {lead.instagram_empresa && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/50 font-medium truncate max-w-[90px]">{lead.instagram_empresa}</span>
+        )}
+        {(lead.tags || []).map((tag) => (
+          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/55 font-medium">{tag}</span>
+        ))}
         {isOverdue && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium animate-pulse flex items-center gap-0.5">
             <Clock size={8} /> {daysSinceContact}d
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between">
-        <div className={`h-1 flex-1 rounded-full mr-2 ${lead.prioridade === 'alta' ? 'bg-destructive' : lead.prioridade === 'media' ? 'bg-warning' : 'bg-muted-foreground/30'}`} />
+      <div className="flex items-center justify-end">
         <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[9px] font-bold text-muted-foreground">
           {vendedor ? vendedor.nome.charAt(0) : '?'}
         </div>

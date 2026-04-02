@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { fetchLeads, fetchProfiles, createLead, Lead, LeadInsert } from '@/lib/api';
@@ -17,7 +18,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { LeadEditSheet } from '@/components/LeadEditSheet';
 
 export default function Leads() {
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+
+  useEffect(() => {
+    const s = searchParams.get('search');
+    if (s) setSearch(s);
+  }, [searchParams]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [prioridadeFilter, setPrioridadeFilter] = useState<string>('all');

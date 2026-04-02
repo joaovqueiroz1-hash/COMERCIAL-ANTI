@@ -1,6 +1,7 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useRef } from 'react';
 import { Bell, Search, Menu, PanelLeftClose } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
 
 interface TopbarProps {
   title: string;
@@ -12,6 +13,28 @@ interface TopbarProps {
 
 export function Topbar({ title, subtitle, actions, onMenuClick, sidebarOpen }: TopbarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSearchToggle = () => {
+    setSearchOpen((v) => {
+      if (!v) setTimeout(() => inputRef.current?.focus(), 50);
+      return !v;
+    });
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      navigate(`/leads?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+    if (e.key === 'Escape') {
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <header className="h-16 border-b border-border bg-bg-secondary flex items-center justify-between px-4 md:px-6 shrink-0">
@@ -24,31 +47,36 @@ export function Topbar({ title, subtitle, actions, onMenuClick, sidebarOpen }: T
         </button>
         <div>
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          {subtitle && (
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
-          )}
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
 
       <div className="flex items-center gap-3">
         {/* Search */}
-        <div className={`transition-all ${searchOpen ? 'w-64' : 'w-0'} overflow-hidden`}>
+        <div className={`transition-all duration-200 ${searchOpen ? 'w-56' : 'w-0'} overflow-hidden`}>
           <Input
-            placeholder="Buscar lead, empresa, telefone..."
-            className="h-9 bg-bg-tertiary border-border text-sm"
+            ref={inputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Buscar lead... (Enter)"
+            className="h-9 bg-secondary border-border text-sm"
           />
         </div>
         <button
-          onClick={() => setSearchOpen(!searchOpen)}
-          className="text-muted-foreground hover:text-foreground transition-colors"
+          onClick={handleSearchToggle}
+          className={`transition-colors ${searchOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          title="Buscar (Enter para ir)"
         >
           <Search size={18} />
         </button>
 
-        {/* Notifications */}
-        <button className="relative text-muted-foreground hover:text-foreground transition-colors">
+        {/* Notifications — placeholder, sem dot até ter sistema de notif */}
+        <button
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          title="Notificações (em breve)"
+        >
           <Bell size={18} />
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-danger rounded-full" />
         </button>
 
         {/* Actions */}

@@ -283,6 +283,10 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                     {editing ? <Input type="number" value={form.faturamento_anual || 0} onChange={e => setField('faturamento_anual', Number(e.target.value))} className="h-8 text-xs bg-secondary border-border" />
                       : <p className="text-sm text-primary font-medium">{formatCurrency(form.faturamento_anual || 0)}</p>}
                   </FieldBlock>
+                  <FieldBlock label="Valor Acordado" editing={editing}>
+                    {editing ? <Input type="number" value={form.valor_acordado || ''} onChange={e => setField('valor_acordado', e.target.value ? Number(e.target.value) : null)} className="h-8 text-xs bg-secondary border-border" placeholder="0" />
+                      : <p className="text-sm font-semibold text-foreground">{form.valor_acordado ? formatCurrency(form.valor_acordado) : '—'}</p>}
+                  </FieldBlock>
                   <FieldBlock label="Funcionários" editing={editing}>
                     {editing ? <Input type="number" value={form.quantidade_funcionarios || 0} onChange={e => setField('quantidade_funcionarios', Number(e.target.value))} className="h-8 text-xs bg-secondary border-border" />
                       : <p className="text-sm text-foreground">{form.quantidade_funcionarios || 0}</p>}

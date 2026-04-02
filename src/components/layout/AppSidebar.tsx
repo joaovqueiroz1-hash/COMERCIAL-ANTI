@@ -35,7 +35,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   return (
     <div
       className="w-[230px] h-full flex flex-col select-none"
-      style={{ background: 'hsl(224, 24%, 5%)' }}
+      style={{ background: '#1a1a1a' }}
     >
       {/* ── Logo ── */}
       <div className="px-4 pt-6 pb-5 border-b border-border/40 relative">

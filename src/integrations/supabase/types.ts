@@ -25,6 +25,7 @@ export interface Database {
           quantidade_funcionarios: number | null
           maior_dor: string | null
           faturamento_anual: number | null
+          valor_acordado: number | null
           capacidade_investimento: boolean | null
           observacoes_iniciais: string | null
           status_pipeline: string

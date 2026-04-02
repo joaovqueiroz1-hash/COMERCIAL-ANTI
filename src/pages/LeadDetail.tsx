@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchLead, fetchInteracoes, fetchProximasAcoes, fetchProfiles } from '@/lib/api';
+import { fetchLead, fetchInteracoes, fetchProximasAcoes, fetchProfiles, deleteLead } from '@/lib/api';
 import { formatCurrency, getInitials, STATUS_LABELS, PipelineStatus } from '@/lib/types';
-import { ArrowLeft, Flame, MessageCircle, Phone, Video, Mail, Star, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Flame, MessageCircle, Phone, Video, Mail, Star, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { InteractionForm } from '@/components/InteractionForm';
 import { ActionForm } from '@/components/ActionForm';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 function DataFieldWarning({ warning }: { warning: string }) {
   return (
@@ -33,14 +34,28 @@ function DataFieldWarning({ warning }: { warning: string }) {
 export default function LeadDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const queryClient = useQueryClient();
   const [showInteraction, setShowInteraction] = useState(false);
   const [showAction, setShowAction] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: lead, isLoading } = useQuery({ queryKey: ['lead', id], queryFn: () => fetchLead(id!), enabled: !!id });
   const { data: interacoes = [] } = useQuery({ queryKey: ['interacoes', id], queryFn: () => fetchInteracoes(id!), enabled: !!id });
   const { data: acoes = [] } = useQuery({ queryKey: ['proximas_acoes', id], queryFn: () => fetchProximasAcoes(id!), enabled: !!id });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteLead(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast({ title: 'Lead excluído' });
+      navigate('/leads');
+    },
+    onError: (e: any) => toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' }),
+  });
+
+  const isAdmin = profile?.perfil === 'admin';
 
   if (isLoading) {
     return <AppLayout title="Carregando..."><Skeleton className="h-40 card-premium" /></AppLayout>;
@@ -84,11 +99,29 @@ export default function LeadDetail() {
   return (
     <AppLayout title={lead.nome_completo} subtitle={lead.nome_empresa || undefined}
       actions={
-        <Button variant="outline" onClick={() => navigate('/leads')} className="border-border text-muted-foreground h-9 text-xs sm:text-sm">
-          <ArrowLeft size={14} className="mr-1 sm:mr-2" />
-          <span className="hidden sm:inline">Voltar</span>
-          <span className="sm:hidden">←</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && !confirmDelete && (
+            <Button variant="ghost" onClick={() => setConfirmDelete(true)} className="text-destructive hover:bg-destructive/10 h-9 text-xs px-3">
+              <Trash2 size={14} className="mr-1" /> Excluir
+            </Button>
+          )}
+          {isAdmin && confirmDelete && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-destructive">Confirmar?</span>
+              <Button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} className="bg-destructive text-white h-8 text-xs px-3">
+                Sim, excluir
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirmDelete(false)} className="h-8 text-xs px-2">
+                Cancelar
+              </Button>
+            </div>
+          )}
+          <Button variant="outline" onClick={() => navigate('/leads')} className="border-border text-muted-foreground h-9 text-xs sm:text-sm">
+            <ArrowLeft size={14} className="mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Voltar</span>
+            <span className="sm:hidden">←</span>
+          </Button>
+        </div>
       }>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Left column */}
@@ -163,6 +196,12 @@ export default function LeadDetail() {
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Origem</p>
                 <p className="text-sm text-foreground">{lead.origem || '—'}</p>
               </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Valor Acordado</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {(lead as any).valor_acordado ? formatCurrency((lead as any).valor_acordado) : '—'}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -187,7 +226,7 @@ export default function LeadDetail() {
                     <div className={`w-2 h-2 rounded-full shrink-0 ${a.concluida ? 'bg-muted-foreground' : 'bg-primary'}`} />
                     <span className="text-xs text-primary shrink-0">{new Date(a.data_hora).toLocaleDateString('pt-BR')}</span>
                     <span className={`text-xs flex-1 truncate ${a.concluida ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{a.titulo}</span>
-                    {a.tipo && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{a.tipo}</span>}
+                    {a.tipo && <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/60">{tipoLabel[a.tipo] || a.tipo}</span>}
                   </div>
                 ))}
               </div>
