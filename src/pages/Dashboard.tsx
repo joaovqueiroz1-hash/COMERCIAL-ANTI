@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchLeads, fetchProfiles, fetchProximasAcoes } from '@/lib/api';
+import { fetchLeads, fetchProfiles, fetchProximasAcoes, updateLead } from '@/lib/api';
 import { formatCurrency, isLeadQuente, STATUS_LABELS, PipelineStatus, PIPELINE_COLUMNS } from '@/lib/types';
 import {
   TrendingUp, AlertTriangle, Clock, CalendarCheck, Flame, Users,
@@ -15,11 +15,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const now = new Date();
 
   const { data: leads = [], isLoading: leadsLoading } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
   const { data: acoes = [] } = useQuery({ queryKey: ['proximas_acoes'], queryFn: () => fetchProximasAcoes() });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => updateLead(id, { status_pipeline: status as any }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
+  });
 
   if (leadsLoading) {
     return (
@@ -37,6 +43,9 @@ export default function Dashboard() {
   const reunioesAgendadas = leads.filter((l) => l.status_pipeline === 'reuniao_agendada').length;
   const fechados = leads.filter((l) => l.status_pipeline === 'fechado');
   const receitaFechada = fechados.reduce((sum, l) => sum + (l.faturamento_anual || 0), 0);
+  const valorAcordadoTotal = leads
+    .filter((l) => ['fechado', 'negociacao'].includes(l.status_pipeline) && (l as any).valor_acordado)
+    .reduce((sum, l) => sum + ((l as any).valor_acordado || 0), 0);
   const totalAtivos = leads.filter((l) => l.status_pipeline !== 'perdido').length;
   const taxaConversao = totalAtivos > 0 ? ((fechados.length / totalAtivos) * 100).toFixed(1) : '0';
   const potencialTotal = leads
@@ -170,14 +179,14 @@ export default function Dashboard() {
           label="Em Negociação"
           value={emNegociacao}
           icon={<Activity size={18} />}
-          sub={`${emContato} em contato`}
+          sub={`${fechados.length} fechados`}
           color="info"
         />
         <KpiCard
           label="Taxa de Conversão"
           value={`${taxaConversao}%`}
           icon={<TrendingUp size={18} />}
-          sub={`${fechados.length} fechados`}
+          sub={`${emNegociacao} neg. · ${fechados.length} fechados`}
           color="success"
         />
       </div>
@@ -186,11 +195,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         <div className="card-glow p-4 sm:p-5 flex flex-col gap-1">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Receita Fechada</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Valor Acordado</span>
             <DollarSign size={16} className="text-primary" />
           </div>
-          <p className="text-2xl sm:text-3xl font-bold gold-gradient-text">{formatCurrency(receitaFechada)}</p>
-          <p className="text-[11px] text-muted-foreground">{fechados.length} contratos fechados</p>
+          <p className="text-2xl sm:text-3xl font-bold gold-gradient-text">{formatCurrency(valorAcordadoTotal)}</p>
+          <p className="text-[11px] text-muted-foreground">{fechados.length} fechados · {emNegociacao} em negociação</p>
         </div>
         <div className="card-premium p-4 sm:p-5 flex flex-col gap-1">
           <div className="flex items-center justify-between mb-1">
@@ -291,9 +300,28 @@ export default function Dashboard() {
                   <span className="text-xs text-primary font-semibold shrink-0 hidden sm:inline">
                     {formatCurrency(lead.faturamento_anual || 0)}
                   </span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 hidden md:inline ${statusColor(lead.status_pipeline)}`}>
-                    {STATUS_LABELS[lead.status_pipeline as PipelineStatus]}
-                  </span>
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {lead.status_pipeline !== 'negociacao' && (
+                      <button
+                        onClick={() => statusMutation.mutate({ id: lead.id, status: 'negociacao' })}
+                        disabled={statusMutation.isPending}
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-white/8 text-white/50 hover:bg-white/15 hover:text-white/80 transition-colors"
+                        title="Mover para Negociação"
+                      >
+                        Neg.
+                      </button>
+                    )}
+                    {lead.status_pipeline !== 'fechado' && (
+                      <button
+                        onClick={() => statusMutation.mutate({ id: lead.id, status: 'fechado' })}
+                        disabled={statusMutation.isPending}
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-white/8 text-white/50 hover:bg-primary/20 hover:text-primary transition-colors"
+                        title="Marcar como Fechado"
+                      >
+                        Fechado
+                      </button>
+                    )}
+                  </div>
                   <ChevronRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground transition-colors shrink-0" />
                 </div>
               ))}

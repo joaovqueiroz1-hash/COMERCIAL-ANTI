@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { UserPlus, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
+import { UserPlus, ToggleLeft, ToggleRight, Loader2, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +27,22 @@ export default function Equipe() {
   const [creating, setCreating] = useState(false);
 
   const isAdmin = profile?.perfil === 'admin';
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setDeleteConfirmId(null);
+      toast({ title: 'Usuário removido da equipe.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao remover usuário', description: err.message, variant: 'destructive' });
+    },
+  });
 
   const perfilLabels: Record<string, string> = { admin: 'Admin Master', gestor: 'Gestora Comercial', vendedor: 'Vendedor(a)' };
   const perfilColors: Record<string, string> = { admin: 'bg-primary/20 text-primary', gestor: 'bg-info/20 text-info', vendedor: 'bg-success/20 text-success' };
@@ -135,19 +151,46 @@ export default function Equipe() {
                   </span>
                 </div>
                 {isAdmin && (
-                  <button
-                    onClick={() => toggleAtivoMutation.mutate({ id: user.id, ativo: !user.ativo })}
-                    disabled={isToggling}
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-                    title={user.ativo ? 'Desativar usuário' : 'Ativar usuário'}
-                  >
-                    {isToggling
-                      ? <Loader2 size={20} className="animate-spin" />
-                      : user.ativo
-                        ? <ToggleRight size={20} className="text-success" />
-                        : <ToggleLeft size={20} />
-                    }
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleAtivoMutation.mutate({ id: user.id, ativo: !user.ativo })}
+                      disabled={isToggling}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      title={user.ativo ? 'Desativar usuário' : 'Ativar usuário'}
+                    >
+                      {isToggling
+                        ? <Loader2 size={20} className="animate-spin" />
+                        : user.ativo
+                          ? <ToggleRight size={20} className="text-success" />
+                          : <ToggleLeft size={20} />
+                      }
+                    </button>
+                    {deleteConfirmId === user.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => deleteUserMutation.mutate(user.id)}
+                          disabled={deleteUserMutation.isPending}
+                          className="text-[10px] px-2 py-0.5 rounded bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors"
+                        >
+                          {deleteUserMutation.isPending ? '...' : 'Confirmar'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="text-[10px] text-muted-foreground hover:text-foreground"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(user.id)}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        title="Remover usuário"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-border">
