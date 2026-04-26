@@ -12,10 +12,21 @@ type Profile = Database['public']['Tables']['profiles']['Row'];
 type PipelineLog = Database['public']['Tables']['pipeline_logs']['Row'];
 type NotaCRM = Database['public']['Tables']['notas_crm']['Row'];
 type NotaCRMInsert = Database['public']['Tables']['notas_crm']['Insert'];
+type Material = Database['public']['Tables']['materiais']['Row'];
+type MaterialInsert = Database['public']['Tables']['materiais']['Insert'];
+type MaterialUpdate = Database['public']['Tables']['materiais']['Update'];
 
-export type { Lead, LeadInsert, LeadUpdate, Interacao, InteracaoInsert, ProximaAcao, ProximaAcaoInsert, Profile, PipelineLog, NotaCRM, NotaCRMInsert };
+export type {
+  Lead, LeadInsert, LeadUpdate,
+  Interacao, InteracaoInsert,
+  ProximaAcao, ProximaAcaoInsert,
+  Profile, PipelineLog,
+  NotaCRM, NotaCRMInsert,
+  Material, MaterialInsert, MaterialUpdate,
+};
 
-// LEADS
+// ── LEADS ────────────────────────────────────────────────────────────────────
+
 export async function fetchLeads() {
   const { data, error } = await supabase
     .from('leads')
@@ -58,7 +69,8 @@ export async function deleteLead(id: string) {
   if (error) throw error;
 }
 
-// INTERAÇÕES
+// ── INTERAÇÕES ────────────────────────────────────────────────────────────────
+
 export async function fetchInteracoes(leadId: string) {
   const { data, error } = await supabase
     .from('interacoes')
@@ -75,7 +87,8 @@ export async function createInteracao(interacao: InteracaoInsert) {
   return data;
 }
 
-// PRÓXIMAS AÇÕES
+// ── PRÓXIMAS AÇÕES ────────────────────────────────────────────────────────────
+
 export async function fetchProximasAcoes(leadId?: string) {
   let query = supabase.from('proximas_acoes').select('*').order('data_hora', { ascending: true });
   if (leadId) query = query.eq('lead_id', leadId);
@@ -96,14 +109,16 @@ export async function updateProximaAcao(id: string, updates: Partial<ProximaAcao
   return data;
 }
 
-// PROFILES
+// ── PROFILES ──────────────────────────────────────────────────────────────────
+
 export async function fetchProfiles() {
   const { data, error } = await supabase.from('profiles').select('*').order('nome');
   if (error) throw error;
   return data;
 }
 
-// PIPELINE LOGS
+// ── PIPELINE LOGS ─────────────────────────────────────────────────────────────
+
 export async function createPipelineLog(log: { lead_id: string; status_anterior: string | null; status_novo: string; alterado_por: string }) {
   const { error } = await supabase.from('pipeline_logs').insert({
     lead_id: log.lead_id,
@@ -124,7 +139,8 @@ export async function fetchPipelineLogs(leadId: string) {
   return data;
 }
 
-// NOTAS CRM
+// ── NOTAS CRM ─────────────────────────────────────────────────────────────────
+
 export async function fetchNotasCRM(leadId: string) {
   const { data, error } = await supabase
     .from('notas_crm')
@@ -146,7 +162,8 @@ export async function deleteNotaCRM(id: string) {
   if (error) throw error;
 }
 
-// Z-API CONFIG (Supabase)
+// ── Z-API CONFIG ──────────────────────────────────────────────────────────────
+
 export type ZApiConfigRow = Database['public']['Tables']['zapi_config']['Row'];
 export type ZApiConfigInsert = Database['public']['Tables']['zapi_config']['Insert'];
 
@@ -174,7 +191,8 @@ export async function deleteZApiConfigGlobally() {
   if (error) throw error;
 }
 
-// WHATSAPP MESSAGES (Realtime CRM)
+// ── WHATSAPP MESSAGES ─────────────────────────────────────────────────────────
+
 export type WhatsAppMessage = Database['public']['Tables']['whatsapp_messages']['Row'];
 export type WhatsAppMessageInsert = Database['public']['Tables']['whatsapp_messages']['Insert'];
 
@@ -186,19 +204,16 @@ export async function fetchWhatsAppMessages(phone: string) {
     .or(`phone.ilike.%${cleanPhone}%,phone.ilike.%${cleanPhone.startsWith('55') ? cleanPhone.substring(2) : cleanPhone}%`)
     .order('timestamp', { ascending: true })
     .limit(200);
-    
   if (error) throw error;
   return data;
 }
 
 export async function fetchRecentWhatsAppContacts() {
-  // Pega as últimas 500 mensagens para extrair contatos recentes
   const { data, error } = await supabase
     .from('whatsapp_messages')
     .select('phone, sender_name, timestamp')
     .order('timestamp', { ascending: false })
     .limit(500);
-    
   if (error) throw error;
   return data;
 }
@@ -209,39 +224,48 @@ export async function createWhatsAppMessage(msg: WhatsAppMessageInsert) {
   return data;
 }
 
-// ==========================================
-// BUSINESS CLUB - PORTAL MENTORIA
-// ==========================================
+// ══════════════════════════════════════════════════════════════════════════════
+// PORTAL MENTORIA — BUSINESS CLUB
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── ALUNOS ────────────────────────────────────────────────────────────────────
 
 export async function fetchAlunos() {
   const { data, error } = await supabase
-     .from('alunos')
-     .select(`
-        *,
-        profiles (nome, email, perfil, ativo),
-        leads (nome_completo, whatsapp)
-     `)
-     .order('created_at', { ascending: false });
+    .from('alunos')
+    .select(`
+      *,
+      profiles (nome, email, perfil, ativo),
+      leads (nome_completo, whatsapp)
+    `)
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 }
 
 export async function fetchAlunoLogado(profileId: string) {
   const { data, error } = await supabase
-     .from('alunos')
-     .select('*')
-     .eq('profile_id', profileId)
-     .single();
-  
-  if (error && error.code !== 'PGRST116') throw error; // Allow null fallback
+    .from('alunos')
+    .select('*')
+    .eq('profile_id', profileId)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error;
   return data;
 }
 
+export async function updateAluno(id: string, updates: { fase_atual?: string; pontuacao_total?: number }) {
+  const { data, error } = await supabase.from('alunos').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// ── SPRINTS ───────────────────────────────────────────────────────────────────
+
 export async function fetchSprints() {
   const { data, error } = await supabase
-     .from('sprints')
-     .select('*')
-     .order('ordem', { ascending: true });
+    .from('sprints')
+    .select('*')
+    .order('ordem', { ascending: true });
   if (error) throw error;
   return data;
 }
@@ -252,55 +276,126 @@ export async function createSprint(titulo: string, descricao?: string, ordem: nu
   return data;
 }
 
+// ── SPRINT TAREFAS ────────────────────────────────────────────────────────────
+
 export async function fetchSprintTarefas(alunoId: string) {
   const { data, error } = await supabase
-     .from('sprint_tarefas')
-     .select('*, sprints(titulo, ordem)')
-     .eq('aluno_id', alunoId)
-     .order('created_at', { ascending: true });
+    .from('sprint_tarefas')
+    .select('*, sprints(titulo, ordem)')
+    .eq('aluno_id', alunoId)
+    .order('created_at', { ascending: true });
   if (error) throw error;
   return data;
 }
 
-export async function createSprintTarefa(tarefa: { sprint_id: string; aluno_id: string; titulo: string; xp_recompensa?: number; prazo?: string }) {
+export async function createSprintTarefa(tarefa: {
+  sprint_id: string;
+  aluno_id: string;
+  titulo: string;
+  xp_recompensa?: number;
+  prazo?: string;
+}) {
   const { data, error } = await supabase.from('sprint_tarefas').insert(tarefa).select().single();
   if (error) throw error;
   return data;
 }
 
+export async function marcarTarefaConcluida(tarefaId: string) {
+  const { data, error } = await supabase
+    .from('sprint_tarefas')
+    .update({ concluida: true })
+    .eq('id', tarefaId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function aprovarTarefa(tarefaId: string, alunoId: string, xp: number) {
-  // 1. Marca como aprovada
   const { error: err1 } = await supabase
-     .from('sprint_tarefas')
-     .update({ concluida: true, aprovada_por_equipe: true })
-     .eq('id', tarefaId);
+    .from('sprint_tarefas')
+    .update({ concluida: true, aprovada_por_equipe: true })
+    .eq('id', tarefaId);
   if (err1) throw err1;
 
-  // 2. Computa a XP nativamente chamando o aluno
-  const { data: aluno, error: err2 } = await supabase.from('alunos').select('pontuacao_total').eq('id', alunoId).single();
+  const { data: aluno, error: err2 } = await supabase
+    .from('alunos')
+    .select('pontuacao_total')
+    .eq('id', alunoId)
+    .single();
   if (err2) throw err2;
 
-  const novaXP = (aluno.pontuacao_total || 0) + xp;
-  const { error: err3 } = await supabase.from('alunos').update({ pontuacao_total: novaXP }).eq('id', alunoId);
+  const { error: err3 } = await supabase
+    .from('alunos')
+    .update({ pontuacao_total: (aluno.pontuacao_total || 0) + xp })
+    .eq('id', alunoId);
   if (err3) throw err3;
 }
 
+export async function rejeitarTarefa(tarefaId: string) {
+  const { error } = await supabase
+    .from('sprint_tarefas')
+    .update({ concluida: false, aprovada_por_equipe: false })
+    .eq('id', tarefaId);
+  if (error) throw error;
+}
+
+// ── CHAT INTERNO ──────────────────────────────────────────────────────────────
+
 export async function fetchChatInterno(alunoId: string) {
   const { data, error } = await supabase
-     .from('mensagens_internas')
-     .select('*, profiles(nome, perfil)')
-     .eq('aluno_id', alunoId)
-     .order('created_at', { ascending: true });
+    .from('mensagens_internas')
+    .select('*, profiles(nome, perfil)')
+    .eq('aluno_id', alunoId)
+    .order('created_at', { ascending: true });
   if (error) throw error;
   return data;
 }
 
 export async function enviaMensagemInterna(aluno_id: string, remetente_id: string, mensagem: string) {
-  const { data, error } = await supabase.from('mensagens_internas').insert({
-     aluno_id,
-     remetente_id,
-     mensagem
-  }).select().single();
+  const { data, error } = await supabase
+    .from('mensagens_internas')
+    .insert({ aluno_id, remetente_id, mensagem })
+    .select()
+    .single();
   if (error) throw error;
   return data;
+}
+
+// ── MATERIAIS ─────────────────────────────────────────────────────────────────
+
+export async function fetchMateriaisAluno(alunoId: string) {
+  const { data, error } = await supabase
+    .from('materiais')
+    .select('*, sprints(titulo)')
+    .or(`aluno_id.is.null,aluno_id.eq.${alunoId}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchTodosMateriais() {
+  const { data, error } = await supabase
+    .from('materiais')
+    .select('*, sprints(titulo), alunos(profiles(nome))')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function createMaterial(material: MaterialInsert) {
+  const { data, error } = await supabase.from('materiais').insert(material).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateMaterial(id: string, updates: MaterialUpdate) {
+  const { data, error } = await supabase.from('materiais').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteMaterial(id: string) {
+  const { error } = await supabase.from('materiais').delete().eq('id', id);
+  if (error) throw error;
 }

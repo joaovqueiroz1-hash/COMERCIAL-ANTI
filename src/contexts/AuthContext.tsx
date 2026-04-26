@@ -6,7 +6,7 @@ interface Profile {
   id: string;
   nome: string;
   email: string;
-  perfil: 'admin' | 'gestor' | 'vendedor';
+  perfil: 'admin' | 'gestor' | 'vendedor' | 'aluno' | 'operacional';
   ativo: boolean;
 }
 

@@ -33,7 +33,7 @@ const perfilLabels: Record<string, string> = {
   admin: 'Admin Master',
   gestor: 'Gestão Comercial',
   vendedor: 'Comercial',
-  operacional: 'Equipe Mentoia',
+  operacional: 'Equipe Mentoria',
   aluno: 'Aluno (Mentorado)',
 };
 
