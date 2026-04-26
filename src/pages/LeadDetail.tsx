@@ -14,6 +14,11 @@ import { InteractionForm } from '@/components/InteractionForm';
 import { ActionForm } from '@/components/ActionForm';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Loader2, GraduationCap } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 function DataFieldWarning({ warning }: { warning: string }) {
   return (
@@ -44,6 +49,20 @@ export default function LeadDetail() {
   const { data: interacoes = [] } = useQuery({ queryKey: ['interacoes', id], queryFn: () => fetchInteracoes(id!), enabled: !!id });
   const { data: acoes = [] } = useQuery({ queryKey: ['proximas_acoes', id], queryFn: () => fetchProximasAcoes(id!), enabled: !!id });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
+
+  // Verifica se já está matriculado
+  const { data: matricula, refetch: refetchMatricula } = useQuery({ 
+     queryKey: ['matricula', id], 
+     queryFn: async () => {
+        const { data } = await supabase.from('alunos').select('id, profile_id, profiles(email, nome)').eq('lead_id', id).maybeSingle();
+        return data;
+     }, 
+     enabled: !!id 
+  });
+
+  const [openMatricula, setOpenMatricula] = useState(false);
+  const [senhaAluno, setSenhaAluno] = useState('');
+  const [matriculando, setMatriculando] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteLead(id!),
@@ -108,6 +127,17 @@ export default function LeadDetail() {
     <AppLayout title={lead.nome_completo} subtitle={lead.nome_empresa || undefined}
       actions={
         <div className="flex items-center gap-2">
+          {lead.status_pipeline === 'fechado' && !matricula && (
+             <Button onClick={() => setOpenMatricula(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white h-9 text-xs sm:text-sm px-3 shadow-lg shadow-emerald-500/20">
+                <GraduationCap size={16} className="mr-2" />
+                Matricular Aluno
+             </Button>
+          )}
+          {matricula && (
+             <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-md text-xs font-semibold">
+               <GraduationCap size={14} /> Matriculado
+             </div>
+          )}
           {isAdmin && !confirmDelete && (
             <Button variant="ghost" onClick={() => setConfirmDelete(true)} className="text-destructive hover:bg-destructive/10 h-9 text-xs px-3">
               <Trash2 size={14} className="mr-1" /> Excluir
@@ -341,6 +371,97 @@ export default function LeadDetail() {
       {/* Modals */}
       <InteractionForm leadId={lead.id} userId={user?.id || null} open={showInteraction} onOpenChange={setShowInteraction} />
       <ActionForm leadId={lead.id} profiles={profiles} userId={user?.id || null} open={showAction} onOpenChange={setShowAction} />
+      
+      <Dialog open={openMatricula} onOpenChange={setOpenMatricula}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+               <GraduationCap className="text-emerald-500" />
+               Matricular: {lead.nome_completo}
+            </DialogTitle>
+            <DialogDescription>
+               Você criará um acesso do tipo 'aluno' para este cliente acessar o Portal. Ele não terá acesso ao seu funil comercial. O e-mail usado será o do Lead.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={async (e) => {
+             e.preventDefault();
+             if (!lead.email) {
+                toast({ title: 'Adicione um E-mail no Lead', description: 'Para criar a matrícula o Lead precisa ter um e-mail válido.', variant: 'destructive' });
+                return;
+             }
+             if (senhaAluno.length < 6) return toast({ title: 'A senha deve ter no mínimo 6 caracteres.' });
+             
+             setMatriculando(true);
+             try {
+                // Tenta criar o profile usando a Edge Function igual Equipe 
+                const res = await supabase.functions.invoke('create-user', {
+                  body: { email: lead.email, password: senhaAluno, nome: lead.nome_completo, perfil: 'aluno' },
+                });
+                const authErr = res.error || res.data?.error;
+                
+                let profileId = null;
+
+                if (!authErr && res.data?.user?.id) {
+                   profileId = res.data.user.id;
+                } else {
+                   // Fallback para signUp nativo
+                   const { data: signUpData, error: sErr } = await supabase.auth.signUp({
+                      email: lead.email,
+                      password: senhaAluno,
+                      options: { data: { nome: lead.nome_completo, perfil: 'aluno' } }
+                   });
+                   if (sErr) throw sErr;
+                   if (signUpData.user) {
+                      profileId = signUpData.user.id;
+                      // Upsert caso a trigger do Supabase falhe
+                      await supabase.from('profiles').upsert({
+                         id: profileId, nome: lead.nome_completo, email: lead.email, perfil: 'aluno', ativo: true
+                      });
+                   }
+                }
+
+                if (profileId) {
+                   // Inserir registro de banco na tabela de Alunos pro dashboard Gestão Operacional ver
+                   const { error: alErr } = await supabase.from('alunos').insert({
+                      lead_id: lead.id, profile_id: profileId, fase_atual: 'Onboarding', pontuacao_total: 0
+                   });
+                   if (alErr) throw alErr;
+
+                   toast({ title: 'Matrícula efetuada com sucesso!' });
+                   refetchMatricula();
+                   setOpenMatricula(false);
+                } else {
+                   throw new Error("Não foi possível resolver o ID da nova conta.");
+                }
+             } catch (err: any) {
+                toast({ title: 'Falha ao processar matrícula', description: err.message, variant: 'destructive' });
+             } finally {
+                setMatriculando(false);
+             }
+          }} className="space-y-4">
+             <div>
+                <Label className="text-xs text-muted-foreground uppercase mb-2 block">E-mail de Acesso</Label>
+                <div className="px-3 py-2 bg-secondary/50 rounded-md text-sm text-foreground opacity-70">
+                   {lead.email || '— (Edite o lead primeiro)'}
+                </div>
+             </div>
+             <div>
+                <Label className="text-xs text-muted-foreground uppercase mb-2 block">Crie a Senha do Aluno</Label>
+                <Input
+                   type="password"
+                   value={senhaAluno}
+                   onChange={e => setSenhaAluno(e.target.value)}
+                   className="bg-bg-tertiary border-border h-11"
+                   placeholder="Mínimo 6 caracteres"
+                   required
+                />
+             </div>
+             <Button type="submit" disabled={matriculando || !lead.email} className="w-full h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
+                {matriculando ? <Loader2 size={16} className="animate-spin" /> : 'Confirmar Matrícula e Criar Acesso'}
+             </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
