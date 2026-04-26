@@ -218,11 +218,22 @@ export async function fetchAlunos() {
      .from('alunos')
      .select(`
         *,
-        profiles (nome, email, perfil),
+        profiles (nome, email, perfil, ativo),
         leads (nome_completo, whatsapp)
      `)
      .order('created_at', { ascending: false });
   if (error) throw error;
+  return data;
+}
+
+export async function fetchAlunoLogado(profileId: string) {
+  const { data, error } = await supabase
+     .from('alunos')
+     .select('*')
+     .eq('profile_id', profileId)
+     .single();
+  
+  if (error && error.code !== 'PGRST116') throw error; // Allow null fallback
   return data;
 }
 
