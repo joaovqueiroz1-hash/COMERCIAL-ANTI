@@ -208,3 +208,88 @@ export async function createWhatsAppMessage(msg: WhatsAppMessageInsert) {
   if (error) throw error;
   return data;
 }
+
+// ==========================================
+// BUSINESS CLUB - PORTAL MENTORIA
+// ==========================================
+
+export async function fetchAlunos() {
+  const { data, error } = await supabase
+     .from('alunos')
+     .select(`
+        *,
+        profiles (nome, email, perfil),
+        leads (nome_completo, whatsapp)
+     `)
+     .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchSprints() {
+  const { data, error } = await supabase
+     .from('sprints')
+     .select('*')
+     .order('ordem', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function createSprint(titulo: string, descricao?: string, ordem: number = 0) {
+  const { data, error } = await supabase.from('sprints').insert({ titulo, descricao, ordem }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchSprintTarefas(alunoId: string) {
+  const { data, error } = await supabase
+     .from('sprint_tarefas')
+     .select('*, sprints(titulo, ordem)')
+     .eq('aluno_id', alunoId)
+     .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function createSprintTarefa(tarefa: { sprint_id: string; aluno_id: string; titulo: string; xp_recompensa?: number; prazo?: string }) {
+  const { data, error } = await supabase.from('sprint_tarefas').insert(tarefa).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function aprovarTarefa(tarefaId: string, alunoId: string, xp: number) {
+  // 1. Marca como aprovada
+  const { error: err1 } = await supabase
+     .from('sprint_tarefas')
+     .update({ concluida: true, aprovada_por_equipe: true })
+     .eq('id', tarefaId);
+  if (err1) throw err1;
+
+  // 2. Computa a XP nativamente chamando o aluno
+  const { data: aluno, error: err2 } = await supabase.from('alunos').select('pontuacao_total').eq('id', alunoId).single();
+  if (err2) throw err2;
+
+  const novaXP = (aluno.pontuacao_total || 0) + xp;
+  const { error: err3 } = await supabase.from('alunos').update({ pontuacao_total: novaXP }).eq('id', alunoId);
+  if (err3) throw err3;
+}
+
+export async function fetchChatInterno(alunoId: string) {
+  const { data, error } = await supabase
+     .from('mensagens_internas')
+     .select('*, profiles(nome, perfil)')
+     .eq('aluno_id', alunoId)
+     .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function enviaMensagemInterna(aluno_id: string, remetente_id: string, mensagem: string) {
+  const { data, error } = await supabase.from('mensagens_internas').insert({
+     aluno_id,
+     remetente_id,
+     mensagem
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
