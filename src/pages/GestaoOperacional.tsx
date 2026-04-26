@@ -9,6 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+// Cliente secundário para criar conta sem deslogar o admin atual
+const adminAuthClient = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  { auth: { persistSession: false } }
+);
 
 export default function GestaoOperacional() {
   const [alunos, setAlunos] = useState<any[]>([]);
@@ -55,29 +63,27 @@ export default function GestaoOperacional() {
      setMatriculando(true);
      try {
         const email = targetLead.email.trim();
-        // 1. Tentar Edge Function
-        const res = await supabase.functions.invoke('create-user', {
-          body: { email, password: senhaAluno, nome: targetLead.nome_completo, perfil: 'aluno' },
+        // 1. Tentar gerar pelo secondaryClient para não corromper sessão local
+        const { data: signUpData, error: sErr } = await adminAuthClient.auth.signUp({
+            email, password: senhaAluno, options: { data: { nome: targetLead.nome_completo, perfil: 'aluno' } }
         });
         
-        const authErr = res.error || res?.data?.error;
-        let profileId = null;
-
-        if (!authErr && res.data?.user?.id) {
-           profileId = res.data.user.id;
-        } else {
-           console.log("Edge function failed, falling back to local Auth Signup", authErr);
-           const { data: signUpData, error: sErr } = await supabase.auth.signUp({
-              email, password: senhaAluno, options: { data: { nome: targetLead.nome_completo, perfil: 'aluno' } }
-           });
-           if (sErr) throw sErr;
-           if (signUpData.user) {
-              profileId = signUpData.user.id;
-              await supabase.from('profiles').upsert({ id: profileId, nome: targetLead.nome_completo, email, perfil: 'aluno', ativo: true });
+        // Pode falhar caso o email já exista no Auth, tratamos capturando.
+        if (sErr) {
+           if (sErr.message.includes('User already registered')) {
+              toast({ title: 'Aviso', description: 'O e-mail deste Lead já possui conta de acesso na base. Criando vínculo...', variant: 'warning' });
+              // We could fetch the ID if we had an Edge Function, mas pelo front não tem como pegar ID de email existente
            }
+           throw sErr;
         }
 
+        let profileId = signUpData?.user?.id;
+
         if (profileId) {
+           // Atualiza ou insere Profile
+           await supabase.from('profiles').upsert({ id: profileId, nome: targetLead.nome_completo, email, perfil: 'aluno', ativo: true });
+
+           // Insere Tabela de Alunos
            const { error: alErr } = await supabase.from('alunos').insert({
               lead_id: targetLead.id, profile_id: profileId, fase_atual: 'Onboarding', pontuacao_total: 0
            });
@@ -89,12 +95,11 @@ export default function GestaoOperacional() {
            setTargetLead(null);
            loadData(); // refresh lists
         } else {
-           throw new Error("Não foi possível gerar a credencial.");
+           throw new Error("Não foi possível gerar a credencial. A reposta veio vazia.");
         }
      } catch (err: any) {
         console.error("ERRO MATRICULA:", err);
-        // Sometimes the session hijack causes the current tab session to die abruptly.
-        toast({ title: 'Falha ou Deslogamento', description: 'Se ocorreu um erro de RLS, a senha foi criada mas você precisará recarregar a guia.', variant: 'warning' });
+        toast({ title: 'Falha na Matrícula', description: err.message, variant: 'destructive' });
      } finally {
         setMatriculando(false);
      }

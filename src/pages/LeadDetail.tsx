@@ -19,6 +19,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Loader2, GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+const adminAuthClient = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  { auth: { persistSession: false } }
+);
 
 function DataFieldWarning({ warning }: { warning: string }) {
   return (
@@ -393,35 +400,23 @@ export default function LeadDetail() {
              
              setMatriculando(true);
              try {
-                // Tenta criar o profile usando a Edge Function igual Equipe 
-                const res = await supabase.functions.invoke('create-user', {
-                  body: { email: lead.email, password: senhaAluno, nome: lead.nome_completo, perfil: 'aluno' },
+                // Tenta criar pela edge, ignora session
+                const { data: signUpData, error: sErr } = await adminAuthClient.auth.signUp({
+                    email: lead.email, password: senhaAluno, options: { data: { nome: lead.nome_completo, perfil: 'aluno' } }
                 });
-                const authErr = res.error || res.data?.error;
                 
-                let profileId = null;
-
-                if (!authErr && res.data?.user?.id) {
-                   profileId = res.data.user.id;
-                } else {
-                   // Fallback para signUp nativo
-                   const { data: signUpData, error: sErr } = await supabase.auth.signUp({
-                      email: lead.email,
-                      password: senhaAluno,
-                      options: { data: { nome: lead.nome_completo, perfil: 'aluno' } }
-                   });
-                   if (sErr) throw sErr;
-                   if (signUpData.user) {
-                      profileId = signUpData.user.id;
-                      // Upsert caso a trigger do Supabase falhe
-                      await supabase.from('profiles').upsert({
-                         id: profileId, nome: lead.nome_completo, email: lead.email, perfil: 'aluno', ativo: true
-                      });
+                if (sErr) {
+                   if (sErr.message.includes('User already registered')) {
+                      toast({ title: 'Aviso', description: 'O e-mail deste Lead já possui conta de acesso na base.', variant: 'warning' });
                    }
+                   throw sErr;
                 }
 
+                const profileId = signUpData?.user?.id;
+
                 if (profileId) {
-                   // Inserir registro de banco na tabela de Alunos pro dashboard Gestão Operacional ver
+                   await supabase.from('profiles').upsert({ id: profileId, nome: lead.nome_completo, email: lead.email, perfil: 'aluno', ativo: true });
+                   
                    const { error: alErr } = await supabase.from('alunos').insert({
                       lead_id: lead.id, profile_id: profileId, fase_atual: 'Onboarding', pontuacao_total: 0
                    });
@@ -431,7 +426,7 @@ export default function LeadDetail() {
                    refetchMatricula();
                    setOpenMatricula(false);
                 } else {
-                   throw new Error("Não foi possível resolver o ID da nova conta.");
+                   throw new Error("Não foi possível gerar a credencial.");
                 }
              } catch (err: any) {
                 toast({ title: 'Falha ao processar matrícula', description: err.message, variant: 'destructive' });
