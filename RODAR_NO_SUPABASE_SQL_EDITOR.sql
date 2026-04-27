@@ -1,20 +1,15 @@
 -- =====================================================================
--- RODAR ESTE SQL NO SUPABASE → SQL EDITOR → COLE TUDO → RUN
--- Cria: alunos, sprints, sprint_tarefas, mensagens_internas, materiais,
---        eventos, tags_sistema, lead_tags
+-- EXECUTAR TUDO NO SUPABASE → SQL EDITOR → COLE TUDO → RUN
+-- Seguro para re-executar (idempotente). Última versão: 2026-04-26
 -- =====================================================================
 
--- 0. Enum app_role (adiciona aluno e operacional se não existir)
+-- ── 0. Roles no enum ─────────────────────────────────────────────────
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
-    CREATE TYPE public.app_role AS ENUM ('admin', 'gestor', 'vendedor', 'operacional', 'aluno');
-  ELSE
-    BEGIN ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'operacional'; EXCEPTION WHEN duplicate_object THEN NULL; END;
-    BEGIN ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'aluno';       EXCEPTION WHEN duplicate_object THEN NULL; END;
-  END IF;
+  BEGIN ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'operacional'; EXCEPTION WHEN duplicate_object THEN NULL; END;
+  BEGIN ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'aluno';       EXCEPTION WHEN duplicate_object THEN NULL; END;
 END $$;
 
--- 1. Alunos
+-- ── 1. Alunos ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.alunos (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -29,7 +24,7 @@ DROP POLICY IF EXISTS "alunos_authenticated" ON public.alunos;
 CREATE POLICY "alunos_authenticated" ON public.alunos
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 2. Sprints
+-- ── 2. Sprints ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.sprints (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -42,7 +37,7 @@ DROP POLICY IF EXISTS "sprints_authenticated" ON public.sprints;
 CREATE POLICY "sprints_authenticated" ON public.sprints
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 3. Sprint Tarefas
+-- ── 3. Sprint Tarefas ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.sprint_tarefas (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -60,7 +55,7 @@ DROP POLICY IF EXISTS "sprint_tarefas_authenticated" ON public.sprint_tarefas;
 CREATE POLICY "sprint_tarefas_authenticated" ON public.sprint_tarefas
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 4. Mensagens Internas
+-- ── 4. Mensagens Internas ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.mensagens_internas (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -73,7 +68,6 @@ DROP POLICY IF EXISTS "mensagens_internas_authenticated" ON public.mensagens_int
 CREATE POLICY "mensagens_internas_authenticated" ON public.mensagens_internas
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- Realtime para mensagens
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_publication_tables
@@ -83,7 +77,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- 5. Materiais
+-- ── 5. Materiais ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.materiais (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -101,7 +95,7 @@ DROP POLICY IF EXISTS "materiais_authenticated" ON public.materiais;
 CREATE POLICY "materiais_authenticated" ON public.materiais
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 6. Eventos
+-- ── 6. Eventos ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.eventos (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -119,7 +113,7 @@ DROP POLICY IF EXISTS "eventos_authenticated" ON public.eventos;
 CREATE POLICY "eventos_authenticated" ON public.eventos
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 7. Tags do Sistema
+-- ── 7. Tags do Sistema ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.tags_sistema (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -133,7 +127,6 @@ DROP POLICY IF EXISTS "tags_sistema_authenticated" ON public.tags_sistema;
 CREATE POLICY "tags_sistema_authenticated" ON public.tags_sistema
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- Tags padrão de produto
 INSERT INTO public.tags_sistema (nome, cor, tipo) VALUES
   ('3C',            '#f59e0b', 'produto'),
   ('3C Avançado',   '#f97316', 'produto'),
@@ -141,7 +134,7 @@ INSERT INTO public.tags_sistema (nome, cor, tipo) VALUES
   ('1 Imersão',     '#06b6d4', 'produto')
 ON CONFLICT (nome) DO NOTHING;
 
--- 8. Lead Tags (N:N)
+-- ── 8. Lead Tags (N:N) ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.lead_tags (
   lead_id UUID NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
   tag_id  UUID NOT NULL REFERENCES public.tags_sistema(id) ON DELETE CASCADE,
@@ -152,9 +145,17 @@ DROP POLICY IF EXISTS "lead_tags_authenticated" ON public.lead_tags;
 CREATE POLICY "lead_tags_authenticated" ON public.lead_tags
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 9. Função para auto-confirmar e-mail na matrícula de alunos
--- Permite que o admin matricule um aluno e ele possa logar imediatamente,
--- sem precisar confirmar o e-mail (fluxo interno da mentoria).
+-- ── 9. Política INSERT na tabela profiles ─────────────────────────────
+-- Necessário para o upsert manual durante a matrícula de alunos
+DROP POLICY IF EXISTS "Admin can insert profiles" ON public.profiles;
+CREATE POLICY "Admin can insert profiles"
+  ON public.profiles
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (public.get_user_perfil(auth.uid()) IN ('admin', 'gestor', 'operacional'));
+
+-- ── 10. Função confirm_user_signup ────────────────────────────────────
+-- Permite que admin matricule aluno sem precisar de confirmação de email
 CREATE OR REPLACE FUNCTION public.confirm_user_signup(user_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -162,7 +163,6 @@ SECURITY DEFINER
 SET search_path = auth, public
 AS $$
 BEGIN
-  -- Só confirma se o chamador for um usuário autenticado com perfil admin/gestor/operacional
   IF NOT EXISTS (
     SELECT 1 FROM public.profiles
     WHERE id = auth.uid()
@@ -172,14 +172,58 @@ BEGIN
   END IF;
 
   UPDATE auth.users
-  SET email_confirmed_at = now()
-  WHERE id = user_id
-    AND email_confirmed_at IS NULL;
+  SET email_confirmed_at = COALESCE(email_confirmed_at, now())
+  WHERE id = user_id;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.confirm_user_signup(uuid) TO authenticated;
 
+-- ── 11. Confirmar todos os usuários já cadastrados ─────────────────────
+-- CRÍTICO: corrige alunos que foram matriculados antes da função existir
+-- e por isso não conseguem fazer login ("Email not confirmed")
+UPDATE auth.users
+SET email_confirmed_at = now()
+WHERE email_confirmed_at IS NULL;
+
+-- ── 12. Trigger handle_new_user robusto ───────────────────────────────
+-- Garante que o perfil é criado mesmo se o cast de perfil falhar
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_perfil public.app_role;
+BEGIN
+  BEGIN
+    v_perfil := COALESCE((NEW.raw_user_meta_data->>'perfil')::public.app_role, 'vendedor');
+  EXCEPTION WHEN invalid_text_representation THEN
+    v_perfil := 'vendedor';
+  END;
+
+  INSERT INTO public.profiles (id, nome, email, perfil)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'nome', NEW.email),
+    NEW.email,
+    v_perfil
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    nome  = EXCLUDED.nome,
+    email = EXCLUDED.email,
+    perfil = EXCLUDED.perfil;
+
+  INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, v_perfil)
+  ON CONFLICT (user_id, role) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- Recria o trigger (idempotente)
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- =====================================================================
--- FEITO! Agora pode fechar esta janela.
+-- FEITO! Agora o sistema está pronto para uso.
 -- =====================================================================

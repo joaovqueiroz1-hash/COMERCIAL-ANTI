@@ -22,6 +22,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
+// Busca o perfil do usuário — fora do componente para evitar recriações
+async function fetchProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (error) {
+    console.error('[Auth] fetchProfile erro:', error.message, error.code);
+    return null;
+  }
+  return data as Profile;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -31,22 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    async function fetchProfile(userId: string): Promise<Profile | null> {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-        if (error) throw error;
-        return data as Profile;
-      } catch (err) {
-        console.error('fetchProfile falhou:', err);
-        return null;
-      }
-    }
-
-    // Resolve the initial session once — this is the source of truth on page load.
+    // Resolve a sessão salva no localStorage — única fonte de verdade na inicialização
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
 
@@ -58,66 +57,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session);
             setUser(session.user);
           } else {
-            // Profile not found — sign out silently so auth state is clean.
+            // Sessão existe mas perfil não → limpa estado corrompido
             await supabase.auth.signOut();
             setProfile(null);
             setSession(null);
             setUser(null);
           }
         }
-      } else {
-        if (mounted) {
-          setProfile(null);
-          setSession(null);
-          setUser(null);
-        }
       }
 
-      if (mounted) {
-        setLoading(false);
-      }
+      if (mounted) setLoading(false);
     });
 
-    // Only reacts to auth changes AFTER the initial session is resolved:
-    // SIGNED_IN (user just logged in), SIGNED_OUT, TOKEN_REFRESHED.
-    // We skip INITIAL_SESSION because getSession() above already handles it.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
+    // Listener apenas para: refresh de token e logout
+    // SIGNED_IN é tratado diretamente em signIn() para garantir propagação de erros
+    // INITIAL_SESSION é ignorado pois getSession() já tratou
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') return;
 
-        // Skip the duplicate INITIAL_SESSION — getSession handles it.
-        if (event === 'INITIAL_SESSION') return;
-
-        if (session?.user) {
-          // Don't block UI for token refresh — profile didn't change.
-          if (event === 'TOKEN_REFRESHED') {
-            if (mounted) setSession(session);
-            return;
-          }
-
-          // For SIGNED_IN: fetch profile and update state.
-          const p = await fetchProfile(session.user.id);
-          if (!mounted) return;
-
-          if (p) {
-            setProfile(p);
-            setSession(session);
-            setUser(session.user);
-          } else {
-            await supabase.auth.signOut();
-            setProfile(null);
-            setSession(null);
-            setUser(null);
-          }
-        } else {
-          if (mounted) {
-            setProfile(null);
-            setSession(null);
-            setUser(null);
-          }
-        }
+      if (event === 'TOKEN_REFRESHED' && session) {
+        setSession(session);
+        return;
       }
-    );
+
+      // SIGNED_OUT ou sessão expirada
+      if (!session && mounted) {
+        setProfile(null);
+        setSession(null);
+        setUser(null);
+      }
+    });
 
     return () => {
       mounted = false;
@@ -125,9 +95,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // signIn trata o perfil diretamente e retorna erro visível ao componente chamador
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error };
+
+    if (data?.user) {
+      const p = await fetchProfile(data.user.id);
+      if (!p) {
+        // Perfil ausente: faz logout limpo e devolve erro descritivo
+        await supabase.auth.signOut();
+        return {
+          error: {
+            message: 'Perfil não encontrado para este usuário. Contate o administrador.',
+          },
+        };
+      }
+      setProfile(p);
+      setSession(data.session);
+      setUser(data.user);
+    }
+
+    return { error: null };
   };
 
   const signUp = async (email: string, password: string, nome: string, perfil = 'vendedor') => {
@@ -142,6 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    setSession(null);
+    setUser(null);
   };
 
   return (
