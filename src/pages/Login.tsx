@@ -13,7 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +22,7 @@ export default function Login() {
     if (error) {
       toast({ title: 'Erro ao entrar', description: error.message, variant: 'destructive' });
     } else {
-      navigate('/dashboard');
+      navigate('/');
     }
     setLoading(false);
   };

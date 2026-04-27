@@ -152,6 +152,34 @@ DROP POLICY IF EXISTS "lead_tags_authenticated" ON public.lead_tags;
 CREATE POLICY "lead_tags_authenticated" ON public.lead_tags
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- 9. Função para auto-confirmar e-mail na matrícula de alunos
+-- Permite que o admin matricule um aluno e ele possa logar imediatamente,
+-- sem precisar confirmar o e-mail (fluxo interno da mentoria).
+CREATE OR REPLACE FUNCTION public.confirm_user_signup(user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = auth, public
+AS $$
+BEGIN
+  -- Só confirma se o chamador for um usuário autenticado com perfil admin/gestor/operacional
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND perfil IN ('admin', 'gestor', 'operacional')
+  ) THEN
+    RAISE EXCEPTION 'Sem permissão para confirmar usuários.';
+  END IF;
+
+  UPDATE auth.users
+  SET email_confirmed_at = now()
+  WHERE id = user_id
+    AND email_confirmed_at IS NULL;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.confirm_user_signup(uuid) TO authenticated;
+
 -- =====================================================================
 -- FEITO! Agora pode fechar esta janela.
 -- =====================================================================

@@ -13,7 +13,7 @@ import {
   CheckCircle2, XCircle, Clock, BookOpen, Video,
   FileText, Link2, Trash2, Globe, UserCheck, ChevronRight,
   Star, Calendar, Zap, Layers, LayoutTemplate,
-  MapPin,
+  MapPin, KeyRound, UserMinus,
 } from "lucide-react";
 import { getInitials } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -95,6 +95,11 @@ export default function GestaoOperacional() {
   const [targetLead,    setTargetLead]    = useState<any | null>(null);
   const [senhaAluno,    setSenhaAluno]    = useState("");
   const [matriculando,  setMatriculando]  = useState(false);
+
+  // ── aluno: excluir / resetar senha ───────────────────────────────────────
+  const [excluindo,       setExcluindo]       = useState(false);
+  const [resetandoSenha,  setResetandoSenha]  = useState(false);
+  const [confirmDelete,   setConfirmDelete]   = useState(false);
 
   // ── sprint + tarefa ───────────────────────────────────────────────────────
   const [openCriarSprint,  setOpenCriarSprint]  = useState(false);
@@ -184,18 +189,63 @@ export default function GestaoOperacional() {
         email: targetLead.email.trim(), password: senhaAluno,
         options: { data: { nome: targetLead.nome_completo, perfil: "aluno" } },
       });
-      if (sErr) throw sErr;
+      if (sErr && !sErr.message.includes("already registered")) throw sErr;
       const pid = signUpData?.user?.id;
-      if (!pid) throw new Error("Resposta vazia.");
-      await supabase.from("profiles").upsert({ id: pid, nome: targetLead.nome_completo, email: targetLead.email.trim(), perfil: "aluno", ativo: true });
-      const { error: alErr } = await supabase.from("alunos").insert({ lead_id: targetLead.id, profile_id: pid, fase_atual: "Onboarding", pontuacao_total: 0 });
+      if (!pid) throw new Error("Usuário já cadastrado com outro perfil ou resposta vazia.");
+
+      // Auto-confirma o e-mail para que o aluno possa logar imediatamente
+      // Requer a função confirm_user_signup no Supabase (inclusa no SQL de migração)
+      await (supabase as any).rpc("confirm_user_signup", { user_id: pid }).catch(() => {
+        // Silencia se a função ainda não foi criada; admin deve rodar a migration SQL
+      });
+
+      await supabase.from("profiles").upsert({
+        id: pid, nome: targetLead.nome_completo,
+        email: targetLead.email.trim(), perfil: "aluno", ativo: true,
+      });
+      const { error: alErr } = await (supabase as any).from("alunos").insert({
+        lead_id: targetLead.id, profile_id: pid,
+        fase_atual: "Onboarding", pontuacao_total: 0,
+      });
       if (alErr) throw alErr;
-      toast({ title: "Aluno matriculado!" });
+      toast({ title: "Aluno matriculado!", description: `Acesso criado para ${targetLead.email.trim()}` });
       setOpenMatricula(false); setSenhaAluno(""); setTargetLead(null);
       loadData();
     } catch (err: any) { toast({ title: "Falha na matrícula", description: err.message, variant: "destructive" }); }
     finally { setMatriculando(false); }
   };
+
+  // ── aluno: resetar senha ──────────────────────────────────────────────────
+  async function handleResetarSenha() {
+    const email = alunoDetalhes?.profiles?.email;
+    if (!email) return;
+    setResetandoSenha(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/portal`,
+      });
+      if (error) throw error;
+      toast({ title: "Email de redefinição enviado!", description: `Link enviado para ${email}` });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar email", description: err.message, variant: "destructive" });
+    } finally { setResetandoSenha(false); }
+  }
+
+  // ── aluno: excluir ────────────────────────────────────────────────────────
+  async function handleExcluirAluno() {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setExcluindo(true);
+    try {
+      const { error } = await (supabase as any).from("alunos").delete().eq("id", alunoDetalhes.id);
+      if (error) throw error;
+      toast({ title: "Aluno removido do sistema." });
+      setAlunoDetalhes(null);
+      setConfirmDelete(false);
+      loadData();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally { setExcluindo(false); }
+  }
 
   // ── sprints ───────────────────────────────────────────────────────────────
   async function handleCriarSprint(e: React.FormEvent) {
@@ -596,7 +646,7 @@ export default function GestaoOperacional() {
       </div>
 
       {/* ══ SHEET: Detalhe do Aluno ══════════════════════════════════════════ */}
-      <Sheet open={!!alunoDetalhes} onOpenChange={open => !open && setAlunoDetalhes(null)}>
+      <Sheet open={!!alunoDetalhes} onOpenChange={open => { if (!open) { setAlunoDetalhes(null); setConfirmDelete(false); } }}>
         <SheetContent side="right" className="w-full sm:max-w-xl bg-zinc-950 border-border/40 overflow-y-auto flex flex-col gap-0 p-0">
           {alunoDetalhes && (
             <>
@@ -619,11 +669,33 @@ export default function GestaoOperacional() {
                 </div>
               )}
               <div className="flex-1 px-6 py-5 overflow-y-auto space-y-6">
-                {/* Botão: criar tarefa direto para este aluno */}
-                <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                  onClick={() => { setNovaTarefa(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarTarefa(true); }}>
-                  <PlusCircle size={14} /> Atribuir Nova Tarefa a Este Aluno
-                </Button>
+                {/* Ações rápidas */}
+                <div className="space-y-2">
+                  <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => { setNovaTarefa(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarTarefa(true); }}>
+                    <PlusCircle size={14} /> Atribuir Nova Tarefa a Este Aluno
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline"
+                      className="flex-1 gap-1.5 border-border text-muted-foreground hover:text-foreground"
+                      onClick={handleResetarSenha}
+                      disabled={resetandoSenha || !alunoDetalhes?.profiles?.email}>
+                      {resetandoSenha ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                      Resetar Senha
+                    </Button>
+                    <Button size="sm" variant="outline"
+                      className={cn("flex-1 gap-1.5 transition-colors",
+                        confirmDelete
+                          ? "border-destructive text-destructive hover:bg-destructive/10"
+                          : "border-border text-muted-foreground hover:text-destructive hover:border-destructive/50"
+                      )}
+                      onClick={handleExcluirAluno}
+                      disabled={excluindo}>
+                      {excluindo ? <Loader2 size={13} className="animate-spin" /> : <UserMinus size={13} />}
+                      {confirmDelete ? "Confirmar exclusão" : "Excluir Aluno"}
+                    </Button>
+                  </div>
+                </div>
 
                 {loadingTarefas ? (
                   <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" size={24} /></div>
