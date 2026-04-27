@@ -1,13 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Ban, Copy, MessageSquare, Wifi, WifiOff, Eye, EyeOff, Trash2, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Ban, Copy, MessageSquare, Wifi, WifiOff, Eye, EyeOff, Trash2, Info, Tag, Plus, X } from 'lucide-react';
 import { getZApiStatus, ZApiConfig } from '@/lib/zapi';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { fetchLeads, fetchZApiConfigGlobally, upsertZApiConfigGlobally, deleteZApiConfigGlobally } from '@/lib/api';
-import type { LeadInsert } from '@/lib/api';
-import { useQueryClient } from '@tanstack/react-query';
+import { fetchLeads, fetchZApiConfigGlobally, upsertZApiConfigGlobally, deleteZApiConfigGlobally, fetchTagsSistema, createTagSistema, deleteTagSistema } from '@/lib/api';
+import type { LeadInsert, TagSistema } from '@/lib/api';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { normalizeWhatsAppKey } from '@/lib/whatsapp-utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -290,6 +293,45 @@ export default function Configuracoes() {
     }
   };
 
+  // ── Tags do Sistema ──────────────────────────────────────────────────────────
+  const { data: tags = [], isLoading: loadingTags } = useQuery({
+    queryKey: ['tags_sistema'],
+    queryFn: fetchTagsSistema,
+  });
+
+  const [novaTag, setNovaTag] = useState({ nome: '', cor: '#f59e0b', tipo: 'produto' as 'produto' | 'vendedor' | 'custom' });
+  const [criandoTag, setCriandoTag] = useState(false);
+
+  const handleCriarTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novaTag.nome.trim()) return;
+    setCriandoTag(true);
+    try {
+      await createTagSistema({ nome: novaTag.nome.trim(), cor: novaTag.cor, tipo: novaTag.tipo });
+      queryClient.invalidateQueries({ queryKey: ['tags_sistema'] });
+      queryClient.invalidateQueries({ queryKey: ['lead_tags_map'] });
+      setNovaTag({ nome: '', cor: '#f59e0b', tipo: 'produto' });
+      toast.success('Tag criada!');
+    } catch (err: any) {
+      toast.error('Erro ao criar tag: ' + err.message);
+    } finally {
+      setCriandoTag(false);
+    }
+  };
+
+  const handleDeletarTag = async (id: string) => {
+    try {
+      await deleteTagSistema(id);
+      queryClient.invalidateQueries({ queryKey: ['tags_sistema'] });
+      queryClient.invalidateQueries({ queryKey: ['lead_tags_map'] });
+      toast.success('Tag removida.');
+    } catch (err: any) {
+      toast.error('Erro: ' + err.message);
+    }
+  };
+
+  const TIPO_LABEL: Record<string, string> = { produto: 'Produto', vendedor: 'Vendedor', custom: 'Custom' };
+
   return (
     <AppLayout title="Configurações" subtitle="Importação de dados e configurações do sistema">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -507,6 +549,90 @@ export default function Configuracoes() {
             </div>
           </div>
         </div>
+        {/* ── Tags do Sistema ── */}
+        <div className="card-premium p-4 sm:p-6">
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Tag size={16} className="text-primary" />
+            Tags do Pipeline
+          </h3>
+          <p className="text-xs text-muted-foreground mb-5">
+            Crie tags coloridas para classificar leads no Pipeline — por produto ofertado, vendedor responsável ou categorias personalizadas.
+          </p>
+
+          {/* Form de criação */}
+          <form onSubmit={handleCriarTag} className="flex flex-col sm:flex-row gap-2 mb-6">
+            <Input
+              placeholder="Nome da tag (ex: 3C, Paola, VIP)"
+              value={novaTag.nome}
+              onChange={e => setNovaTag(p => ({ ...p, nome: e.target.value }))}
+              className="flex-1 h-9 text-xs bg-secondary border-border"
+              maxLength={30}
+            />
+            <Select value={novaTag.tipo} onValueChange={v => setNovaTag(p => ({ ...p, tipo: v as any }))}>
+              <SelectTrigger className="w-36 h-9 text-xs bg-secondary border-border shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="produto">Produto</SelectItem>
+                <SelectItem value="vendedor">Vendedor</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2 shrink-0">
+              <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Cor:</Label>
+              <input
+                type="color"
+                value={novaTag.cor}
+                onChange={e => setNovaTag(p => ({ ...p, cor: e.target.value }))}
+                className="w-9 h-9 rounded border border-border bg-secondary cursor-pointer p-0.5"
+              />
+            </div>
+            <Button type="submit" disabled={!novaTag.nome.trim() || criandoTag} size="sm" className="h-9 gap-1.5 shrink-0">
+              {criandoTag ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              Criar
+            </Button>
+          </form>
+
+          {/* Lista de tags existentes por tipo */}
+          {loadingTags ? (
+            <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-primary" /></div>
+          ) : tags.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhuma tag criada ainda.</p>
+          ) : (
+            <div className="space-y-4">
+              {(['produto', 'vendedor', 'custom'] as const).map(tipo => {
+                const grupo = tags.filter(t => t.tipo === tipo);
+                if (grupo.length === 0) return null;
+                return (
+                  <div key={tipo}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">{TIPO_LABEL[tipo]}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {grupo.map(tag => (
+                        <div
+                          key={tag.id}
+                          className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full text-xs font-bold"
+                          style={{ backgroundColor: tag.cor + '20', color: tag.cor, border: `1px solid ${tag.cor}50` }}
+                        >
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tag.cor }} />
+                          <span>{tag.nome}</span>
+                          <button
+                            onClick={() => handleDeletarTag(tag.id)}
+                            className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors ml-0.5"
+                            style={{ color: tag.cor }}
+                            title="Remover tag"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </div>
     </AppLayout>
   );
