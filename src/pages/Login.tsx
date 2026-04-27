@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,24 +7,33 @@ import { toast } from '@/hooks/use-toast';
 import lvLogo from '@/assets/Logo-LV-Branco.png';
 
 export default function Login() {
-  const navigate = useNavigate();
-  const { user, signIn } = useAuth();
+  const { user, loading, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
+  // Mostra spinner enquanto o AuthContext resolve a sessão salva
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Já autenticado — deixa o RootRedirect redirecionar para a rota correta
   if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await signIn(email, password);
     if (error) {
       toast({ title: 'Erro ao entrar', description: error.message, variant: 'destructive' });
-    } else {
-      navigate('/');
+      setSubmitting(false);
     }
-    setLoading(false);
+    // Sem navigate(): quando signIn tiver sucesso, onAuthStateChange atualiza
+    // o user, re-renderiza este componente, e o "if (user)" acima redireciona.
   };
 
   return (
@@ -62,10 +71,15 @@ export default function Login() {
           </div>
           <Button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="w-full h-11 gold-gradient text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
           >
-            {loading ? 'Aguarde...' : 'Entrar'}
+            {submitting ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Entrando...
+              </span>
+            ) : 'Entrar'}
           </Button>
         </form>
       </div>

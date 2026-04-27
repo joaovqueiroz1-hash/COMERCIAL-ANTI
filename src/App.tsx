@@ -46,9 +46,12 @@ function PageLoader() {
 }
 
 function RootRedirect() {
-  const { profile, loading } = useAuth();
-  if (loading) return null;
-  if (!profile) return <Navigate to="/login" replace />;
+  const { user, profile, loading } = useAuth();
+  // Mostra spinner enquanto a sessão/perfil carrega — nunca retorna null
+  if (loading) return <PageLoader />;
+  // Sem usuário ou sem perfil → login
+  if (!user || !profile) return <Navigate to="/login" replace />;
+  // Redireciona pelo perfil
   if (profile.perfil === "aluno") return <Navigate to="/portal" replace />;
   return <Navigate to="/dashboard" replace />;
 }
