@@ -476,13 +476,21 @@ export async function fetchTagsSistema() {
     .select('*')
     .order('tipo')
     .order('nome');
-  if (error) throw error;
+  if (error) {
+    console.warn('[fetchTagsSistema]', error.message);
+    return [] as TagSistema[];
+  }
   return (data ?? []) as TagSistema[];
 }
 
 export async function createTagSistema(tag: TagSistemaInsert) {
   const { data, error } = await db.from('tags_sistema').insert(tag).select().single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505' || error.message?.includes('duplicate')) {
+      throw new Error(`Já existe uma tag com o nome "${tag.nome}".`);
+    }
+    throw error;
+  }
   return data as TagSistema;
 }
 
@@ -517,7 +525,10 @@ export async function fetchAllLeadTagsMap(): Promise<Record<string, TagSistema[]
   const { data, error } = await db
     .from('lead_tags')
     .select('lead_id, tags_sistema(id, nome, cor, tipo)');
-  if (error) throw error;
+  if (error) {
+    console.warn('[fetchAllLeadTagsMap]', error.message);
+    return {};
+  }
   const map: Record<string, TagSistema[]> = {};
   for (const row of (data ?? []) as any[]) {
     const tag = row.tags_sistema as TagSistema;

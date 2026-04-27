@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,70 +7,89 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Páginas leves — carregadas junto com o bundle principal
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Pipeline from "./pages/Pipeline";
-import Leads from "./pages/Leads";
-import LeadDetail from "./pages/LeadDetail";
-import Agenda from "./pages/Agenda";
-import Relatorios from "./pages/Relatorios";
-import Equipe from "./pages/Equipe";
-import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
-import { useAuth } from '@/contexts/AuthContext';
 
-// Novas Páginas (Stubs provisórios)
-import PortalAluno from "./pages/PortalAluno";
-import GestaoOperacional from "./pages/GestaoOperacional";
-import InternalChat from "./pages/InternalChat";
+// Páginas pesadas — carregadas sob demanda (code splitting)
+const Dashboard        = lazy(() => import("./pages/Dashboard"));
+const Pipeline         = lazy(() => import("./pages/Pipeline"));
+const Leads            = lazy(() => import("./pages/Leads"));
+const LeadDetail       = lazy(() => import("./pages/LeadDetail"));
+const Agenda           = lazy(() => import("./pages/Agenda"));
+const Relatorios       = lazy(() => import("./pages/Relatorios"));
+const Equipe           = lazy(() => import("./pages/Equipe"));
+const Configuracoes    = lazy(() => import("./pages/Configuracoes"));
+const PortalAluno      = lazy(() => import("./pages/PortalAluno"));
+const GestaoOperacional = lazy(() => import("./pages/GestaoOperacional"));
+const InternalChat     = lazy(() => import("./pages/InternalChat"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,     // 2 min: não refaz fetch se dado ainda é fresco
+      gcTime: 1000 * 60 * 10,       // 10 min: mantém na memória quando sem observer
+      retry: 1,                      // apenas 1 retry em vez de 3
+      refetchOnWindowFocus: false,   // não refetcha ao trocar de aba
+    },
+  },
+});
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 function RootRedirect() {
   const { profile, loading } = useAuth();
   if (loading) return null;
   if (!profile) return <Navigate to="/login" replace />;
-  if (profile.perfil === 'aluno') return <Navigate to="/portal" replace />;
+  if (profile.perfil === "aluno") return <Navigate to="/portal" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
 const App = () => (
   <ErrorBoundary>
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<RootRedirect />} />
-            <Route path="/login" element={<Login />} />
-            
-            {/* Visão Compartilhada Admin/Gestor/Operacional */}
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/pipeline" element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
-            <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
-            <Route path="/leads/:id" element={<ProtectedRoute><LeadDetail /></ProtectedRoute>} />
-            <Route path="/agenda" element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
-            <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
-            <Route path="/equipe" element={<ProtectedRoute><Equipe /></ProtectedRoute>} />
-            <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
-            
-            {/* Visão Aluno */}
-            <Route path="/portal" element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
-            
-            {/* Visão Operacional Mentoria */}
-            <Route path="/gestao-operacional" element={<ProtectedRoute><GestaoOperacional /></ProtectedRoute>} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<RootRedirect />} />
+                <Route path="/login" element={<Login />} />
 
-            {/* Canal Único Chat (Ocupando o lugar do antigo WhatsAppCRM) */}
-            <Route path="/suporte-interno" element={<ProtectedRoute><InternalChat /></ProtectedRoute>} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+                {/* Admin / Gestor / Operacional */}
+                <Route path="/dashboard"       element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/pipeline"        element={<ProtectedRoute><Pipeline /></ProtectedRoute>} />
+                <Route path="/leads"           element={<ProtectedRoute><Leads /></ProtectedRoute>} />
+                <Route path="/leads/:id"       element={<ProtectedRoute><LeadDetail /></ProtectedRoute>} />
+                <Route path="/agenda"          element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
+                <Route path="/relatorios"      element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
+                <Route path="/equipe"          element={<ProtectedRoute><Equipe /></ProtectedRoute>} />
+                <Route path="/configuracoes"   element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
+
+                {/* Aluno */}
+                <Route path="/portal"          element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
+
+                {/* Operacional */}
+                <Route path="/gestao-operacional" element={<ProtectedRoute><GestaoOperacional /></ProtectedRoute>} />
+                <Route path="/suporte-interno"    element={<ProtectedRoute><InternalChat /></ProtectedRoute>} />
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   </ErrorBoundary>
 );
 
