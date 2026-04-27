@@ -6,8 +6,8 @@ const STORAGE_KEY = 'lv-theme';
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  root.classList.remove('light', 'dark');
-  root.classList.add(theme === 'light' ? 'light' : '');
+  root.classList.remove('light');
+  if (theme === 'light') root.classList.add('light');
 }
 
 export function useTheme() {
