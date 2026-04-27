@@ -31,82 +31,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    async function fetchProfile(userId: string, retries = 3): Promise<boolean> {
-      for (let i = 0; i < retries; i++) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-            
-          if (error) throw error;
-
-          if (mounted && data) {
-            setProfile(data as Profile);
-            return true;
-          }
-        } catch (err) {
-          console.error(`Tentativa ${i + 1} de buscar perfil falhou:`, err);
-          if (i < retries - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
+    async function fetchProfile(userId: string): Promise<Profile | null> {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        if (error) throw error;
+        return data as Profile;
+      } catch (err) {
+        console.error('fetchProfile falhou:', err);
+        return null;
       }
-      return false;
     }
 
-    // Resolve a sessão inicial antes de qualquer render protegido
+    // Resolve the initial session once — this is the source of truth on page load.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
-      
+
       if (session?.user) {
-        const hasProfile = await fetchProfile(session.user.id);
-        if (hasProfile) {
-          setSession(session);
-          setUser(session.user);
-        } else {
-          // Segurança anti-loop: deslogar se o perfil não existe ou falhou
-          await supabase.auth.signOut();
+        const p = await fetchProfile(session.user.id);
+        if (mounted) {
+          if (p) {
+            setProfile(p);
+            setSession(session);
+            setUser(session.user);
+          } else {
+            // Profile not found — sign out silently so auth state is clean.
+            await supabase.auth.signOut();
+            setProfile(null);
+            setSession(null);
+            setUser(null);
+          }
+        }
+      } else {
+        if (mounted) {
           setProfile(null);
           setSession(null);
           setUser(null);
         }
-      } else {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
       }
-      setLoading(false);
+
+      if (mounted) {
+        setLoading(false);
+      }
     });
 
-    // Escuta mudanças de auth (login, logout, refresh de token)
+    // Only reacts to auth changes AFTER the initial session is resolved:
+    // SIGNED_IN (user just logged in), SIGNED_OUT, TOKEN_REFRESHED.
+    // We skip INITIAL_SESSION because getSession() above already handles it.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        
-        // Bloqueia a UI para evitar reders prematuros com user mas sem profile
-        setLoading(true);
-        
+
+        // Skip the duplicate INITIAL_SESSION — getSession handles it.
+        if (event === 'INITIAL_SESSION') return;
+
         if (session?.user) {
-          const hasProfile = await fetchProfile(session.user.id);
-          if (hasProfile) {
+          // Don't block UI for token refresh — profile didn't change.
+          if (event === 'TOKEN_REFRESHED') {
+            if (mounted) setSession(session);
+            return;
+          }
+
+          // For SIGNED_IN: fetch profile and update state.
+          const p = await fetchProfile(session.user.id);
+          if (!mounted) return;
+
+          if (p) {
+            setProfile(p);
             setSession(session);
             setUser(session.user);
           } else {
-            // Segurança anti-loop
             await supabase.auth.signOut();
             setProfile(null);
             setSession(null);
             setUser(null);
           }
         } else {
-          setProfile(null);
-          setSession(null);
-          setUser(null);
+          if (mounted) {
+            setProfile(null);
+            setSession(null);
+            setUser(null);
+          }
         }
-        
-        setLoading(false);
       }
     );
 
