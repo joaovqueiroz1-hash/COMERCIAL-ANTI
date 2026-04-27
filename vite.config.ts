@@ -14,18 +14,16 @@ export default defineConfig(({ mode }) => ({
     alias: { "@": path.resolve(__dirname, "./src") },
   },
   build: {
-    chunkSizeWarningLimit: 800,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (id.includes("react-dom") || id.includes("react-router")) return "react";
-          if (id.includes("@supabase")) return "supabase";
-          if (id.includes("@tanstack")) return "query";
-          if (id.includes("@radix-ui") || id.includes("@floating-ui")) return "radix";
-          if (id.includes("lucide-react")) return "icons";
-          if (id.includes("xlsx")) return "xlsx";
-          return "vendor";
+        // Chunks separados só para bibliotecas grandes e estáveis.
+        // Intencionalmente simples: react + react-dom JUNTOS no mesmo chunk
+        // para evitar problemas de inicialização com módulo compartilhado.
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "supabase-vendor": ["@supabase/supabase-js"],
+          "query-vendor": ["@tanstack/react-query"],
         },
       },
     },

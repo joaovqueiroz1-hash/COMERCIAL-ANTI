@@ -12,14 +12,42 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <meta property="og:title" content="LV Business Club CRM — Gestão Premium de Leads">
-  <meta name="twitter:title" content="LV Business Club CRM — Gestão Premium de Leads">
-  <meta property="og:description" content="CRM premium para gestão de leads e pipeline de vendas de mentorias de alto ticket.">
-  <meta name="twitter:description" content="CRM premium para gestão de leads e pipeline de vendas de mentorias de alto ticket.">
-  <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/NAAKmc4aefZaFN2PxI2wMqRCg7w2/social-images/social-1773598284664-LV-Icon-Preto.webp">
-  <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/NAAKmc4aefZaFN2PxI2wMqRCg7w2/social-images/social-1773598284664-LV-Icon-Preto.webp">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta property="og:type" content="website">
-</head>
+    <meta name="twitter:title" content="LV Business Club CRM — Gestão Premium de Leads">
+    <meta property="og:description" content="CRM premium para gestão de leads e pipeline de vendas de mentorias de alto ticket.">
+    <meta name="twitter:description" content="CRM premium para gestão de leads e pipeline de vendas de mentorias de alto ticket.">
+    <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/NAAKmc4aefZaFN2PxI2wMqRCg7w2/social-images/social-1773598284664-LV-Icon-Preto.webp">
+    <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/NAAKmc4aefZaFN2PxI2wMqRCg7w2/social-images/social-1773598284664-LV-Icon-Preto.webp">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta property="og:type" content="website">
+
+    <!--
+      Detector de tela preta por cache desatualizado.
+      Se o React não montar em 5 segundos, exibe botão de recarregar com cache-bust.
+      O App.tsx limpa este timer assim que o componente renderiza com sucesso.
+    -->
+    <script>
+      window.__startupTimer = setTimeout(function () {
+        var root = document.getElementById('root');
+        if (!root || root.hasChildNodes()) return; // React já montou, ok
+        root.innerHTML =
+          '<div style="min-height:100vh;background:#111;display:flex;flex-direction:column;' +
+          'align-items:center;justify-content:center;gap:20px;padding:32px;text-align:center;' +
+          'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif">' +
+          '<div style="font-size:44px">⚠️</div>' +
+          '<h2 style="color:#f0f0f0;font-size:20px;font-weight:700;margin:0">Versão desatualizada</h2>' +
+          '<p style="color:#888;font-size:14px;margin:0;max-width:320px;line-height:1.6">' +
+          'O sistema detectou uma versão antiga em cache.<br>Clique para recarregar.' +
+          '</p>' +
+          '<button onclick="window.location.href=location.pathname+\'?v=\'+Date.now()" ' +
+          'style="margin-top:8px;padding:13px 32px;background:#b8932a;color:#fff;border:none;' +
+          'border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.3px">' +
+          '🔄  Recarregar agora' +
+          '</button>' +
+          '<p style="color:#555;font-size:12px;margin:0">Ou pressione Ctrl+Shift+R (PC) / Cmd+Shift+R (Mac)</p>' +
+          '</div>';
+      }, 5000);
+    </script>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

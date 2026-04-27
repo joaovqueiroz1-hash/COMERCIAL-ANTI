@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -53,7 +53,14 @@ function RootRedirect() {
   return <Navigate to="/dashboard" replace />;
 }
 
-const App = () => (
+const App = () => {
+  // Cancela o timer de detecção de tela preta definido em index.html
+  useEffect(() => {
+    const t = (window as any).__startupTimer;
+    if (t) { clearTimeout(t); (window as any).__startupTimer = null; }
+  }, []);
+
+  return (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -91,6 +98,7 @@ const App = () => (
       </AuthProvider>
     </QueryClientProvider>
   </ErrorBoundary>
-);
+  );
+};
 
 export default App;
