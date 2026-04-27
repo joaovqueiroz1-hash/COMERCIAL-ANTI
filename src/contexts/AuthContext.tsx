@@ -31,26 +31,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    async function fetchProfile(userId: string) {
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-        if (mounted && data) setProfile(data as Profile);
-      } catch {
-        // Profile pode não existir ainda para usuários recém criados
+    async function fetchProfile(userId: string, retries = 3): Promise<boolean> {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+            
+          if (error) throw error;
+
+          if (mounted && data) {
+            setProfile(data as Profile);
+            return true;
+          }
+        } catch (err) {
+          console.error(`Tentativa ${i + 1} de buscar perfil falhou:`, err);
+          if (i < retries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
       }
+      return false;
     }
 
     // Resolve a sessão inicial antes de qualquer render protegido
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
+      
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        const hasProfile = await fetchProfile(session.user.id);
+        if (hasProfile) {
+          setSession(session);
+          setUser(session.user);
+        } else {
+          // Segurança anti-loop: deslogar se o perfil não existe ou falhou
+          await supabase.auth.signOut();
+          setProfile(null);
+          setSession(null);
+          setUser(null);
+        }
+      } else {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
       }
       setLoading(false);
     });
@@ -59,13 +84,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        setSession(session);
-        setUser(session?.user ?? null);
+        
+        // Bloqueia a UI para evitar reders prematuros com user mas sem profile
+        setLoading(true);
+        
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          const hasProfile = await fetchProfile(session.user.id);
+          if (hasProfile) {
+            setSession(session);
+            setUser(session.user);
+          } else {
+            // Segurança anti-loop
+            await supabase.auth.signOut();
+            setProfile(null);
+            setSession(null);
+            setUser(null);
+          }
         } else {
           setProfile(null);
+          setSession(null);
+          setUser(null);
         }
+        
         setLoading(false);
       }
     );

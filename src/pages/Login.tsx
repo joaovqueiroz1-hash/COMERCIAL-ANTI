@@ -7,7 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import lvLogo from '@/assets/Logo-LV-Branco.png';
 
 export default function Login() {
-  const { user, loading, signIn } = useAuth();
+  const { user, profile, loading, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -21,8 +21,8 @@ export default function Login() {
     );
   }
 
-  // Já autenticado — deixa o RootRedirect redirecionar para a rota correta
-  if (user) return <Navigate to="/" replace />;
+  // Já autenticado e com perfil — deixa o RootRedirect redirecionar para a rota correta
+  if (user && profile) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
