@@ -1,7 +1,8 @@
 import { ReactNode, useState, useRef } from 'react';
-import { Bell, Search, Menu, PanelLeftClose } from 'lucide-react';
+import { Bell, Search, Menu, PanelLeftClose, Sun, Moon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '@/hooks/use-theme';
 
 interface TopbarProps {
   title: string;
@@ -16,6 +17,7 @@ export function Topbar({ title, subtitle, actions, onMenuClick, sidebarOpen }: T
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { isDark, toggle } = useTheme();
 
   const handleSearchToggle = () => {
     setSearchOpen((v) => {
@@ -71,7 +73,16 @@ export function Topbar({ title, subtitle, actions, onMenuClick, sidebarOpen }: T
           <Search size={18} />
         </button>
 
-        {/* Notifications — placeholder, sem dot até ter sistema de notif */}
+        {/* Light / Dark toggle */}
+        <button
+          onClick={toggle}
+          title={isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+          className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-white/5"
+        >
+          {isDark ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+
+        {/* Notifications */}
         <button
           className="text-muted-foreground hover:text-foreground transition-colors"
           title="Notificações (em breve)"

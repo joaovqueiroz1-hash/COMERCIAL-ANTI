@@ -126,20 +126,20 @@ export default function GestaoOperacional() {
 
   // ── carga ─────────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
-    try {
-      const [alunosData, leadsData, materiaisData, sprintsData, eventosData] = await Promise.all([
-        fetchAlunos(), fetchLeads(), fetchTodosMateriais(), fetchSprints(), fetchTodosEventos(),
-      ]);
-      const listaAlunos = alunosData || [];
-      setAlunos(listaAlunos);
-      setLeadsFechados((leadsData || []).filter(
-        l => l.status_pipeline === "fechado" && !listaAlunos.some((a: any) => a.lead_id === l.id),
-      ));
-      setMateriais((materiaisData || []) as Material[]);
-      setSprints(sprintsData || []);
-      setEventos((eventosData || []) as Evento[]);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    // Promise.allSettled garante que leads/alunos carregam mesmo se tabelas novas ainda não existirem
+    const [alunosRes, leadsRes, materiaisRes, sprintsRes, eventosRes] = await Promise.allSettled([
+      fetchAlunos(), fetchLeads(), fetchTodosMateriais(), fetchSprints(), fetchTodosEventos(),
+    ]);
+    const listaAlunos = alunosRes.status === "fulfilled" ? (alunosRes.value || []) : [];
+    const listaLeads  = leadsRes.status  === "fulfilled" ? (leadsRes.value  || []) : [];
+    setAlunos(listaAlunos);
+    setLeadsFechados(listaLeads.filter(
+      l => l.status_pipeline === "fechado" && !listaAlunos.some((a: any) => a.lead_id === l.id),
+    ));
+    if (materiaisRes.status === "fulfilled") setMateriais((materiaisRes.value || []) as Material[]);
+    if (sprintsRes.status  === "fulfilled") setSprints(sprintsRes.value || []);
+    if (eventosRes.status  === "fulfilled") setEventos((eventosRes.value || []) as Evento[]);
+    setLoading(false);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);

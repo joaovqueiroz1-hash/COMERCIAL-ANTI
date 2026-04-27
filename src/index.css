@@ -5,6 +5,7 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Tema Escuro (padrão) ── */
   :root {
     --background: 0 0% 13%;
     --foreground: 0 0% 92%;
@@ -26,8 +27,6 @@
     --input: 0 0% 18%;
     --ring: 40 17% 95%;
     --radius: 0.75rem;
-
-    /* Backgrounds */
     --bg-primary: 0 0% 13%;
     --bg-secondary: 0 0% 11%;
     --bg-tertiary: 0 0% 15%;
@@ -36,20 +35,16 @@
     --text-primary: 0 0% 92%;
     --text-secondary: 0 0% 64%;
     --text-muted: 0 0% 47%;
-
-    /* Neutral palette */
     --silver: 40 17% 95%;
     --silver-light: 40 20% 97%;
     --silver-dark: 0 0% 70%;
     --silver-muted: 0 0% 40%;
-
     --accent-gold: 40 17% 95%;
     --accent-gold-hover: 40 17% 88%;
     --success: 142 65% 52%;
     --warning: 27 96% 58%;
     --info: 213 90% 65%;
     --danger: 0 68% 62%;
-
     --sidebar-background: 0 0% 10%;
     --sidebar-foreground: 0 0% 92%;
     --sidebar-primary: 40 17% 95%;
@@ -58,10 +53,61 @@
     --sidebar-accent-foreground: 0 0% 92%;
     --sidebar-border: 0 0% 17%;
     --sidebar-ring: 40 17% 95%;
-
-    /* WhatsApp CRM */
     --wa-bubble-out: 0 0% 18%;
     --wa-bubble-in: 0 0% 15%;
+  }
+
+  /* ── Tema Claro ── */
+  .light {
+    --background: 40 20% 97%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 38 72% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 15% 92%;
+    --secondary-foreground: 0 0% 15%;
+    --muted: 40 15% 92%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 38 72% 38%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 68% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 12% 85%;
+    --input: 40 15% 92%;
+    --ring: 38 72% 38%;
+    --radius: 0.75rem;
+    --bg-primary: 40 20% 97%;
+    --bg-secondary: 40 15% 94%;
+    --bg-tertiary: 0 0% 100%;
+    --bg-card: 0 0% 100%;
+    --border-hover: 40 10% 75%;
+    --text-primary: 0 0% 10%;
+    --text-secondary: 0 0% 35%;
+    --text-muted: 0 0% 50%;
+    --silver: 38 72% 38%;
+    --silver-light: 38 72% 45%;
+    --silver-dark: 38 60% 30%;
+    --silver-muted: 38 40% 55%;
+    --accent-gold: 38 72% 38%;
+    --accent-gold-hover: 38 72% 32%;
+    --success: 142 60% 40%;
+    --warning: 27 90% 48%;
+    --info: 213 80% 50%;
+    --danger: 0 68% 52%;
+    /* Sidebar permanece escura mesmo no tema claro — identidade da marca */
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 38 72% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 92%;
+    --sidebar-border: 0 0% 17%;
+    --sidebar-ring: 38 72% 38%;
+    --wa-bubble-out: 40 15% 92%;
+    --wa-bubble-in: 0 0% 96%;
   }
 }
 
