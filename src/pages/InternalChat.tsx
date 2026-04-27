@@ -177,11 +177,12 @@ export default function InternalChat() {
 
                     {mensagens.map(msg => {
                        const ehMeu = msg.remetente_id === profile?.id;
+                       const nomeRemetente = msg.profiles?.nome ?? 'Equipe';
                        return (
                          <div key={msg.id} className={`flex flex-col ${ehMeu ? 'items-end' : 'items-start'} max-w-full`}>
                             {!ehMeu && (
                                <span className="text-[10px] text-muted-foreground mb-1 ml-1">
-                                  {isAluno ? 'Equipe de Mentoria' : msg.profiles?.nome}
+                                  {nomeRemetente}
                                </span>
                             )}
                             <div className={`relative px-4 py-3 max-w-[85%] sm:max-w-[70%] rounded-2xl text-sm shadow-sm ${

@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram } from 'lucide-react';
-import { updateLead, fetchInteracoes, fetchProximasAcoes, Lead } from '@/lib/api';
+import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2 } from 'lucide-react';
+import { updateLead, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, Lead } from '@/lib/api';
+import type { TagSistema } from '@/lib/api';
 import { STATUS_LABELS, PipelineStatus, formatCurrency } from '@/lib/types';
 import { validateWhatsApp, cleanWhatsAppNumber } from '@/lib/whatsapp-utils';
 import { toast } from '@/hooks/use-toast';
@@ -48,6 +49,20 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
     enabled: !!lead?.id && open,
   });
 
+  const { data: leadTags = [], refetch: refetchLeadTags } = useQuery({
+    queryKey: ['lead_tags', lead?.id],
+    queryFn: () => fetchLeadTags(lead!.id),
+    enabled: !!lead?.id && open,
+  });
+
+  const { data: todasTags = [] } = useQuery({
+    queryKey: ['tags_sistema'],
+    queryFn: fetchTagsSistema,
+    enabled: open,
+  });
+
+  const [tagLoading, setTagLoading] = useState<string | null>(null);
+
   useEffect(() => {
     if (lead) setForm({ ...lead });
   }, [lead]);
@@ -76,6 +91,30 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const handleSave = () => {
     const { id, created_at, updated_at, ...updates } = form as any;
     mutation.mutate(updates);
+  };
+
+  const handleAddTag = async (tagId: string) => {
+    if (!lead) return;
+    setTagLoading(tagId);
+    try {
+      await addLeadTag(lead.id, tagId);
+      await refetchLeadTags();
+      queryClient.invalidateQueries({ queryKey: ['lead_tags_map'] });
+    } finally {
+      setTagLoading(null);
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    if (!lead) return;
+    setTagLoading(tagId);
+    try {
+      await removeLeadTag(lead.id, tagId);
+      await refetchLeadTags();
+      queryClient.invalidateQueries({ queryKey: ['lead_tags_map'] });
+    } finally {
+      setTagLoading(null);
+    }
   };
 
   const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
@@ -155,6 +194,12 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                 <TabsTrigger value="qualificacao" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Qualificação</TabsTrigger>
                 <TabsTrigger value="timeline" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Timeline</TabsTrigger>
                 <TabsTrigger value="acoes" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Ações</TabsTrigger>
+                <TabsTrigger value="tags" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none flex items-center gap-1">
+                  <Tag size={11} /> Tags
+                  {leadTags.length > 0 && (
+                    <span className="ml-0.5 bg-primary/20 text-primary text-[9px] font-bold px-1 rounded-full">{leadTags.length}</span>
+                  )}
+                </TabsTrigger>
               </TabsList>
 
               {/* INFO TAB */}
@@ -393,6 +438,69 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-8">Nenhuma interação registrada</p>
+                )}
+              </TabsContent>
+
+              {/* TAGS TAB */}
+              <TabsContent value="tags" className="p-4 mt-0 space-y-5">
+                {/* Tags vinculadas */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Tags Aplicadas</h3>
+                  {leadTags.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-3 text-center">Nenhuma tag aplicada ainda.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {leadTags.map(tag => (
+                        <div
+                          key={tag.id}
+                          className="flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full text-xs font-bold"
+                          style={{ backgroundColor: tag.cor + '22', color: tag.cor, border: `1px solid ${tag.cor}55` }}
+                        >
+                          <span>{tag.nome}</span>
+                          <button
+                            onClick={() => handleRemoveTag(tag.id)}
+                            disabled={tagLoading === tag.id}
+                            className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors disabled:opacity-50"
+                            style={{ color: tag.cor }}
+                          >
+                            {tagLoading === tag.id ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Divisor por tipo */}
+                {(['produto', 'vendedor', 'custom'] as const).map(tipo => {
+                  const tipoLabel: Record<string, string> = { produto: 'Produto', vendedor: 'Vendedor', custom: 'Custom' };
+                  const available = todasTags.filter(t => t.tipo === tipo && !leadTags.some(lt => lt.id === t.id));
+                  if (available.length === 0) return null;
+                  return (
+                    <div key={tipo}>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">{tipoLabel[tipo]}</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {available.map(tag => (
+                          <button
+                            key={tag.id}
+                            onClick={() => handleAddTag(tag.id)}
+                            disabled={tagLoading === tag.id}
+                            className="flex items-center gap-1.5 pl-2.5 pr-3 py-1 rounded-full text-xs font-semibold transition-all hover:scale-105 disabled:opacity-50"
+                            style={{ backgroundColor: tag.cor + '15', color: tag.cor, border: `1px dashed ${tag.cor}55` }}
+                          >
+                            {tagLoading === tag.id ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
+                            {tag.nome}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {todasTags.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-6">
+                    Nenhuma tag cadastrada. Crie tags em <strong>Configurações</strong>.
+                  </p>
                 )}
               </TabsContent>
 

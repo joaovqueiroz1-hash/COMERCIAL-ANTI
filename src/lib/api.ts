@@ -1,6 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
+// Tabelas adicionadas manualmente ainda não estão no schema gerado pelo Supabase CLI.
+// Usamos `db` (untyped) apenas para essas tabelas novas.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
 type Lead = Database['public']['Tables']['leads']['Row'];
 type LeadInsert = Database['public']['Tables']['leads']['Insert'];
 type LeadUpdate = Database['public']['Tables']['leads']['Update'];
@@ -243,7 +248,9 @@ export async function fetchAlunos() {
   return data;
 }
 
-export async function fetchAlunoLogado(profileId: string) {
+type AlunoRow = Database['public']['Tables']['alunos']['Row'];
+
+export async function fetchAlunoLogado(profileId: string): Promise<AlunoRow | null> {
   const { data, error } = await supabase
     .from('alunos')
     .select('*')
@@ -398,4 +405,125 @@ export async function updateMaterial(id: string, updates: MaterialUpdate) {
 export async function deleteMaterial(id: string) {
   const { error } = await supabase.from('materiais').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ── EVENTOS ───────────────────────────────────────────────────────────────────
+
+export type Evento = Database['public']['Tables']['eventos']['Row'];
+export type EventoInsert = Database['public']['Tables']['eventos']['Insert'];
+
+export async function fetchEventosAluno(alunoId: string) {
+  const { data, error } = await db
+    .from('eventos')
+    .select('*, sprints(titulo)')
+    .or(`aluno_id.is.null,aluno_id.eq.${alunoId}`)
+    .gte('data_hora', new Date().toISOString())
+    .order('data_hora', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Evento[];
+}
+
+export async function fetchTodosEventos() {
+  const { data, error } = await db
+    .from('eventos')
+    .select('*, sprints(titulo), alunos(profiles(nome))')
+    .order('data_hora', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Evento[];
+}
+
+export async function createEvento(evento: EventoInsert) {
+  const { data, error } = await db.from('eventos').insert(evento).select().single();
+  if (error) throw error;
+  return data as Evento;
+}
+
+export async function deleteEvento(id: string) {
+  const { error } = await db.from('eventos').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ── SPRINTS: busca tarefas de todos os alunos (visão equipe) ──────────────────
+
+export async function fetchTodasTarefasSprint(sprintId: string) {
+  const { data, error } = await supabase
+    .from('sprint_tarefas')
+    .select('*, alunos(profiles(nome))')
+    .eq('sprint_id', sprintId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteSprint(id: string) {
+  const { error } = await supabase.from('sprints').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteSprintTarefa(id: string) {
+  const { error } = await supabase.from('sprint_tarefas').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ── TAGS SISTEMA ──────────────────────────────────────────────────────────────
+
+export type TagSistema = Database['public']['Tables']['tags_sistema']['Row'];
+export type TagSistemaInsert = Database['public']['Tables']['tags_sistema']['Insert'];
+
+export async function fetchTagsSistema() {
+  const { data, error } = await db
+    .from('tags_sistema')
+    .select('*')
+    .order('tipo')
+    .order('nome');
+  if (error) throw error;
+  return (data ?? []) as TagSistema[];
+}
+
+export async function createTagSistema(tag: TagSistemaInsert) {
+  const { data, error } = await db.from('tags_sistema').insert(tag).select().single();
+  if (error) throw error;
+  return data as TagSistema;
+}
+
+export async function deleteTagSistema(id: string) {
+  const { error } = await db.from('tags_sistema').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ── LEAD TAGS ─────────────────────────────────────────────────────────────────
+
+export async function fetchLeadTags(leadId: string) {
+  const { data, error } = await db
+    .from('lead_tags')
+    .select('tag_id, tags_sistema(id, nome, cor, tipo)')
+    .eq('lead_id', leadId);
+  if (error) throw error;
+  return ((data ?? []) as any[]).map(r => r.tags_sistema as TagSistema).filter(Boolean);
+}
+
+export async function addLeadTag(leadId: string, tagId: string) {
+  const { error } = await db.from('lead_tags').insert({ lead_id: leadId, tag_id: tagId });
+  if (error && !String(error.message).includes('duplicate')) throw error;
+}
+
+export async function removeLeadTag(leadId: string, tagId: string) {
+  const { error } = await db.from('lead_tags').delete().eq('lead_id', leadId).eq('tag_id', tagId);
+  if (error) throw error;
+}
+
+// Returns a map of leadId → TagSistema[] for all leads (single query for the pipeline)
+export async function fetchAllLeadTagsMap(): Promise<Record<string, TagSistema[]>> {
+  const { data, error } = await db
+    .from('lead_tags')
+    .select('lead_id, tags_sistema(id, nome, cor, tipo)');
+  if (error) throw error;
+  const map: Record<string, TagSistema[]> = {};
+  for (const row of (data ?? []) as any[]) {
+    const tag = row.tags_sistema as TagSistema;
+    if (!tag) continue;
+    if (!map[row.lead_id]) map[row.lead_id] = [];
+    map[row.lead_id].push(tag);
+  }
+  return map;
 }

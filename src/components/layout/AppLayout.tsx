@@ -5,12 +5,16 @@ import { Menu } from 'lucide-react';
 
 interface AppLayoutProps {
   children: ReactNode;
-  title: string;
+  title?: string;
   subtitle?: string;
   actions?: ReactNode;
+  noPadding?: boolean;
+  /** @deprecated use noPadding */
+  hideLayoutPadding?: boolean;
 }
 
-export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
+export function AppLayout({ children, title = '', subtitle, actions, noPadding, hideLayoutPadding }: AppLayoutProps) {
+  const fullBleed = noPadding || hideLayoutPadding;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
@@ -41,7 +45,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           sidebarOpen={sidebarOpen}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className={`flex-1 overflow-hidden ${fullBleed ? '' : 'overflow-y-auto p-4 md:p-6'}`}>
           {children}
         </main>
       </div>

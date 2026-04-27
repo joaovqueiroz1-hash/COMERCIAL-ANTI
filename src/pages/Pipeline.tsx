@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchLeads, fetchProfiles, updateLead, createPipelineLog, Lead } from '@/lib/api';
+import { fetchLeads, fetchProfiles, updateLead, createPipelineLog, fetchAllLeadTagsMap, Lead } from '@/lib/api';
+import type { TagSistema } from '@/lib/api';
 import { PipelineStatus, PIPELINE_COLUMNS, formatCurrency, getInitials } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { DndContext, DragEndEvent, DragOverlay, DragOverEvent, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
@@ -14,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { LeadEditSheet } from '@/components/LeadEditSheet';
 
-function LeadCard({ lead, profiles, onClick, cardNumber }: { lead: Lead; profiles: any[]; onClick?: () => void; cardNumber?: number }) {
+function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; profiles: any[]; tags?: TagSistema[]; onClick?: () => void; cardNumber?: number }) {
   const now = new Date();
   const daysSinceContact = lead.ultimo_contato
     ? Math.floor((now.getTime() - new Date(lead.ultimo_contato).getTime()) / (24 * 60 * 60 * 1000))
@@ -37,6 +38,22 @@ function LeadCard({ lead, profiles, onClick, cardNumber }: { lead: Lead; profile
         </div>
       </div>
       <p className="text-xs text-muted-foreground truncate mb-2">{lead.nome_empresa || '—'}</p>
+
+      {/* Colored system tags */}
+      {tags && tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {tags.map(tag => (
+            <span
+              key={tag.id}
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
+              style={{ backgroundColor: tag.cor + '28', color: tag.cor, border: `1px solid ${tag.cor}45` }}
+            >
+              {tag.nome}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-1 mb-2">
         {(lead.faturamento_anual || 0) > 0 && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/60 font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
@@ -62,7 +79,7 @@ function LeadCard({ lead, profiles, onClick, cardNumber }: { lead: Lead; profile
   );
 }
 
-function SortableLeadCard({ lead, profiles, onClick, cardNumber }: { lead: Lead; profiles: any[]; onClick?: () => void; cardNumber?: number }) {
+function SortableLeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; profiles: any[]; tags?: TagSistema[]; onClick?: () => void; cardNumber?: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id, data: { columnId: lead.status_pipeline } });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
@@ -76,7 +93,7 @@ function SortableLeadCard({ lead, profiles, onClick, cardNumber }: { lead: Lead;
         <GripVertical size={11} className="text-muted-foreground/50" />
       </div>
       <div className="pl-4">
-        <LeadCard lead={lead} profiles={profiles} onClick={onClick} cardNumber={cardNumber} />
+        <LeadCard lead={lead} profiles={profiles} tags={tags} onClick={onClick} cardNumber={cardNumber} />
       </div>
     </div>
   );
@@ -101,6 +118,7 @@ export default function Pipeline() {
 
   const { data: leads = [], isLoading } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
+  const { data: tagsMap = {} } = useQuery({ queryKey: ['lead_tags_map'], queryFn: fetchAllLeadTagsMap });
 
   // Filter leads by search
   const filteredLeads = search.trim()
@@ -219,6 +237,7 @@ export default function Pipeline() {
                         key={lead.id}
                         lead={lead}
                         profiles={profiles}
+                        tags={tagsMap[lead.id]}
                         onClick={() => handleCardClick(lead)}
                         cardNumber={leadNumberMap[lead.id]}
                       />
@@ -230,7 +249,7 @@ export default function Pipeline() {
             );
           })}
         </div>
-        <DragOverlay>{activeLead ? <LeadCard lead={activeLead} profiles={profiles} /> : null}</DragOverlay>
+        <DragOverlay>{activeLead ? <LeadCard lead={activeLead} profiles={profiles} tags={tagsMap[activeLead.id]} /> : null}</DragOverlay>
       </DndContext>
 
       <LeadEditSheet lead={selectedLead} profiles={profiles} open={sheetOpen} onOpenChange={setSheetOpen} />

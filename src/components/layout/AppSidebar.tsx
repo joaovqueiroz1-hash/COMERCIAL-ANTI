@@ -8,25 +8,25 @@ import { getInitials } from '@/lib/types';
 import lvLogo from '@/assets/Logo-LV-Branco.png';
 
 const navItems = [
-  // Visão Compartilhada Admin/Comercial
-  { to: '/dashboard',    label: 'Dashboard',      icon: LayoutDashboard, roles: ['admin', 'gestor'] },
-  { to: '/pipeline',     label: 'Pipeline',        icon: Kanban,         roles: ['admin', 'gestor', 'vendedor'] },
-  { to: '/leads',        label: 'Leads',           icon: Users,          roles: ['admin', 'gestor', 'vendedor'] },
-  
-  // Visão Operacional/Mentoria
-  { to: '/gestao-operacional', label: 'Sprints & Entregas', icon: Kanban, roles: ['admin', 'operacional'] },
+  // ── Visão Admin Master (tudo) ────────────────────────────────────────────
+  { to: '/dashboard',          label: 'Dashboard',          icon: LayoutDashboard, roles: ['admin', 'gestor'] },
+  { to: '/pipeline',           label: 'Pipeline',            icon: Kanban,          roles: ['admin', 'gestor', 'vendedor'] },
+  { to: '/leads',              label: 'Leads',               icon: Users,           roles: ['admin', 'gestor', 'vendedor'] },
 
-  // Visão Aluno
-  { to: '/portal',       label: 'Meu Portal',      icon: LayoutDashboard, roles: ['aluno'] },
+  // ── Visão Operacional / Mentoria ─────────────────────────────────────────
+  { to: '/gestao-operacional', label: 'Gestão de Mentoria',  icon: UsersRound,      roles: ['admin', 'operacional'] },
 
-  // O "Canal Único" - Chat substituto do WhatsApp CRM
-  { to: '/suporte-interno', label: 'Mensagens',    icon: MessageSquare,   roles: ['admin', 'operacional', 'aluno'], badge: 'CHAT' },
+  // ── Visão Aluno ──────────────────────────────────────────────────────────
+  { to: '/portal',             label: 'Meu Portal',          icon: LayoutDashboard, roles: ['aluno'] },
 
-  // Outros Módulos
-  { to: '/agenda',       label: 'Agenda',          icon: Calendar,        roles: ['admin', 'gestor', 'vendedor', 'operacional', 'aluno'] },
-  { to: '/relatorios',   label: 'Relatórios',      icon: BarChart3,       roles: ['admin', 'gestor'] },
-  { to: '/equipe',       label: 'Equipe',          icon: UsersRound,      roles: ['admin'] },
-  { to: '/configuracoes',label: 'Configurações',   icon: Settings,        roles: ['admin'] },
+  // ── Canal de Comunicação ─────────────────────────────────────────────────
+  { to: '/suporte-interno',    label: 'Mensagens',           icon: MessageSquare,   roles: ['admin', 'operacional', 'aluno'], badge: 'CHAT' },
+
+  // ── Módulos Compartilhados ───────────────────────────────────────────────
+  { to: '/agenda',             label: 'Agenda',              icon: Calendar,        roles: ['admin', 'gestor', 'vendedor', 'operacional', 'aluno'] },
+  { to: '/relatorios',         label: 'Relatórios',          icon: BarChart3,       roles: ['admin', 'gestor'] },
+  { to: '/equipe',             label: 'Equipe',              icon: UsersRound,      roles: ['admin'] },
+  { to: '/configuracoes',      label: 'Configurações',       icon: Settings,        roles: ['admin'] },
 ];
 
 const perfilLabels: Record<string, string> = {

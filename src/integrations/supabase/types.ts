@@ -101,6 +101,21 @@ export interface Database {
         Insert: { id?: string; created_at?: string; titulo: string; descricao?: string | null; tipo: string; url: string; thumbnail_url?: string | null; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null }
         Update: { id?: string; created_at?: string; titulo?: string; descricao?: string | null; tipo?: string; url?: string; thumbnail_url?: string | null; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null }
       }
+      eventos: {
+        Row: { id: string; created_at: string; titulo: string; descricao: string | null; data_hora: string; tipo: string; aluno_id: string | null; sprint_id: string | null; criado_por: string | null }
+        Insert: { id?: string; created_at?: string; titulo: string; descricao?: string | null; data_hora: string; tipo?: string; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null }
+        Update: { id?: string; created_at?: string; titulo?: string; descricao?: string | null; data_hora?: string; tipo?: string; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null }
+      }
+      tags_sistema: {
+        Row: { id: string; created_at: string; nome: string; cor: string; tipo: string }
+        Insert: { id?: string; created_at?: string; nome: string; cor?: string; tipo?: string }
+        Update: { id?: string; created_at?: string; nome?: string; cor?: string; tipo?: string }
+      }
+      lead_tags: {
+        Row: { lead_id: string; tag_id: string }
+        Insert: { lead_id: string; tag_id: string }
+        Update: { lead_id?: string; tag_id?: string }
+      }
     }
     Views: { [_ in never]: never }
     Functions: { [_ in never]: never }

@@ -3,13 +3,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchAlunoLogado, fetchSprints, fetchSprintTarefas,
-  fetchMateriaisAluno, marcarTarefaConcluida,
+  fetchMateriaisAluno, fetchEventosAluno, marcarTarefaConcluida,
 } from "@/lib/api";
-import type { Material } from "@/lib/api";
+import type { Material, Evento } from "@/lib/api";
 import {
   CheckCircle2, Lock, Plane, Star, Trophy,
   FileText, Video, Link2, BookOpen, ExternalLink,
-  Clock, Loader2,
+  Clock, Loader2, CalendarClock, AlertTriangle, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -83,6 +83,7 @@ export default function PortalAluno() {
   const [sprints, setSprints] = useState<any[]>([]);
   const [tarefas, setTarefas] = useState<any[]>([]);
   const [materiais, setMateriais] = useState<Material[]>([]);
+  const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroMaterial, setFiltroMaterial] = useState<TipoFiltro>('todos');
   const [concluindo, setConcluindo] = useState<string | null>(null);
@@ -93,14 +94,16 @@ export default function PortalAluno() {
       const logado = await fetchAlunoLogado(profile.id);
       setAluno(logado);
       if (logado) {
-        const [sprintsData, tarefasData, materiaisData] = await Promise.all([
+        const [sprintsData, tarefasData, materiaisData, eventosData] = await Promise.all([
           fetchSprints(),
           fetchSprintTarefas(logado.id),
           fetchMateriaisAluno(logado.id),
+          fetchEventosAluno(logado.id),
         ]);
         setSprints(sprintsData || []);
         setTarefas(tarefasData || []);
         setMateriais((materiaisData || []) as Material[]);
+        setEventos((eventosData || []) as Evento[]);
       }
     } catch (e) {
       console.error(e);
@@ -142,6 +145,35 @@ export default function PortalAluno() {
         </div>
       </AppLayout>
     );
+  }
+
+  // ── highlight: próximo evento e próximo prazo ────────────────────────────────
+  const proximoEvento = eventos.length > 0 ? eventos[0] : null; // já vêm ordenados por data_hora asc
+  const proximaTarefa = tarefas
+    .filter(t => !t.concluida && t.prazo)
+    .sort((a, b) => new Date(a.prazo).getTime() - new Date(b.prazo).getTime())[0] ?? null;
+
+  const TIPO_EVENTO_COLOR: Record<string, string> = {
+    reuniao:    '#6366f1',
+    evento:     '#f59e0b',
+    checkpoint: '#10b981',
+    aula:       '#3b82f6',
+    entrega:    '#f43f5e',
+  };
+  const TIPO_EVENTO_LABEL: Record<string, string> = {
+    reuniao:    'Reunião',
+    evento:     'Evento',
+    checkpoint: 'Checkpoint',
+    aula:       'Aula',
+    entrega:    'Entrega',
+  };
+
+  function diasRestantes(iso: string) {
+    const diff = Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return 'Atrasado';
+    if (diff === 0) return 'Hoje';
+    if (diff === 1) return 'Amanhã';
+    return `em ${diff} dias`;
   }
 
   // ── métricas ────────────────────────────────────────────────────────────────
@@ -186,6 +218,100 @@ export default function PortalAluno() {
         </header>
 
         <main className="flex-1 p-6 overflow-y-auto space-y-8">
+
+          {/* ── Cards de Destaque ─────────────────────────────────────── */}
+          {(proximoEvento || proximaTarefa) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Próximo Evento */}
+              {proximoEvento ? (
+                <div
+                  className="relative overflow-hidden rounded-2xl border p-5 flex items-start gap-4"
+                  style={{
+                    backgroundColor: TIPO_EVENTO_COLOR[proximoEvento.tipo] + '12',
+                    borderColor: TIPO_EVENTO_COLOR[proximoEvento.tipo] + '40',
+                  }}
+                >
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: TIPO_EVENTO_COLOR[proximoEvento.tipo] + '25' }}
+                  >
+                    <CalendarClock size={20} style={{ color: TIPO_EVENTO_COLOR[proximoEvento.tipo] }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
+                      Próxima Reunião / Evento
+                    </p>
+                    <p className="text-sm font-bold text-foreground truncate">{proximoEvento.titulo}</p>
+                    <p
+                      className="text-xs font-semibold mt-1"
+                      style={{ color: TIPO_EVENTO_COLOR[proximoEvento.tipo] }}
+                    >
+                      {TIPO_EVENTO_LABEL[proximoEvento.tipo]} · {diasRestantes(proximoEvento.data_hora)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {new Date(proximoEvento.data_hora).toLocaleDateString('pt-BR', {
+                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                  <div
+                    className="absolute -bottom-4 -right-4 w-20 h-20 rounded-full opacity-10"
+                    style={{ backgroundColor: TIPO_EVENTO_COLOR[proximoEvento.tipo] }}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border/40 p-5 flex items-center justify-center text-center">
+                  <p className="text-xs text-muted-foreground">Nenhum evento próximo agendado.</p>
+                </div>
+              )}
+
+              {/* Próximo Prazo */}
+              {proximaTarefa ? (() => {
+                const dias = proximaTarefa.prazo
+                  ? Math.ceil((new Date(proximaTarefa.prazo).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : null;
+                const urgente = dias !== null && dias <= 3;
+                const cor = urgente ? '#f43f5e' : '#f59e0b';
+                return (
+                  <div
+                    className="relative overflow-hidden rounded-2xl border p-5 flex items-start gap-4"
+                    style={{ backgroundColor: cor + '12', borderColor: cor + '40' }}
+                  >
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: cor + '25' }}
+                    >
+                      {urgente
+                        ? <AlertTriangle size={20} style={{ color: cor }} />
+                        : <Zap size={20} style={{ color: cor }} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
+                        Próximo Prazo
+                      </p>
+                      <p className="text-sm font-bold text-foreground truncate">{proximaTarefa.titulo}</p>
+                      <p className="text-xs font-semibold mt-1" style={{ color: cor }}>
+                        {urgente ? '⚠ Urgente · ' : ''}{diasRestantes(proximaTarefa.prazo)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {new Date(proximaTarefa.prazo).toLocaleDateString('pt-BR', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                    <div
+                      className="absolute -bottom-4 -right-4 w-20 h-20 rounded-full opacity-10"
+                      style={{ backgroundColor: cor }}
+                    />
+                  </div>
+                );
+              })() : (
+                <div className="rounded-2xl border border-dashed border-border/40 p-5 flex items-center justify-center text-center">
+                  <p className="text-xs text-muted-foreground">Nenhuma tarefa com prazo pendente.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Widget Grande Prêmio ───────────────────────────────────── */}
           <div className="bg-gradient-to-br from-zinc-900 to-black rounded-2xl border border-primary/20 overflow-hidden relative">
