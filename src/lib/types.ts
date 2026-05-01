@@ -16,6 +16,19 @@ export type Perfil = 'admin' | 'gestor' | 'vendedor';
 export type TipoInteracao = 'whatsapp' | 'ligacao' | 'reuniao' | 'email';
 export type InteresseDemonstrado = 'baixo' | 'medio' | 'alto';
 
+export const MOTIVOS_PERDA = [
+  'Sem recursos financeiros',
+  'Sem contato',
+  'Sócio não aprovou',
+  'No-show',
+  'Escolheu concorrente',
+  'Não é o momento certo',
+  'Não atende ao perfil',
+  'Outro',
+] as const;
+
+export type MotivoPerdaType = typeof MOTIVOS_PERDA[number];
+
 export interface Lead {
   id: string;
   created_at: string;
@@ -43,6 +56,12 @@ export interface Lead {
   tags: string[];
   observacoes_estrategicas: string;
   origem: string;
+  // Novos campos
+  nicho: string | null;
+  reuniao_agendada: boolean | null;
+  motivo_perda: string | null;
+  lista_origem: string | null;
+  valor_acordado: number | null;
 }
 
 export interface Interacao {

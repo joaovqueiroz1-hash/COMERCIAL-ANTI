@@ -128,19 +128,19 @@ export default function Dashboard() {
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
-      novo_lead:          'bg-white/10 text-white/60',
-      contato_instagram:  'bg-white/10 text-white/60',
-      contato_whatsapp:   'bg-white/10 text-white/60',
-      tentativa_contato:  'bg-white/5 text-white/40',
-      contato_realizado:  'bg-white/10 text-white/50',
-      reuniao_agendada:   'bg-white/15 text-white/80',
-      reuniao_realizada:  'bg-white/15 text-white/80',
-      followup:           'bg-white/10 text-white/70',
-      negociacao:         'bg-white/20 text-white/90',
-      fechado:            'bg-white/25 text-white',
-      perdido:            'bg-white/5 text-white/30',
+      novo_lead:          'bg-secondary text-muted-foreground',
+      contato_instagram:  'bg-secondary text-muted-foreground',
+      contato_whatsapp:   'bg-secondary text-muted-foreground',
+      tentativa_contato:  'bg-secondary/60 text-muted-foreground/70',
+      contato_realizado:  'bg-secondary text-muted-foreground',
+      reuniao_agendada:   'bg-blue-100 text-blue-700',
+      reuniao_realizada:  'bg-green-100 text-green-700',
+      followup:           'bg-amber-100 text-amber-700',
+      negociacao:         'bg-purple-100 text-purple-700',
+      fechado:            'bg-emerald-100 text-emerald-700',
+      perdido:            'bg-red-100 text-red-600',
     };
-    return map[s] || 'bg-white/10 text-white/60';
+    return map[s] || 'bg-secondary text-muted-foreground';
   };
 
   const getInitialsFn = (name: string) =>
@@ -228,37 +228,37 @@ export default function Dashboard() {
           <SectionLabel icon={<Crown size={13} />} text="Performance da Equipe" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
             {teamData.slice(0, 6).map((member, idx) => (
-              <div key={member.id} className={`card-premium p-4 hover:border-primary/30 transition-all ${idx === 0 ? 'border-primary/20' : ''}`}>
+              <div key={member.id} className={`${idx === 0 ? 'card-team-top' : 'card-team'} p-4 transition-all`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${idx === 0 ? 'gold-gradient text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-white/20 text-white">
                     {getInitialsFn(member.nomeCompleto)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{member.nomeCompleto}</p>
-                    <p className="text-[10px] text-muted-foreground capitalize">{member.perfil}</p>
+                    <p className="text-sm font-semibold text-white truncate">{member.nomeCompleto}</p>
+                    <p className="text-[10px] text-white/60 capitalize">{member.perfil}</p>
                   </div>
-                  {idx === 0 && <Award size={14} className="text-primary shrink-0" />}
+                  {idx === 0 && <Award size={14} className="text-amber-300 shrink-0" />}
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-lg font-bold text-foreground">{member.total}</p>
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Total</p>
+                    <p className="text-lg font-bold text-white">{member.total}</p>
+                    <p className="text-[9px] text-white/50 uppercase tracking-wide">Total</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-success">{member.closed}</p>
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Fechados</p>
+                    <p className="text-lg font-bold text-emerald-300">{member.closed}</p>
+                    <p className="text-[9px] text-white/50 uppercase tracking-wide">Fechados</p>
                   </div>
                   <div>
-                    <p className={`text-lg font-bold ${member.taxa >= 50 ? 'text-primary' : member.taxa >= 20 ? 'text-warning' : 'text-muted-foreground'}`}>
+                    <p className={`text-lg font-bold ${member.taxa >= 50 ? 'text-amber-300' : member.taxa >= 20 ? 'text-yellow-200' : 'text-white/60'}`}>
                       {member.taxa}%
                     </p>
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Conversão</p>
+                    <p className="text-[9px] text-white/50 uppercase tracking-wide">Conversão</p>
                   </div>
                 </div>
                 <div className="mt-3">
-                  <div className="w-full bg-secondary rounded-full h-1">
+                  <div className="w-full bg-white/15 rounded-full h-1">
                     <div
-                      className="h-1 rounded-full gold-gradient transition-all"
+                      className="h-1 rounded-full bg-amber-300 transition-all"
                       style={{ width: `${Math.min(member.taxa, 100)}%` }}
                     />
                   </div>
@@ -492,11 +492,11 @@ function KpiCard({
   return (
     <div className={`metric-card p-4 border-l-2 ${accent[color]}`}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">{label}</span>
+        <span className="text-[10px] font-bold text-white/55 uppercase tracking-wider leading-tight">{label}</span>
         <span className={`p-1.5 rounded-lg ${iconBg[color]}`}>{icon}</span>
       </div>
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
+      <p className="text-2xl font-bold text-white">{value}</p>
+      {sub && <p className="text-[11px] text-white/50 mt-1">{sub}</p>}
     </div>
   );
 }

@@ -28,6 +28,10 @@ export default function Leads() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [prioridadeFilter, setPrioridadeFilter] = useState<string>('all');
+  const [vendorFilter, setVendorFilter] = useState<string>('all');
+  const [faturamentoMin, setFaturamentoMin] = useState<string>('');
+  const [dataInicio, setDataInicio] = useState<string>('');
+  const [dataFim, setDataFim] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('faturamento_desc');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -72,6 +76,10 @@ export default function Leads() {
   }
   if (statusFilter !== 'all') filtered = filtered.filter(l => l.status_pipeline === statusFilter);
   if (prioridadeFilter !== 'all') filtered = filtered.filter(l => l.prioridade === prioridadeFilter);
+  if (vendorFilter !== 'all') filtered = filtered.filter(l => l.vendedor_id === vendorFilter);
+  if (faturamentoMin) filtered = filtered.filter(l => (l.faturamento_anual || 0) >= Number(faturamentoMin));
+  if (dataInicio) filtered = filtered.filter(l => new Date(l.created_at) >= new Date(dataInicio));
+  if (dataFim) filtered = filtered.filter(l => new Date(l.created_at) <= new Date(dataFim + 'T23:59:59'));
 
   switch (sortBy) {
     case 'faturamento_desc': filtered.sort((a, b) => (b.faturamento_anual || 0) - (a.faturamento_anual || 0)); break;
@@ -82,19 +90,19 @@ export default function Leads() {
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
-      novo_lead:          'bg-white/10 text-white/60',
-      contato_instagram:  'bg-white/10 text-white/60',
-      contato_whatsapp:   'bg-white/10 text-white/60',
-      tentativa_contato:  'bg-white/5 text-white/40',
-      contato_realizado:  'bg-white/10 text-white/50',
-      reuniao_agendada:   'bg-white/15 text-white/80',
-      reuniao_realizada:  'bg-white/15 text-white/80',
-      followup:           'bg-white/10 text-white/70',
-      negociacao:         'bg-white/20 text-white/90',
-      fechado:            'bg-white/25 text-white',
-      perdido:            'bg-white/5 text-white/30',
+      novo_lead:          'bg-secondary text-muted-foreground',
+      contato_instagram:  'bg-purple-100 text-purple-700',
+      contato_whatsapp:   'bg-green-100 text-green-700',
+      tentativa_contato:  'bg-orange-100 text-orange-600',
+      contato_realizado:  'bg-sky-100 text-sky-700',
+      reuniao_agendada:   'bg-blue-100 text-blue-700',
+      reuniao_realizada:  'bg-indigo-100 text-indigo-700',
+      followup:           'bg-amber-100 text-amber-700',
+      negociacao:         'bg-violet-100 text-violet-700',
+      fechado:            'bg-emerald-100 text-emerald-700',
+      perdido:            'bg-red-100 text-red-600',
     };
-    return map[s] || 'bg-white/10 text-white/60';
+    return map[s] || 'bg-secondary text-muted-foreground';
   };
 
   const handleOpenLead = (lead: Lead) => {
@@ -144,11 +152,59 @@ export default function Leads() {
               </Select>
             </div>
             <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Vendedor</label>
+              <Select value={vendorFilter} onValueChange={setVendorFilter}>
+                <SelectTrigger className="bg-secondary border-border h-9 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Ordenar</label>
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="bg-secondary border-border h-9 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="faturamento_desc">Maior faturamento</SelectItem><SelectItem value="faturamento_asc">Menor faturamento</SelectItem><SelectItem value="recent">Mais recente</SelectItem><SelectItem value="oldest">Mais antigo</SelectItem></SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Faturamento mín. (R$)</label>
+              <Input
+                type="number"
+                value={faturamentoMin}
+                onChange={e => setFaturamentoMin(e.target.value)}
+                placeholder="Ex: 500000"
+                className="bg-secondary border-border h-9 text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Criado a partir de</label>
+              <Input
+                type="date"
+                value={dataInicio}
+                onChange={e => setDataInicio(e.target.value)}
+                className="bg-secondary border-border h-9 text-xs"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Criado até</label>
+              <Input
+                type="date"
+                value={dataFim}
+                onChange={e => setDataFim(e.target.value)}
+                className="bg-secondary border-border h-9 text-xs"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-full text-muted-foreground hover:text-foreground text-xs border border-border"
+                onClick={() => { setStatusFilter('all'); setPrioridadeFilter('all'); setVendorFilter('all'); setFaturamentoMin(''); setDataInicio(''); setDataFim(''); }}
+              >
+                Limpar filtros
+              </Button>
             </div>
           </div>
         )}

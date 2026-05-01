@@ -224,6 +224,13 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- ── 13. Novos campos em leads ─────────────────────────────────────────
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS nicho           TEXT;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS reuniao_agendada BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS motivo_perda    TEXT;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS lista_origem    TEXT;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS valor_acordado  NUMERIC(15, 2);
+
 -- =====================================================================
 -- FEITO! Agora o sistema está pronto para uso.
 -- =====================================================================

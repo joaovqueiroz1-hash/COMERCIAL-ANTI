@@ -120,17 +120,17 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
   const statusColor: Record<string, string> = {
-    novo_lead:          'bg-white/10 text-white/60',
-    contato_instagram:  'bg-white/10 text-white/60',
-    contato_whatsapp:   'bg-white/10 text-white/60',
-    tentativa_contato:  'bg-white/5 text-white/40',
-    contato_realizado:  'bg-white/10 text-white/50',
-    reuniao_agendada:   'bg-white/15 text-white/80',
-    reuniao_realizada:  'bg-white/15 text-white/80',
-    followup:           'bg-white/10 text-white/70',
-    negociacao:         'bg-white/20 text-white/90',
-    fechado:            'bg-white/25 text-white',
-    perdido:            'bg-white/5 text-white/30',
+    novo_lead:          'bg-secondary text-muted-foreground',
+    contato_instagram:  'bg-purple-100 text-purple-700',
+    contato_whatsapp:   'bg-green-100 text-green-700',
+    tentativa_contato:  'bg-orange-100 text-orange-600',
+    contato_realizado:  'bg-sky-100 text-sky-700',
+    reuniao_agendada:   'bg-blue-100 text-blue-700',
+    reuniao_realizada:  'bg-indigo-100 text-indigo-700',
+    followup:           'bg-amber-100 text-amber-700',
+    negociacao:         'bg-violet-100 text-violet-700',
+    fechado:            'bg-emerald-100 text-emerald-700',
+    perdido:            'bg-red-100 text-red-600',
   };
 
   return (
@@ -256,6 +256,22 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                   <FieldBlock label="Origem" editing={editing}>
                     {editing ? <Input value={form.origem || ''} onChange={e => setField('origem', e.target.value)} className="h-8 text-xs bg-secondary border-border" />
                       : <p className="text-sm text-foreground">{form.origem || '—'}</p>}
+                  </FieldBlock>
+                  <FieldBlock label="Nicho" editing={editing}>
+                    {editing ? <Input value={form.nicho || ''} onChange={e => setField('nicho', e.target.value || null)} className="h-8 text-xs bg-secondary border-border" placeholder="Ex: Varejo, Saúde..." />
+                      : <p className="text-sm text-foreground">{form.nicho || '—'}</p>}
+                  </FieldBlock>
+                  <FieldBlock label="Reunião Agendada" editing={editing}>
+                    {editing ? (
+                      <div className="flex items-center gap-2">
+                        <Switch checked={!!form.reuniao_agendada} onCheckedChange={v => setField('reuniao_agendada', v)} />
+                        <span className="text-xs text-foreground">{form.reuniao_agendada ? 'Sim' : 'Não'}</span>
+                      </div>
+                    ) : (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${form.reuniao_agendada ? 'bg-blue-100 text-blue-700' : 'bg-secondary text-muted-foreground'}`}>
+                        {form.reuniao_agendada ? 'Sim' : 'Não'}
+                      </span>
+                    )}
                   </FieldBlock>
                 </div>
 
