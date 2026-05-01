@@ -8,21 +8,12 @@ import { getInitials } from '@/lib/types';
 import lvLogo from '@/assets/Logo-LV-Branco.png';
 
 const navItems = [
-  // ── Visão Admin Master (tudo) ────────────────────────────────────────────
   { to: '/dashboard',          label: 'Dashboard',          icon: LayoutDashboard, roles: ['admin', 'gestor'] },
   { to: '/pipeline',           label: 'Pipeline',            icon: Kanban,          roles: ['admin', 'gestor', 'vendedor'] },
   { to: '/leads',              label: 'Leads',               icon: Users,           roles: ['admin', 'gestor', 'vendedor'] },
-
-  // ── Visão Operacional / Mentoria ─────────────────────────────────────────
   { to: '/gestao-operacional', label: 'Gestão de Mentoria',  icon: UsersRound,      roles: ['admin', 'operacional'] },
-
-  // ── Visão Aluno ──────────────────────────────────────────────────────────
   { to: '/portal',             label: 'Meu Portal',          icon: LayoutDashboard, roles: ['aluno'] },
-
-  // ── Canal de Comunicação ─────────────────────────────────────────────────
   { to: '/suporte-interno',    label: 'Mensagens',           icon: MessageSquare,   roles: ['admin', 'operacional', 'aluno'], badge: 'CHAT' },
-
-  // ── Módulos Compartilhados ───────────────────────────────────────────────
   { to: '/agenda',             label: 'Agenda',              icon: Calendar,        roles: ['admin', 'gestor', 'vendedor', 'operacional', 'aluno'] },
   { to: '/relatorios',         label: 'Relatórios',          icon: BarChart3,       roles: ['admin', 'gestor'] },
   { to: '/equipe',             label: 'Equipe',              icon: UsersRound,      roles: ['admin'] },
@@ -30,7 +21,7 @@ const navItems = [
 ];
 
 const perfilLabels: Record<string, string> = {
-  admin: 'Admin Master',
+  admin: 'Admin | Master',
   gestor: 'Gestão Comercial',
   vendedor: 'Comercial',
   operacional: 'Equipe Mentoria',
@@ -47,19 +38,19 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
   return (
     <div
-      className="w-[230px] h-full flex flex-col select-none"
-      style={{ background: '#1a1a1a' }}
+      className="w-[230px] h-full flex flex-col select-none border-r border-border"
+      style={{ background: '#FFFFFF' }}
     >
       {/* ── Logo ── */}
-      <div className="px-4 pt-6 pb-5 border-b border-border/40 relative">
+      <div className="px-5 pt-6 pb-5 border-b border-border relative">
         <div className="flex items-center justify-center">
           <img
             src={lvLogo}
             alt="LV Business Club"
             className="w-24 h-auto object-contain"
+            style={{ filter: 'invert(1) brightness(0)' }}
           />
         </div>
-        {/* Mobile close */}
         <button
           onClick={onClose}
           className="md:hidden absolute top-3 right-3 text-muted-foreground hover:text-foreground"
@@ -70,7 +61,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
 
       {/* ── Nav section label ── */}
       <div className="px-4 pt-4 pb-1.5">
-        <span className="text-[9px] font-bold tracking-[0.22em] uppercase text-muted-foreground/50">
+        <span className="text-[9px] font-bold tracking-[0.22em] uppercase text-muted-foreground/60">
           Menu
         </span>
       </div>
@@ -90,7 +81,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
                   ? 'text-muted-foreground/40 cursor-default pointer-events-none'
                   : isActive
                   ? 'sidebar-item-active text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.04]'
               }`}
             >
               <item.icon
@@ -100,15 +91,15 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
                     ? 'text-muted-foreground/30'
                     : isActive
                     ? 'text-primary'
-                    : 'text-muted-foreground group-hover:text-foreground/70'
+                    : 'text-muted-foreground group-hover:text-foreground/60'
                 }`}
               />
               <span className="flex-1 truncate">{item.label}</span>
               {(item as any).badge && (
                 <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full tracking-widest shrink-0 ${
                   cs
-                    ? 'bg-muted-foreground/20 text-muted-foreground/50'
-                    : 'gold-gradient text-primary-foreground'
+                    ? 'bg-muted text-muted-foreground/50'
+                    : 'bg-primary text-primary-foreground'
                 }`}>
                   {(item as any).badge}
                 </span>
@@ -122,9 +113,9 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       </nav>
 
       {/* ── User profile ── */}
-      <div className="p-3 border-t border-border/40">
-        <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/40">
-          <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
+      <div className="p-3 border-t border-border">
+        <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary/60">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
             {profile ? getInitials(profile.nome) : '?'}
           </div>
           <div className="min-w-0 flex-1">

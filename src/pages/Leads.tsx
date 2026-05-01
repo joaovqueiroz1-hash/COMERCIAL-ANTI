@@ -91,16 +91,16 @@ export default function Leads() {
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
       novo_lead:          'bg-secondary text-muted-foreground',
-      contato_instagram:  'bg-purple-100 text-purple-700',
-      contato_whatsapp:   'bg-green-100 text-green-700',
-      tentativa_contato:  'bg-orange-100 text-orange-600',
-      contato_realizado:  'bg-sky-100 text-sky-700',
-      reuniao_agendada:   'bg-blue-100 text-blue-700',
-      reuniao_realizada:  'bg-indigo-100 text-indigo-700',
-      followup:           'bg-amber-100 text-amber-700',
-      negociacao:         'bg-violet-100 text-violet-700',
-      fechado:            'bg-emerald-100 text-emerald-700',
-      perdido:            'bg-red-100 text-red-600',
+      contato_instagram:  'bg-secondary text-muted-foreground',
+      contato_whatsapp:   'bg-secondary text-muted-foreground',
+      tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',
+      contato_realizado:  'bg-secondary text-muted-foreground',
+      reuniao_agendada:   'bg-primary/8 text-primary',
+      reuniao_realizada:  'bg-primary/12 text-primary',
+      followup:           'bg-primary/8 text-primary/80',
+      negociacao:         'bg-primary/15 text-primary',
+      fechado:            'bg-primary/20 text-primary font-semibold',
+      perdido:            'bg-secondary/50 text-muted-foreground/50',
     };
     return map[s] || 'bg-secondary text-muted-foreground';
   };

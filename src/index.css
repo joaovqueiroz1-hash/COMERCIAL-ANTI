@@ -5,57 +5,61 @@
 @tailwind utilities;
 
 @layer base {
-  /* ── Tema Quente Claro — padrão permanente ── */
+  /* ── Paleta LV Business Club ── */
+  /* Cinza Escuro: #2E2E2E · Marrom: #615446 · Cinza Claro: #B3B2AC */
   :root {
-    --background: 38 25% 96%;
-    --foreground: 0 0% 8%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 8%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 8%;
-    --primary: 0 0% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 38 12% 91%;
-    --secondary-foreground: 0 0% 15%;
-    --muted: 38 12% 91%;
-    --muted-foreground: 0 0% 46%;
-    --accent: 36 52% 44%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 65% 52%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 38 10% 84%;
-    --input: 38 12% 91%;
-    --ring: 36 52% 44%;
-    --radius: 0.75rem;
-    --bg-primary: 38 25% 96%;
-    --bg-secondary: 38 12% 93%;
-    --bg-tertiary: 0 0% 100%;
-    --bg-card: 0 0% 100%;
-    --border-hover: 38 10% 72%;
-    --text-primary: 0 0% 8%;
-    --text-secondary: 0 0% 35%;
-    --text-muted: 0 0% 50%;
-    --silver: 36 52% 44%;
-    --silver-light: 36 52% 52%;
-    --silver-dark: 36 48% 34%;
-    --silver-muted: 36 28% 58%;
-    --accent-gold: 36 52% 44%;
-    --accent-gold-hover: 36 52% 37%;
-    --success: 142 50% 34%;
-    --warning: 27 84% 46%;
-    --info: 213 74% 47%;
-    --danger: 0 65% 52%;
-    /* Sidebar permanece escura — identidade da marca LV */
-    --sidebar-background: 0 0% 8%;
-    --sidebar-foreground: 0 0% 92%;
-    --sidebar-primary: 36 52% 44%;
+    --background:            40 18% 95%;   /* creme quente #F4F3F0 */
+    --foreground:             0  0% 18%;   /* #2E2E2E */
+    --card:                   0  0% 100%;
+    --card-foreground:        0  0% 18%;
+    --popover:                0  0% 100%;
+    --popover-foreground:     0  0% 18%;
+    --primary:               31 31%  33%;  /* #615446 marrom */
+    --primary-foreground:     0  0% 100%;
+    --secondary:             40 12%  91%;  /* cinza quente claro */
+    --secondary-foreground:   0  0%  18%;
+    --muted:                 40 12%  91%;
+    --muted-foreground:      40  4%  66%;  /* #B3B2AC */
+    --accent:                31 31%  33%;  /* marrom */
+    --accent-foreground:      0  0% 100%;
+    --destructive:            0 65%  52%;
+    --destructive-foreground: 0  0% 100%;
+    --border:                40 10%  88%;
+    --input:                 40 12%  91%;
+    --ring:                  31 31%  33%;
+    --radius:                0.75rem;
+
+    /* Sidebar — clara, alinhada com o design */
+    --sidebar-background:     0  0% 100%;  /* branco */
+    --sidebar-foreground:     0  0%  18%;  /* #2E2E2E */
+    --sidebar-primary:       31 31%  33%;  /* marrom */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 13%;
-    --sidebar-accent-foreground: 0 0% 92%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 36 52% 44%;
-    --wa-bubble-out: 38 12% 91%;
-    --wa-bubble-in: 0 0% 97%;
+    --sidebar-accent:        40 12%  94%;  /* hover cinza suave */
+    --sidebar-accent-foreground: 0 0% 18%;
+    --sidebar-border:        40  8%  90%;
+    --sidebar-ring:          31 31%  33%;
+
+    --bg-primary:            40 18%  95%;
+    --bg-secondary:          40 12%  91%;
+    --bg-tertiary:            0  0% 100%;
+    --bg-card:                0  0% 100%;
+    --border-hover:          40 10%  78%;
+    --text-primary:           0  0%  18%;
+    --text-secondary:         0  0%  35%;
+    --text-muted:            40  4%  66%;
+    --silver:                31 31%  33%;
+    --silver-light:          31 31%  44%;
+    --silver-dark:           31 31%  24%;
+    --silver-muted:          31 16%  54%;
+    --accent-gold:           31 31%  33%;
+    --accent-gold-hover:     31 31%  27%;
+    --success:               31 31%  33%;
+    --warning:               31 20%  45%;
+    --info:                  31 31%  33%;
+    --danger:                 0 65%  52%;
+
+    --wa-bubble-out:         40 12%  91%;
+    --wa-bubble-in:           0  0%  97%;
   }
 }
 
@@ -68,16 +72,16 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: hsl(var(--bg-secondary)); }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border-hover)); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(0 0% 58%); }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(40 4% 66%); }
 }
 
 @layer utilities {
-  /* ── Botão primário escuro (tema claro usa botões charcoal) ── */
+  /* ── Botão primário — marrom #615446 ── */
   .gold-gradient {
-    background: linear-gradient(135deg, hsl(0 0% 10%), hsl(30 6% 16%));
+    background: linear-gradient(135deg, hsl(31 31% 33%), hsl(28 22% 26%));
   }
   .gold-gradient-text {
-    background: linear-gradient(135deg, hsl(36 52% 42%), hsl(36 42% 32%));
+    background: linear-gradient(135deg, hsl(31 31% 38%), hsl(31 31% 28%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -85,14 +89,14 @@
   .silver-shimmer {
     background: linear-gradient(
       110deg,
-      hsl(36 52% 44%) 0%,
-      hsl(36 65% 58%) 45%,
-      hsl(36 52% 44%) 55%,
-      hsl(36 52% 38%) 100%
+      hsl(31 31% 33%) 0%,
+      hsl(31 28% 46%) 45%,
+      hsl(31 31% 33%) 55%,
+      hsl(31 31% 27%) 100%
     );
   }
 
-  /* ── Card base (branco/claro) ── */
+  /* ── Card base ── */
   .card-premium {
     background: hsl(var(--bg-card));
     border: 1px solid hsl(var(--border));
@@ -101,64 +105,66 @@
   }
   .card-premium:hover {
     border-color: hsl(var(--border-hover));
-    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.05);
+    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.04);
   }
   .card-glow {
     background: hsl(var(--bg-card));
-    border: 1px solid hsl(var(--border));
+    border: 1px solid hsl(31 31% 33% / 0.2);
     border-radius: 12px;
-    box-shadow: 0 0 0 1px hsl(36 52% 44% / 0.12), 0 2px 12px hsl(36 52% 44% / 0.06);
+    box-shadow: 0 0 0 1px hsl(31 31% 33% / 0.08), 0 2px 12px hsl(31 31% 33% / 0.04);
   }
 
-  /* ── Cartões KPI — sempre escuros mesmo no tema claro ── */
+  /* ── Cartões KPI — brancos, sem fundo escuro ── */
   .metric-card {
-    background: hsl(0 0% 7%);
-    border: 1px solid hsl(0 0% 16%);
+    background: hsl(0 0% 100%);
+    border: 1px solid hsl(40 10% 88%);
     border-radius: 12px;
     transition: all 0.2s ease;
   }
-  .metric-card:hover { border-color: hsl(0 0% 24%); }
+  .metric-card:hover {
+    border-color: hsl(31 31% 33% / 0.25);
+    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.04);
+  }
 
-  /* ── Cartões de time/performance — marrom quente ── */
+  /* ── Cartões de time/performance — brancos ── */
   .card-team {
-    background: hsl(32 18% 44%);
-    border: 1px solid hsl(32 14% 52%);
+    background: hsl(0 0% 100%);
+    border: 1px solid hsl(40 10% 88%);
     border-radius: 12px;
     transition: all 0.2s ease;
   }
-  .card-team:hover { border-color: hsl(32 14% 60%); }
+  .card-team:hover { border-color: hsl(31 31% 33% / 0.2); }
   .card-team-top {
-    background: hsl(32 22% 40%);
-    border: 1px solid hsl(36 52% 44%);
+    background: hsl(40 18% 97%);
+    border: 1px solid hsl(31 31% 33% / 0.22);
     border-radius: 12px;
     transition: all 0.2s ease;
   }
 
   /* ── Sidebar item ativo ── */
   .sidebar-item-active {
-    background: linear-gradient(90deg, rgba(200,168,112,0.16) 0%, transparent 100%);
-    border-left: 2px solid hsl(36 52% 44%);
+    background: hsl(31 31% 33% / 0.08);
+    border-left: 2px solid hsl(31 31% 33%);
   }
 
-  /* ── Chat bubbles (modo claro) ── */
+  /* ── Chat bubbles ── */
   .wa-bubble-out {
     background: hsl(var(--wa-bubble-out));
-    border: 1px solid hsl(38 10% 84%);
+    border: 1px solid hsl(40 10% 84%);
     border-radius: 12px 12px 2px 12px;
   }
   .wa-bubble-in {
     background: hsl(var(--wa-bubble-in));
-    border: 1px solid hsl(38 8% 88%);
+    border: 1px solid hsl(40 8% 88%);
     border-radius: 12px 12px 12px 2px;
   }
   .wa-bubble-note {
-    background: hsl(38 15% 94%);
-    border: 1px solid hsl(38 10% 85%);
-    border-left: 3px solid hsl(36 52% 44%);
+    background: hsl(40 15% 94%);
+    border: 1px solid hsl(40 10% 85%);
+    border-left: 3px solid hsl(31 31% 33%);
     border-radius: 0 8px 8px 0;
   }
 
-  /* ── Tooltip escuro (para topbar) ── */
   .topbar-btn {
     @apply text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-foreground/6;
   }
@@ -200,8 +206,8 @@
 
   .status-dot-online {
     width: 8px; height: 8px;
-    background: hsl(142 52% 40%);
+    background: hsl(31 31% 44%);
     border-radius: 50%;
-    box-shadow: 0 0 6px hsl(142 52% 40%);
+    box-shadow: 0 0 6px hsl(31 31% 44%);
   }
 }

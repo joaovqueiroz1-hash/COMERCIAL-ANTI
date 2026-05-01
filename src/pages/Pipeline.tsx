@@ -32,7 +32,7 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
       <div className="flex items-start justify-between mb-1 gap-1">
         <p className="text-sm font-medium text-foreground truncate flex-1">{lead.nome_completo}</p>
         <div className="flex items-center gap-1 shrink-0">
-          {hot && <Flame size={13} className="text-amber-500" />}
+          {hot && <Flame size={13} className="text-primary" />}
           {cardNumber != null && (
             <span className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-secondary text-muted-foreground leading-none">
               #{cardNumber}
@@ -275,8 +275,8 @@ export default function Pipeline() {
             const columnLeads = filteredLeads.filter(l => l.status_pipeline === col.key);
             const colNum = String(colIndex + 1).padStart(2, '0');
             const borderTop =
-              col.key === 'fechado' ? 'border-t-2 border-t-emerald-500' :
-              col.key === 'perdido' ? 'border-t-2 border-t-red-400/50' : '';
+              col.key === 'fechado' ? 'border-t-2 border-t-primary' :
+              col.key === 'perdido' ? 'border-t-2 border-t-muted-foreground/30' : '';
             return (
               <DroppableColumn key={col.key} id={col.key} className={`min-w-[240px] w-[240px] shrink-0 card-premium flex flex-col ${borderTop}`}>
                 <div className="p-3 border-b border-border flex items-center justify-between gap-1">

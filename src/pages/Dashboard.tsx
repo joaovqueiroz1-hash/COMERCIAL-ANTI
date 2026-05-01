@@ -119,10 +119,10 @@ export default function Dashboard() {
     .slice(0, 7);
 
   const tooltipStyle = {
-    background: 'hsl(222,18%,9%)',
-    border: '1px solid hsl(222,15%,18%)',
+    background: '#FFFFFF',
+    border: '1px solid #E8E5DF',
     borderRadius: 8,
-    color: 'hsl(45,20%,94%)',
+    color: '#2E2E2E',
     fontSize: 12,
   };
 
@@ -131,14 +131,14 @@ export default function Dashboard() {
       novo_lead:          'bg-secondary text-muted-foreground',
       contato_instagram:  'bg-secondary text-muted-foreground',
       contato_whatsapp:   'bg-secondary text-muted-foreground',
-      tentativa_contato:  'bg-secondary/60 text-muted-foreground/70',
+      tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',
       contato_realizado:  'bg-secondary text-muted-foreground',
-      reuniao_agendada:   'bg-blue-100 text-blue-700',
-      reuniao_realizada:  'bg-green-100 text-green-700',
-      followup:           'bg-amber-100 text-amber-700',
-      negociacao:         'bg-purple-100 text-purple-700',
-      fechado:            'bg-emerald-100 text-emerald-700',
-      perdido:            'bg-red-100 text-red-600',
+      reuniao_agendada:   'bg-primary/8 text-primary',
+      reuniao_realizada:  'bg-primary/12 text-primary',
+      followup:           'bg-primary/8 text-primary/80',
+      negociacao:         'bg-primary/15 text-primary',
+      fechado:            'bg-primary/20 text-primary font-semibold',
+      perdido:            'bg-secondary/50 text-muted-foreground/50',
     };
     return map[s] || 'bg-secondary text-muted-foreground';
   };
@@ -212,9 +212,9 @@ export default function Dashboard() {
         <div className="card-premium p-4 sm:p-5 flex flex-col gap-1">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Follow-up Pendente</span>
-            <Clock size={16} className="text-warning" />
+            <Clock size={16} className="text-muted-foreground" />
           </div>
-          <p className={`text-2xl sm:text-3xl font-bold ${followupPendente > 0 ? 'text-warning' : 'text-success'}`}>
+          <p className={`text-2xl sm:text-3xl font-bold ${followupPendente > 0 ? 'text-primary' : 'text-foreground'}`}>
             {followupPendente}
           </p>
           <p className="text-[11px] text-muted-foreground">{perdidos} perdidos no total</p>
@@ -230,35 +230,35 @@ export default function Dashboard() {
             {teamData.slice(0, 6).map((member, idx) => (
               <div key={member.id} className={`${idx === 0 ? 'card-team-top' : 'card-team'} p-4 transition-all`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-white/20 text-white">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-secondary text-foreground">
                     {getInitialsFn(member.nomeCompleto)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{member.nomeCompleto}</p>
-                    <p className="text-[10px] text-white/60 capitalize">{member.perfil}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{member.nomeCompleto}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{member.perfil}</p>
                   </div>
-                  {idx === 0 && <Award size={14} className="text-amber-300 shrink-0" />}
+                  {idx === 0 && <Award size={14} className="text-primary shrink-0" />}
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-lg font-bold text-white">{member.total}</p>
-                    <p className="text-[9px] text-white/50 uppercase tracking-wide">Total</p>
+                    <p className="text-lg font-bold text-foreground">{member.total}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Total</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-emerald-300">{member.closed}</p>
-                    <p className="text-[9px] text-white/50 uppercase tracking-wide">Fechados</p>
+                    <p className="text-lg font-bold text-primary">{member.closed}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Fechados</p>
                   </div>
                   <div>
-                    <p className={`text-lg font-bold ${member.taxa >= 50 ? 'text-amber-300' : member.taxa >= 20 ? 'text-yellow-200' : 'text-white/60'}`}>
+                    <p className={`text-lg font-bold ${member.taxa >= 20 ? 'text-primary' : 'text-muted-foreground'}`}>
                       {member.taxa}%
                     </p>
-                    <p className="text-[9px] text-white/50 uppercase tracking-wide">Conversão</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Conversão</p>
                   </div>
                 </div>
                 <div className="mt-3">
-                  <div className="w-full bg-white/15 rounded-full h-1">
+                  <div className="w-full bg-secondary rounded-full h-1">
                     <div
-                      className="h-1 rounded-full bg-amber-300 transition-all"
+                      className="h-1 rounded-full bg-primary transition-all"
                       style={{ width: `${Math.min(member.taxa, 100)}%` }}
                     />
                   </div>
@@ -305,7 +305,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => statusMutation.mutate({ id: lead.id, status: 'negociacao' })}
                         disabled={statusMutation.isPending}
-                        className="text-[9px] px-1.5 py-0.5 rounded bg-white/8 text-white/50 hover:bg-white/15 hover:text-white/80 transition-colors"
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
                         title="Mover para Negociação"
                       >
                         Neg.
@@ -315,7 +315,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => statusMutation.mutate({ id: lead.id, status: 'fechado' })}
                         disabled={statusMutation.isPending}
-                        className="text-[9px] px-1.5 py-0.5 rounded bg-white/8 text-white/50 hover:bg-primary/20 hover:text-primary transition-colors"
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground hover:bg-primary/15 hover:text-primary transition-colors"
                         title="Marcar como Fechado"
                       >
                         Fechado
@@ -377,9 +377,9 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={vendedorConversaoChart} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
                 <XAxis type="number" hide />
-                <YAxis type="category" dataKey="nome" width={70} tick={{ fill: 'hsl(45,15%,60%)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="nome" width={70} tick={{ fill: '#B3B2AC', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}%`, 'Conversão']} />
-                <Bar dataKey="taxa" radius={[0, 6, 6, 0]} fill="hsl(0,0%,68%)" />
+                <Bar dataKey="taxa" radius={[0, 6, 6, 0]} fill="hsl(31,31%,44%)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -470,33 +470,19 @@ function SectionLabel({ icon, text }: { icon: ReactNode; text: string }) {
 }
 
 function KpiCard({
-  label, value, icon, sub, color,
+  label, value, icon, sub,
 }: {
   label: string; value: string | number; icon: ReactNode; sub?: string;
-  color: 'gold' | 'blue' | 'info' | 'success' | 'danger';
+  color?: string;
 }) {
-  const accent: Record<string, string> = {
-    gold: 'border-l-primary',
-    blue: 'border-l-info',
-    info: 'border-l-info',
-    success: 'border-l-success',
-    danger: 'border-l-destructive',
-  };
-  const iconBg: Record<string, string> = {
-    gold: 'bg-primary/15 text-primary',
-    blue: 'bg-info/15 text-info',
-    info: 'bg-info/15 text-info',
-    success: 'bg-success/15 text-success',
-    danger: 'bg-destructive/15 text-destructive',
-  };
   return (
-    <div className={`metric-card p-4 border-l-2 ${accent[color]}`}>
+    <div className="metric-card p-4 border-l-2 border-l-primary/30">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold text-white/55 uppercase tracking-wider leading-tight">{label}</span>
-        <span className={`p-1.5 rounded-lg ${iconBg[color]}`}>{icon}</span>
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">{label}</span>
+        <span className="p-1.5 rounded-lg bg-primary/10 text-primary">{icon}</span>
       </div>
-      <p className="text-2xl font-bold text-white">{value}</p>
-      {sub && <p className="text-[11px] text-white/50 mt-1">{sub}</p>}
+      <p className="text-2xl font-bold text-foreground">{value}</p>
+      {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
     </div>
   );
 }
@@ -507,26 +493,24 @@ function AlertCard({
   type: 'critical' | 'warning' | 'info' | 'hot';
   icon: ReactNode; title: string; description: string; action?: () => void;
 }) {
-  const styles = {
-    critical: { border: 'border-l-destructive', badge: 'bg-destructive/15 text-destructive', label: 'CRÍTICO', btnHover: 'hover:bg-destructive/10' },
-    warning: { border: 'border-l-warning', badge: 'bg-warning/15 text-warning', label: 'URGENTE', btnHover: 'hover:bg-warning/10' },
-    info: { border: 'border-l-info', badge: 'bg-info/15 text-info', label: 'INFO', btnHover: 'hover:bg-info/10' },
-    hot: { border: 'border-l-primary', badge: 'bg-primary/15 text-primary', label: 'QUENTE', btnHover: 'hover:bg-primary/10' },
+  const labels: Record<string, string> = {
+    critical: 'CRÍTICO', warning: 'URGENTE', info: 'INFO', hot: 'QUENTE',
   };
-  const s = styles[type];
   return (
-    <div className={`card-premium p-3.5 border-l-2 ${s.border} animate-fade-in`}>
+    <div className="card-premium p-3.5 border-l-2 border-l-primary/40 animate-fade-in">
       <div className="flex items-start gap-3">
-        <span className={`${s.badge} p-1.5 rounded-lg shrink-0`}>{icon}</span>
+        <span className="bg-primary/10 text-primary p-1.5 rounded-lg shrink-0">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <p className="text-sm font-semibold text-foreground">{title}</p>
-            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${s.badge}`}>{s.label}</span>
+            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+              {labels[type]}
+            </span>
           </div>
           <p className="text-[11px] text-muted-foreground truncate">{description}</p>
         </div>
         {action && (
-          <button onClick={action} className={`p-1 rounded-lg transition-colors ${s.btnHover} shrink-0`}>
+          <button onClick={action} className="p-1 rounded-lg transition-colors hover:bg-primary/10 shrink-0">
             <ChevronRight size={14} className="text-muted-foreground" />
           </button>
         )}
