@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Target, Plus, Trash2, Edit2, Users, CalendarCheck, DollarSign, CheckCircle, Link2 } from 'lucide-react';
+import { Target, Plus, Trash2, Edit2, Users, CalendarCheck, DollarSign, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const TIPOS = [
@@ -193,29 +193,39 @@ export default function Metas() {
                   />
                 </div>
 
-                {/* Both metrics — always visible */}
+                {/* Resumo: fechamentos + receita */}
                 <div className="flex rounded-lg overflow-hidden border border-border">
                   <div className="flex-1 flex flex-col items-center py-2 gap-0.5 bg-secondary/40">
-                    <span className="text-xs font-bold text-foreground">{statsFechamentos}</span>
+                    <span className="text-sm font-bold text-foreground">{statsFechamentos}</span>
                     <span className="text-[9px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                       <CheckCircle size={8} /> Fechamentos
                     </span>
                   </div>
                   <div className="w-px bg-border" />
                   <div className="flex-1 flex flex-col items-center py-2 gap-0.5 bg-secondary/40">
-                    <span className="text-xs font-bold text-foreground">{formatCurrency(statsReceita)}</span>
+                    <span className="text-sm font-bold text-foreground">{formatCurrency(statsReceita)}</span>
                     <span className="text-[9px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                      <DollarSign size={8} /> Receita
-                    </span>
-                  </div>
-                  <div className="w-px bg-border" />
-                  <div className="flex-1 flex flex-col items-center py-2 gap-0.5 bg-secondary/40">
-                    <span className="text-xs font-bold text-foreground">{leadsVinculados.length > 0 ? leadsVinculados[leadsVinculados.length - 1]?.nome_completo?.split(' ')[0] ?? '—' : '—'}</span>
-                    <span className="text-[9px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                      <Link2 size={8} /> Último
+                      <DollarSign size={8} /> Receita total
                     </span>
                   </div>
                 </div>
+
+                {/* Lista de leads vinculados */}
+                {leadsVinculados.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground">
+                      Leads fechados nesta meta
+                    </p>
+                    {leadsVinculados.map((l: any) => (
+                      <div key={l.id} className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-secondary/60">
+                        <span className="text-xs text-foreground truncate">{l.nome_completo}</span>
+                        <span className="text-xs font-semibold text-primary shrink-0">
+                          {l.valor_acordado ? formatCurrency(l.valor_acordado) : '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Period */}
                 {(meta.data_inicio || meta.data_fim) && (
