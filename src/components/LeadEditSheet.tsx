@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2 } from 'lucide-react';
-import { updateLead, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, fetchMetas, Lead } from '@/lib/api';
+import { updateLead, updateLeadExtra, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, fetchMetas, Lead } from '@/lib/api';
 import type { TagSistema } from '@/lib/api';
 import { STATUS_LABELS, PipelineStatus, formatCurrency } from '@/lib/types';
 import { validateWhatsApp, cleanWhatsAppNumber } from '@/lib/whatsapp-utils';
@@ -95,8 +95,10 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const tipoLabel: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'Ligação', reuniao: 'Reunião', email: 'E-mail' };
 
   const handleSave = () => {
-    const { id, created_at, updated_at, ...updates } = form as any;
+    const { id, created_at, updated_at, meta_id, ...updates } = form as any;
+    // meta_id is a newer column — save separately so it never blocks the main update
     mutation.mutate(updates);
+    if (meta_id !== undefined) updateLeadExtra(lead!.id, { meta_id: meta_id ?? null });
   };
 
   const handleAddTag = async (tagId: string) => {

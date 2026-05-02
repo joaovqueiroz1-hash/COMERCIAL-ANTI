@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchLeads, fetchProfiles, updateLead, createPipelineLog, fetchAllLeadTagsMap, fetchMetas, Lead } from '@/lib/api';
+import { fetchLeads, fetchProfiles, updateLead, updateLeadExtra, createPipelineLog, fetchAllLeadTagsMap, fetchMetas, Lead } from '@/lib/api';
 import type { TagSistema } from '@/lib/api';
 import { PipelineStatus, PIPELINE_COLUMNS, MOTIVOS_PERDA, formatCurrency, getInitials } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -156,11 +156,15 @@ export default function Pipeline() {
 
   const moveMutation = useMutation({
     mutationFn: async ({ leadId, newStatus, oldStatus, motivo, metaId, valorAcordado }: { leadId: string; newStatus: string; oldStatus: string; motivo?: string; metaId?: string; valorAcordado?: number }) => {
-      const update: any = { status_pipeline: newStatus as any };
-      if (motivo) update.motivo_perda = motivo;
-      if (metaId) update.meta_id = metaId;
-      if (valorAcordado) update.valor_acordado = valorAcordado;
-      await updateLead(leadId, update);
+      // Typed update: only fields guaranteed to be in the schema
+      const baseUpdate: any = { status_pipeline: newStatus as any };
+      if (motivo) baseUpdate.motivo_perda = motivo;
+      if (valorAcordado) baseUpdate.valor_acordado = valorAcordado;
+      await updateLead(leadId, baseUpdate);
+
+      // meta_id is a newer column — update separately so the move always succeeds
+      if (metaId) await updateLeadExtra(leadId, { meta_id: metaId });
+
       if (user) {
         await createPipelineLog({ lead_id: leadId, status_anterior: oldStatus, status_novo: newStatus, alterado_por: user.id });
       }

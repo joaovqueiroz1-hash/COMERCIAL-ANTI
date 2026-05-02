@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Target, Plus, Trash2, Edit2, TrendingUp, Users, CalendarCheck, DollarSign, CheckCircle } from 'lucide-react';
+import { Target, Plus, Trash2, Edit2, Users, CalendarCheck, DollarSign, CheckCircle, Link2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const TIPOS = [
@@ -146,6 +146,11 @@ export default function Metas() {
             const isReceita = meta.tipo === 'receita';
             const formatVal = (v: number) => isReceita ? formatCurrency(v) : String(Math.round(v));
 
+            // Always compute both linked stats regardless of meta type
+            const leadsVinculados = (leads as any[]).filter(l => l.meta_id === meta.id && l.status_pipeline === 'fechado');
+            const statsFechamentos = leadsVinculados.length;
+            const statsReceita = leadsVinculados.reduce((sum: number, l: any) => sum + (l.valor_acordado || 0), 0);
+
             return (
               <div key={meta.id} className="card-premium p-5 flex flex-col gap-3 animate-fade-in">
                 {/* Header */}
@@ -169,11 +174,11 @@ export default function Metas() {
                   </div>
                 </div>
 
-                {/* Values */}
+                {/* Primary progress value */}
                 <div className="flex items-end justify-between gap-2">
                   <div>
                     <p className="text-2xl font-bold text-foreground">{formatVal(atual)}</p>
-                    <p className="text-[10px] text-muted-foreground">de {formatVal(meta.valor_meta)}</p>
+                    <p className="text-[10px] text-muted-foreground">meta: {formatVal(meta.valor_meta)}</p>
                   </div>
                   <div className={`text-2xl font-bold ${pct >= 100 ? 'text-primary' : pct >= 70 ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {Math.round(pct)}%
@@ -181,11 +186,35 @@ export default function Metas() {
                 </div>
 
                 {/* Progress bar */}
-                <div className="w-full bg-secondary rounded-full h-2">
+                <div className="w-full bg-secondary rounded-full h-1.5">
                   <div
-                    className="h-2 rounded-full bg-primary transition-all duration-700"
+                    className="h-1.5 rounded-full bg-primary transition-all duration-700"
                     style={{ width: `${pct}%` }}
                   />
+                </div>
+
+                {/* Both metrics — always visible */}
+                <div className="flex rounded-lg overflow-hidden border border-border">
+                  <div className="flex-1 flex flex-col items-center py-2 gap-0.5 bg-secondary/40">
+                    <span className="text-xs font-bold text-foreground">{statsFechamentos}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <CheckCircle size={8} /> Fechamentos
+                    </span>
+                  </div>
+                  <div className="w-px bg-border" />
+                  <div className="flex-1 flex flex-col items-center py-2 gap-0.5 bg-secondary/40">
+                    <span className="text-xs font-bold text-foreground">{formatCurrency(statsReceita)}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <DollarSign size={8} /> Receita
+                    </span>
+                  </div>
+                  <div className="w-px bg-border" />
+                  <div className="flex-1 flex flex-col items-center py-2 gap-0.5 bg-secondary/40">
+                    <span className="text-xs font-bold text-foreground">{leadsVinculados.length > 0 ? leadsVinculados[leadsVinculados.length - 1]?.nome_completo?.split(' ')[0] ?? '—' : '—'}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <Link2 size={8} /> Último
+                    </span>
+                  </div>
                 </div>
 
                 {/* Period */}

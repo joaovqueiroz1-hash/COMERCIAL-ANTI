@@ -221,6 +221,12 @@ export async function deleteMeta(id: string) {
   if (error) throw error;
 }
 
+// Atualiza campos extras do lead (colunas fora do schema gerado pelo CLI)
+export async function updateLeadExtra(id: string, fields: Record<string, any>): Promise<void> {
+  const { error } = await db.from('leads').update(fields).eq('id', id);
+  if (error) console.warn('[updateLeadExtra]', error.message);
+}
+
 // ── HISTÓRICO / PIPELINE LOGS GLOBAL ─────────────────────────────────────────
 
 export async function fetchAllPipelineLogs(limit = 300) {
