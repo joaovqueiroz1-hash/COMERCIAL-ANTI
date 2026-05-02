@@ -28,28 +28,27 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
   const vendedor = profiles.find(p => p.id === lead.vendedor_id);
 
   return (
-    <div onClick={onClick} className="card-premium p-3 cursor-pointer hover:border-primary/20 transition-all animate-fade-in">
+    <div onClick={onClick} className="card-dark p-3 cursor-pointer transition-all animate-fade-in">
       <div className="flex items-start justify-between mb-1 gap-1">
-        <p className="text-sm font-medium text-foreground truncate flex-1">{lead.nome_completo}</p>
+        <p className="text-sm font-medium text-white truncate flex-1">{lead.nome_completo}</p>
         <div className="flex items-center gap-1 shrink-0">
           {hot && <Flame size={13} className="text-primary" />}
           {cardNumber != null && (
-            <span className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-secondary text-muted-foreground leading-none">
+            <span className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-white/10 text-white/40 leading-none">
               #{cardNumber}
             </span>
           )}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground truncate mb-2">{lead.nome_empresa || '—'}</p>
+      <p className="text-xs text-white/50 truncate mb-2">{lead.nome_empresa || '—'}</p>
 
-      {/* Colored system tags */}
       {tags && tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {tags.map(tag => (
             <span
               key={tag.id}
               className="text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
-              style={{ backgroundColor: tag.cor + '28', color: tag.cor, border: `1px solid ${tag.cor}45` }}
+              style={{ backgroundColor: tag.cor + '30', color: tag.cor, border: `1px solid ${tag.cor}50` }}
             >
               {tag.nome}
             </span>
@@ -59,16 +58,16 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
 
       <div className="flex flex-wrap gap-1 mb-2">
         {(lead.faturamento_anual || 0) > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-foreground/60 font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
         )}
         {lead.instagram_empresa && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-foreground/50 font-medium truncate max-w-[90px]">{lead.instagram_empresa}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/55 font-medium truncate max-w-[90px]">{lead.instagram_empresa}</span>
         )}
         {(lead.tags || []).map((tag) => (
-          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-foreground/55 font-medium">{tag}</span>
+          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/60 font-medium">{tag}</span>
         ))}
         {isOverdue && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium animate-pulse flex items-center gap-0.5">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-medium animate-pulse flex items-center gap-0.5">
             <Clock size={8} /> {daysSinceContact}d
           </span>
         )}
@@ -76,13 +75,13 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
 
       <div className="flex items-center justify-between">
         {vendedor ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold truncate max-w-[120px]">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/25 text-primary font-semibold truncate max-w-[120px]">
             {vendedor.nome}
           </span>
         ) : (
-          <span className="text-[10px] text-muted-foreground/40">Sem vendedor</span>
+          <span className="text-[10px] text-white/25">Sem vendedor</span>
         )}
-        <div className="w-6 h-6 rounded-full bg-secondary border border-border flex items-center justify-center text-[9px] font-bold text-muted-foreground shrink-0">
+        <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold text-white/60 shrink-0">
           {vendedor ? vendedor.nome.charAt(0).toUpperCase() : '?'}
         </div>
       </div>

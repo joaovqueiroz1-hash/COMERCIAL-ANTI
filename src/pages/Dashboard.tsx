@@ -129,6 +129,7 @@ export default function Dashboard() {
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
       novo_lead:          'bg-secondary text-muted-foreground',
+      congelado:          'bg-secondary/60 text-muted-foreground/60',
       contato_instagram:  'bg-secondary text-muted-foreground',
       contato_whatsapp:   'bg-secondary text-muted-foreground',
       tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',

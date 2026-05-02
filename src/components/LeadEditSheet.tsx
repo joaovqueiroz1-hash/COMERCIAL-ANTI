@@ -121,6 +121,7 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
 
   const statusColor: Record<string, string> = {
     novo_lead:          'bg-secondary text-muted-foreground',
+    congelado:          'bg-secondary/60 text-muted-foreground/60',
     contato_instagram:  'bg-secondary text-muted-foreground',
     contato_whatsapp:   'bg-secondary text-muted-foreground',
     tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',

@@ -19,7 +19,7 @@
     --secondary:             40 12%  91%;  /* cinza quente claro */
     --secondary-foreground:   0  0%  18%;
     --muted:                 40 12%  91%;
-    --muted-foreground:      40  4%  66%;  /* #B3B2AC */
+    --muted-foreground:       0  0%  42%;  /* cinza médio legível */
     --accent:                31 31%  33%;  /* marrom */
     --accent-foreground:      0  0% 100%;
     --destructive:            0 65%  52%;
@@ -112,6 +112,18 @@
     border: 1px solid hsl(31 31% 33% / 0.2);
     border-radius: 12px;
     box-shadow: 0 0 0 1px hsl(31 31% 33% / 0.08), 0 2px 12px hsl(31 31% 33% / 0.04);
+  }
+
+  /* ── Cartões escuros — Pipeline e Leads ── */
+  .card-dark {
+    background: hsl(0 0% 18%);   /* #2E2E2E */
+    border: 1px solid hsl(0 0% 26%);
+    border-radius: 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-dark:hover {
+    border-color: hsl(0 0% 36%);
+    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.15);
   }
 
   /* ── Cartões KPI — brancos, sem fundo escuro ── */

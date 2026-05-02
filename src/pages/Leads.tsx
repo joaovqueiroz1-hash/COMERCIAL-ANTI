@@ -91,6 +91,7 @@ export default function Leads() {
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
       novo_lead:          'bg-secondary text-muted-foreground',
+      congelado:          'bg-secondary/60 text-muted-foreground/60',
       contato_instagram:  'bg-secondary text-muted-foreground',
       contato_whatsapp:   'bg-secondary text-muted-foreground',
       tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',
@@ -284,26 +285,26 @@ export default function Leads() {
           const hot = lead.eh_empresario && (lead.faturamento_anual || 0) > 500000 && lead.capacidade_investimento && (lead.fit_mentoria || 0) >= 4;
           const whatsappVal = validateWhatsApp(lead.whatsapp);
           return (
-            <div key={lead.id} onClick={() => handleOpenLead(lead)} className="card-premium p-3 cursor-pointer hover:border-primary/40 transition-colors">
+            <div key={lead.id} onClick={() => handleOpenLead(lead)} className="card-dark p-3 cursor-pointer transition-colors">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-foreground shrink-0">
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white shrink-0">
                   {getInitials(lead.nome_completo)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <p className="text-sm font-medium text-foreground truncate">{lead.nome_completo}</p>
-                    {hot && <Flame size={12} className="text-warning shrink-0" />}
+                    <p className="text-sm font-medium text-white truncate">{lead.nome_completo}</p>
+                    {hot && <Flame size={12} className="text-primary shrink-0" />}
                   </div>
-                  <p className="text-[10px] text-muted-foreground truncate mb-1.5">{lead.nome_empresa || '—'}</p>
+                  <p className="text-[10px] text-white/50 truncate mb-1.5">{lead.nome_empresa || '—'}</p>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColor(lead.status_pipeline)}`}>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/70">
                       {STATUS_LABELS[lead.status_pipeline as PipelineStatus]}
                     </span>
                     {(lead.faturamento_anual || 0) > 0 && (
                       <span className="text-[10px] text-primary font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
                     )}
                     {lead.whatsapp && whatsappVal.warning && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-warning/15 text-warning flex items-center gap-0.5">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/60 flex items-center gap-0.5">
                         <AlertTriangle size={9} /> WhatsApp
                       </span>
                     )}
@@ -314,7 +315,7 @@ export default function Leads() {
           );
         })}
         {filtered.length === 0 && (
-          <div className="card-premium p-8 text-center text-sm text-muted-foreground">Nenhum lead encontrado.</div>
+          <div className="card-dark p-8 text-center text-sm text-white/50">Nenhum lead encontrado.</div>
         )}
       </div>
 

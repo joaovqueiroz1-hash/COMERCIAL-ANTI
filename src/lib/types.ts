@@ -1,5 +1,6 @@
 export type PipelineStatus =
   | 'novo_lead'
+  | 'congelado'
   | 'contato_instagram'
   | 'contato_whatsapp'
   | 'tentativa_contato'
@@ -107,6 +108,7 @@ export interface PipelineLog {
 
 export const PIPELINE_COLUMNS: { key: PipelineStatus; label: string; color: string }[] = [
   { key: 'novo_lead',         label: 'Novo Lead',        color: 'hsl(0,0%,60%)' },
+  { key: 'congelado',         label: 'Congelado',        color: 'hsl(0,0%,32%)' },
   { key: 'contato_instagram', label: 'Contato Instagram', color: 'hsl(0,0%,68%)' },
   { key: 'contato_whatsapp',  label: 'Contato WhatsApp',  color: 'hsl(0,0%,64%)' },
   { key: 'tentativa_contato', label: 'Sem Resposta',      color: 'hsl(0,0%,42%)' },
@@ -120,6 +122,7 @@ export const PIPELINE_COLUMNS: { key: PipelineStatus; label: string; color: stri
 
 export const STATUS_LABELS: Record<PipelineStatus, string> = {
   novo_lead: 'Novo Lead',
+  congelado: 'Congelado',
   contato_instagram: 'Contato Instagram',
   contato_whatsapp: 'Contato WhatsApp',
   tentativa_contato: 'Sem Resposta',

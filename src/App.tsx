@@ -25,6 +25,8 @@ const Configuracoes    = lazy(() => import("./pages/Configuracoes"));
 const PortalAluno      = lazy(() => import("./pages/PortalAluno"));
 const GestaoOperacional = lazy(() => import("./pages/GestaoOperacional"));
 const InternalChat     = lazy(() => import("./pages/InternalChat"));
+const Metas            = lazy(() => import("./pages/Metas"));
+const Historico        = lazy(() => import("./pages/Historico"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +84,8 @@ const App = () => {
                 <Route path="/leads"           element={<ProtectedRoute><Leads /></ProtectedRoute>} />
                 <Route path="/leads/:id"       element={<ProtectedRoute><LeadDetail /></ProtectedRoute>} />
                 <Route path="/agenda"          element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
+                <Route path="/metas"           element={<ProtectedRoute><Metas /></ProtectedRoute>} />
+                <Route path="/historico"       element={<ProtectedRoute><Historico /></ProtectedRoute>} />
                 <Route path="/relatorios"      element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
                 <Route path="/equipe"          element={<ProtectedRoute><Equipe /></ProtectedRoute>} />
                 <Route path="/configuracoes"   element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />

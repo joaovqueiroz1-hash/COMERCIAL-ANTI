@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Kanban, Users, Calendar, BarChart3,
-  UsersRound, Settings, X, LogOut, MessageSquare,
+  UsersRound, Settings, X, LogOut, MessageSquare, Target, History,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials } from '@/lib/types';
@@ -15,6 +15,8 @@ const navItems = [
   { to: '/portal',             label: 'Meu Portal',          icon: LayoutDashboard, roles: ['aluno'] },
   { to: '/suporte-interno',    label: 'Mensagens',           icon: MessageSquare,   roles: ['admin', 'operacional', 'aluno'], badge: 'CHAT' },
   { to: '/agenda',             label: 'Agenda',              icon: Calendar,        roles: ['admin', 'gestor', 'vendedor', 'operacional', 'aluno'] },
+  { to: '/metas',              label: 'Metas',               icon: Target,          roles: ['admin', 'gestor', 'vendedor', 'operacional'] },
+  { to: '/historico',          label: 'Histórico',           icon: History,         roles: ['admin', 'gestor'] },
   { to: '/relatorios',         label: 'Relatórios',          icon: BarChart3,       roles: ['admin', 'gestor'] },
   { to: '/equipe',             label: 'Equipe',              icon: UsersRound,      roles: ['admin'] },
   { to: '/configuracoes',      label: 'Configurações',       icon: Settings,        roles: ['admin'] },

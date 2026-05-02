@@ -196,6 +196,43 @@ export async function deleteZApiConfigGlobally() {
   if (error) throw error;
 }
 
+// ── METAS ─────────────────────────────────────────────────────────────────────
+
+export async function fetchMetas() {
+  const { data, error } = await db.from('metas').select('*').eq('ativo', true).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as any[];
+}
+
+export async function createMeta(meta: any) {
+  const { data, error } = await db.from('metas').insert(meta).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateMeta(id: string, updates: any) {
+  const { data, error } = await db.from('metas').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteMeta(id: string) {
+  const { error } = await db.from('metas').update({ ativo: false }).eq('id', id);
+  if (error) throw error;
+}
+
+// ── HISTÓRICO / PIPELINE LOGS GLOBAL ─────────────────────────────────────────
+
+export async function fetchAllPipelineLogs(limit = 300) {
+  const { data, error } = await db
+    .from('pipeline_logs')
+    .select('*, leads(nome_completo, nome_empresa), profiles:alterado_por(nome)')
+    .order('alterado_em', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data || []) as any[];
+}
+
 // ── WHATSAPP MESSAGES ─────────────────────────────────────────────────────────
 
 export type WhatsAppMessage = Database['public']['Tables']['whatsapp_messages']['Row'];

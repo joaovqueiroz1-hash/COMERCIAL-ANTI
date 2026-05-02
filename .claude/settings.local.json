@@ -6,7 +6,15 @@
       "Bash(node node_modules/typescript/bin/tsc --noEmit)",
       "Bash(npm run:*)",
       "Bash(npm install:*)",
-      "Read(//c/Users/User/.claude/**)"
+      "Read(//c/Users/User/.claude/**)",
+      "Bash(npx vite *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'node|vite' } | Select-Object Id, ProcessName, CPU | Format-Table)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'node' } | Select-Object Id, ProcessName | Format-Table; netstat -an | Select-String \":8080\")",
+      "PowerShell(netstat -ano)",
+      "Bash(npx supabase *)",
+      "Bash(node -e ' *)"
     ]
   }
 }
