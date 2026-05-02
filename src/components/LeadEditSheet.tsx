@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2 } from 'lucide-react';
-import { updateLead, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, Lead } from '@/lib/api';
+import { updateLead, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, fetchMetas, Lead } from '@/lib/api';
 import type { TagSistema } from '@/lib/api';
 import { STATUS_LABELS, PipelineStatus, formatCurrency } from '@/lib/types';
 import { validateWhatsApp, cleanWhatsAppNumber } from '@/lib/whatsapp-utils';
@@ -58,6 +58,12 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const { data: todasTags = [] } = useQuery({
     queryKey: ['tags_sistema'],
     queryFn: fetchTagsSistema,
+    enabled: open,
+  });
+
+  const { data: metas = [] } = useQuery({
+    queryKey: ['metas'],
+    queryFn: fetchMetas,
     enabled: open,
   });
 
@@ -374,6 +380,19 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                   <FieldBlock label="Funcionários" editing={editing}>
                     {editing ? <Input type="number" value={form.quantidade_funcionarios || 0} onChange={e => setField('quantidade_funcionarios', Number(e.target.value))} className="h-8 text-xs bg-secondary border-border" />
                       : <p className="text-sm text-foreground">{form.quantidade_funcionarios || 0}</p>}
+                  </FieldBlock>
+                  <FieldBlock label="Meta Vinculada" editing={editing}>
+                    {editing ? (
+                      <Select value={(form as any).meta_id || '__none__'} onValueChange={v => setField('meta_id', v === '__none__' ? null : v)}>
+                        <SelectTrigger className="h-8 text-xs bg-secondary border-border"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nenhuma</SelectItem>
+                          {(metas as any[]).map(m => <SelectItem key={m.id} value={m.id}>{m.titulo}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-sm text-foreground">{(metas as any[]).find(m => m.id === (form as any).meta_id)?.titulo || '—'}</p>
+                    )}
                   </FieldBlock>
                 </div>
 

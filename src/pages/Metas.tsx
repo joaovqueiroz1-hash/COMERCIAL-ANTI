@@ -21,7 +21,7 @@ const TIPOS = [
   { value: 'leads',       label: 'Novos Leads',         icon: Users },
 ];
 
-function calcValorAtual(tipo: string, leads: any[], dataInicio?: string, dataFim?: string): number {
+function calcValorAtual(tipo: string, leads: any[], dataInicio?: string, dataFim?: string, metaId?: string): number {
   const ini = dataInicio ? new Date(dataInicio) : null;
   const fim = dataFim ? new Date(dataFim + 'T23:59:59') : null;
 
@@ -35,10 +35,10 @@ function calcValorAtual(tipo: string, leads: any[], dataInicio?: string, dataFim
   switch (tipo) {
     case 'receita':
       return leads
-        .filter(l => l.status_pipeline === 'fechado' && inPeriod(l.created_at))
+        .filter(l => l.status_pipeline === 'fechado' && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId))
         .reduce((s, l) => s + ((l as any).valor_acordado || l.faturamento_anual || 0), 0);
     case 'fechamentos':
-      return leads.filter(l => l.status_pipeline === 'fechado' && inPeriod(l.created_at)).length;
+      return leads.filter(l => l.status_pipeline === 'fechado' && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId)).length;
     case 'reunioes':
       return leads.filter(l => ['reuniao_agendada', 'reuniao_realizada'].includes(l.status_pipeline) && inPeriod(l.created_at)).length;
     case 'leads':
@@ -139,7 +139,7 @@ export default function Metas() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {metas.map((meta: any) => {
-            const atual = calcValorAtual(meta.tipo, leads, meta.data_inicio, meta.data_fim);
+            const atual = calcValorAtual(meta.tipo, leads, meta.data_inicio, meta.data_fim, meta.id);
             const pct = meta.valor_meta > 0 ? Math.min((atual / meta.valor_meta) * 100, 100) : 0;
             const tipoConfig = TIPOS.find(t => t.value === meta.tipo);
             const TipoIcon = tipoConfig?.icon ?? Target;

@@ -384,7 +384,7 @@ export default function GestaoOperacional() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {leadsFechados.length > 0 && (
-              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full">
+              <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded-full">
                 {leadsFechados.length} aguardando matrícula
               </span>
             )}
@@ -423,19 +423,22 @@ export default function GestaoOperacional() {
                   {leadsFechados.length > 0 && (
                     <section>
                       <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                        <GraduationCap className="text-amber-400" size={20} /> Aguardando Matrícula
-                        <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">{leadsFechados.length}</span>
+                        <GraduationCap className="text-primary" size={20} /> Aguardando Matrícula
+                        <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">{leadsFechados.length}</span>
                       </h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {leadsFechados.map(lead => (
-                          <div key={lead.id} className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl flex items-center justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-amber-300 truncate">{lead.nome_completo}</h3>
-                              <p className="text-xs text-muted-foreground truncate">{lead.email || "⚠️ Sem e-mail"}</p>
+                        {leadsFechados.map((lead, idx) => {
+                          const isDark = idx % 2 !== 0;
+                          return (
+                            <div key={lead.id} className={`${isDark ? 'card-dark' : 'bg-primary/5 border border-primary/20'} p-4 rounded-xl flex items-center justify-between gap-3`}>
+                              <div className="flex-1 min-w-0">
+                                <h3 className={`font-bold truncate ${isDark ? 'text-white' : 'text-foreground'}`}>{lead.nome_completo}</h3>
+                                <p className={`text-xs truncate ${isDark ? 'text-white/50' : 'text-muted-foreground'}`}>{lead.email || "⚠️ Sem e-mail"}</p>
+                              </div>
+                              <Button size="sm" onClick={() => { setTargetLead(lead); setOpenMatricula(true); }} className="gold-gradient text-primary-foreground font-bold whitespace-nowrap">Matricular</Button>
                             </div>
-                            <Button size="sm" onClick={() => { setTargetLead(lead); setOpenMatricula(true); }} className="bg-amber-500 hover:bg-amber-400 text-black font-bold whitespace-nowrap">Matricular</Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </section>
                   )}
@@ -576,7 +579,7 @@ export default function GestaoOperacional() {
                                 {!(ev as any).aluno_id ? (
                                   <span className="text-[10px] text-primary/70 flex items-center gap-1"><Globe size={9} /> Todos</span>
                                 ) : (
-                                  <span className="text-[10px] text-amber-400/70 flex items-center gap-1"><UserCheck size={9} /> Individual</span>
+                                  <span className="text-[10px] text-primary/70 flex items-center gap-1"><UserCheck size={9} /> Individual</span>
                                 )}
                               </div>
                               {ev.descricao && <p className="text-xs text-muted-foreground mt-1 truncate">{ev.descricao}</p>}
@@ -621,7 +624,7 @@ export default function GestaoOperacional() {
                               <div className="flex items-center gap-2 mt-1">
                                 <span className={cn("text-[10px] font-bold uppercase tracking-wide", meta.color)}>{meta.label}</span>
                                 {m.aluno_id ? (
-                                  <span className="text-[10px] text-amber-400/70 flex items-center gap-1"><UserCheck size={9} /> {alunoNome || "Aluno específico"}</span>
+                                  <span className="text-[10px] text-primary/70 flex items-center gap-1"><UserCheck size={9} /> {alunoNome || "Aluno específico"}</span>
                                 ) : (
                                   <span className="text-[10px] text-primary/70 flex items-center gap-1"><Globe size={9} /> Todos</span>
                                 )}
@@ -662,8 +665,8 @@ export default function GestaoOperacional() {
                 </div>
               </SheetHeader>
               {pendentesAprovacao.length > 0 && (
-                <div className="px-6 py-3 bg-amber-500/10 border-b border-amber-500/20 shrink-0">
-                  <p className="text-xs text-amber-400 font-bold flex items-center gap-1.5">
+                <div className="px-6 py-3 bg-primary/10 border-b border-primary/20 shrink-0">
+                  <p className="text-xs text-primary font-bold flex items-center gap-1.5">
                     <Clock size={12} /> {pendentesAprovacao.length} entrega(s) aguardando validação
                   </p>
                 </div>
@@ -709,12 +712,12 @@ export default function GestaoOperacional() {
                         {sprint.tarefas.map((tarefa: any) => (
                           <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
                             tarefa.aprovada_por_equipe ? "bg-emerald-500/5 border-emerald-500/20"
-                            : tarefa.concluida ? "bg-amber-500/5 border-amber-500/20"
+                            : tarefa.concluida ? "bg-primary/5 border-primary/20"
                             : "bg-zinc-900/40 border-border/30")}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-start gap-3 flex-1 min-w-0">
                                 {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
-                                : tarefa.concluida ? <Clock size={16} className="text-amber-400 mt-0.5 shrink-0" />
+                                : tarefa.concluida ? <Clock size={16} className="text-primary mt-0.5 shrink-0" />
                                 : <div className="w-4 h-4 rounded-full border-2 border-border mt-0.5 shrink-0" />}
                                 <div className="min-w-0">
                                   <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>

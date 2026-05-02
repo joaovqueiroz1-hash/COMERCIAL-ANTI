@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchLeads, fetchProfiles, updateLead, createPipelineLog, fetchAllLeadTagsMap, Lead } from '@/lib/api';
+import { fetchLeads, fetchProfiles, updateLead, createPipelineLog, fetchAllLeadTagsMap, fetchMetas, Lead } from '@/lib/api';
 import type { TagSistema } from '@/lib/api';
 import { PipelineStatus, PIPELINE_COLUMNS, MOTIVOS_PERDA, formatCurrency, getInitials } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { DndContext, DragEndEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Flame, Clock, Plus, Search, GripVertical, Users } from 'lucide-react';
+import { Flame, Clock, Plus, Search, GripVertical, Users, DollarSign } from 'lucide-react';
 import { useMemo } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { LeadEditSheet } from '@/components/LeadEditSheet';
 
@@ -127,10 +128,14 @@ export default function Pipeline() {
   const [vendorFilter, setVendorFilter] = useState('all');
   const [pendingLostLead, setPendingLostLead] = useState<{ leadId: string; oldStatus: string } | null>(null);
   const [lossReason, setLossReason] = useState('');
+  const [pendingClosedLead, setPendingClosedLead] = useState<{ leadId: string; oldStatus: string } | null>(null);
+  const [closedMetaId, setClosedMetaId] = useState('');
+  const [closedValorAcordado, setClosedValorAcordado] = useState('');
 
   const { data: leads = [], isLoading } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
   const { data: tagsMap = {} } = useQuery({ queryKey: ['lead_tags_map'], queryFn: fetchAllLeadTagsMap });
+  const { data: metas = [] } = useQuery({ queryKey: ['metas'], queryFn: fetchMetas });
 
   const filteredLeads = useMemo(() => {
     let result = leads;
@@ -150,9 +155,11 @@ export default function Pipeline() {
   }, [leads, search, vendorFilter]);
 
   const moveMutation = useMutation({
-    mutationFn: async ({ leadId, newStatus, oldStatus, motivo }: { leadId: string; newStatus: string; oldStatus: string; motivo?: string }) => {
+    mutationFn: async ({ leadId, newStatus, oldStatus, motivo, metaId, valorAcordado }: { leadId: string; newStatus: string; oldStatus: string; motivo?: string; metaId?: string; valorAcordado?: number }) => {
       const update: any = { status_pipeline: newStatus as any };
       if (motivo) update.motivo_perda = motivo;
+      if (metaId) update.meta_id = metaId;
+      if (valorAcordado) update.valor_acordado = valorAcordado;
       await updateLead(leadId, update);
       if (user) {
         await createPipelineLog({ lead_id: leadId, status_anterior: oldStatus, status_novo: newStatus, alterado_por: user.id });
@@ -184,7 +191,11 @@ export default function Pipeline() {
     if (targetColumnKey) {
       const lead = leads.find(l => l.id === leadId);
       if (lead && lead.status_pipeline !== targetColumnKey) {
-        if (targetColumnKey === 'perdido') {
+        if (targetColumnKey === 'fechado') {
+          setPendingClosedLead({ leadId, oldStatus: lead.status_pipeline });
+          setClosedMetaId('');
+          setClosedValorAcordado('');
+        } else if (targetColumnKey === 'perdido') {
           setPendingLostLead({ leadId, oldStatus: lead.status_pipeline });
           setLossReason('');
         } else {
@@ -204,6 +215,20 @@ export default function Pipeline() {
     });
     setPendingLostLead(null);
     setLossReason('');
+  };
+
+  const confirmClose = () => {
+    if (!pendingClosedLead) return;
+    moveMutation.mutate({
+      leadId: pendingClosedLead.leadId,
+      newStatus: 'fechado',
+      oldStatus: pendingClosedLead.oldStatus,
+      metaId: closedMetaId || undefined,
+      valorAcordado: closedValorAcordado ? Number(closedValorAcordado) : undefined,
+    });
+    setPendingClosedLead(null);
+    setClosedMetaId('');
+    setClosedValorAcordado('');
   };
 
   const handleCardClick = (lead: Lead) => {
@@ -340,6 +365,46 @@ export default function Pipeline() {
               onClick={confirmLoss}
             >
               Confirmar perda
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fechado dialog */}
+      <Dialog open={!!pendingClosedLead} onOpenChange={(open) => { if (!open) { setPendingClosedLead(null); setClosedMetaId(''); setClosedValorAcordado(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><DollarSign size={16} className="text-primary" /> Lead Fechado!</DialogTitle>
+            <DialogDescription>Vincule a uma meta e informe o valor acordado (opcional).</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Meta</Label>
+              <Select value={closedMetaId || '__none__'} onValueChange={v => setClosedMetaId(v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-9 bg-secondary border-border text-sm"><SelectValue placeholder="Selecionar meta..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
+                  {(metas as any[]).map(m => <SelectItem key={m.id} value={m.id}>{m.titulo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Valor Acordado (R$)</Label>
+              <Input
+                type="number"
+                value={closedValorAcordado}
+                onChange={e => setClosedValorAcordado(e.target.value)}
+                placeholder="Ex: 15000"
+                className="h-9 bg-secondary border-border text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button variant="outline" className="flex-1" onClick={() => { setPendingClosedLead(null); setClosedMetaId(''); setClosedValorAcordado(''); }}>
+              Cancelar
+            </Button>
+            <Button className="flex-1 gold-gradient text-primary-foreground" onClick={confirmClose}>
+              Confirmar fechamento
             </Button>
           </div>
         </DialogContent>
