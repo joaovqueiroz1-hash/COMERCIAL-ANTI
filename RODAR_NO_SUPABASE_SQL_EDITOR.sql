@@ -252,6 +252,19 @@ CREATE POLICY "metas_authenticated" ON public.metas
 -- ── 15. Vincular leads a metas ────────────────────────────────────────
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS meta_id UUID REFERENCES public.metas(id) ON DELETE SET NULL;
 
+-- ── 16. Novos valores no enum pipeline_status ─────────────────
+-- Execute cada linha separadamente com Run entre elas:
+-- ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'entrada_lead';
+-- ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'em_atendimento';
+-- ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'vendido';
+
+-- ── 17. Migrar leads para nova nomenclatura + atividades ──────
+UPDATE public.leads SET status_pipeline = 'entrada_lead'      WHERE status_pipeline = 'novo_lead';
+UPDATE public.leads SET status_pipeline = 'tentativa_contato' WHERE status_pipeline IN ('contato_instagram', 'contato_whatsapp');
+UPDATE public.leads SET status_pipeline = 'em_atendimento'    WHERE status_pipeline = 'contato_realizado';
+UPDATE public.leads SET status_pipeline = 'vendido'           WHERE status_pipeline = 'fechado';
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS atividades JSONB DEFAULT '[]'::jsonb;
+
 -- =====================================================================
 -- FEITO! Agora o sistema está pronto para uso.
 -- =====================================================================

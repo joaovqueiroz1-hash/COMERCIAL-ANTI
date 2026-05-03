@@ -6,60 +6,60 @@
 
 @layer base {
   /* ── Paleta LV Business Club ── */
-  /* Cinza Escuro: #2E2E2E · Marrom: #615446 · Cinza Claro: #B3B2AC */
+  /* #fefeff #deddd8 #2f2f2f #827c78 #615346 #88807d */
   :root {
-    --background:            40 18% 95%;   /* creme quente #F4F3F0 */
-    --foreground:             0  0% 18%;   /* #2E2E2E */
-    --card:                   0  0% 100%;
-    --card-foreground:        0  0% 18%;
-    --popover:                0  0% 100%;
-    --popover-foreground:     0  0% 18%;
-    --primary:               31 31%  33%;  /* #615446 marrom */
-    --primary-foreground:     0  0% 100%;
-    --secondary:             40 12%  91%;  /* cinza quente claro */
+    --background:            50  9%  86%;   /* #deddd8 warm beige */
+    --foreground:             0  0%  18%;   /* #2f2f2f */
+    --card:                 240 50%  99%;   /* ~#fefeff near white */
+    --card-foreground:        0  0%  18%;
+    --popover:              240 50%  99%;
+    --popover-foreground:     0  0%  18%;
+    --primary:               29 16%  33%;   /* #615346 */
+    --primary-foreground:   240 50%  99%;
+    --secondary:             50  7%  79%;   /* slightly darker beige for inputs/fills */
     --secondary-foreground:   0  0%  18%;
-    --muted:                 40 12%  91%;
-    --muted-foreground:       0  0%  42%;  /* cinza médio legível */
-    --accent:                31 31%  33%;  /* marrom */
-    --accent-foreground:      0  0% 100%;
+    --muted:                 50  7%  82%;
+    --muted-foreground:      17  4%  51%;   /* #88807d */
+    --accent:                29 16%  33%;
+    --accent-foreground:    240 50%  99%;
     --destructive:            0 65%  52%;
     --destructive-foreground: 0  0% 100%;
-    --border:                40 10%  88%;
-    --input:                 40 12%  91%;
-    --ring:                  31 31%  33%;
-    --radius:                0.75rem;
+    --border:                50  5%  76%;
+    --input:                 50  7%  79%;
+    --ring:                  29 16%  33%;
+    --radius:               0.75rem;
 
-    /* Sidebar — clara, alinhada com o design */
-    --sidebar-background:     0  0% 100%;  /* branco */
-    --sidebar-foreground:     0  0%  18%;  /* #2E2E2E */
-    --sidebar-primary:       31 31%  33%;  /* marrom */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent:        40 12%  94%;  /* hover cinza suave */
+    /* Sidebar — beige #deddd8 */
+    --sidebar-background:    50  9%  86%;
+    --sidebar-foreground:     0  0%  18%;
+    --sidebar-primary:       29 16%  33%;
+    --sidebar-primary-foreground: 240 50% 99%;
+    --sidebar-accent:        50  8%  79%;
     --sidebar-accent-foreground: 0 0% 18%;
-    --sidebar-border:        40  8%  90%;
-    --sidebar-ring:          31 31%  33%;
+    --sidebar-border:        50  5%  76%;
+    --sidebar-ring:          29 16%  33%;
 
-    --bg-primary:            40 18%  95%;
-    --bg-secondary:          40 12%  91%;
-    --bg-tertiary:            0  0% 100%;
-    --bg-card:                0  0% 100%;
-    --border-hover:          40 10%  78%;
+    --bg-primary:            50  9%  86%;
+    --bg-secondary:          50  7%  79%;
+    --bg-tertiary:          240 50%  99%;
+    --bg-card:              240 50%  99%;
+    --border-hover:          50  5%  65%;
     --text-primary:           0  0%  18%;
     --text-secondary:         0  0%  35%;
-    --text-muted:            40  4%  66%;
-    --silver:                31 31%  33%;
-    --silver-light:          31 31%  44%;
-    --silver-dark:           31 31%  24%;
-    --silver-muted:          31 16%  54%;
-    --accent-gold:           31 31%  33%;
-    --accent-gold-hover:     31 31%  27%;
-    --success:               31 31%  33%;
-    --warning:               31 20%  45%;
-    --info:                  31 31%  33%;
+    --text-muted:            17  4%  51%;
+    --silver:                29 16%  33%;
+    --silver-light:          29 16%  44%;
+    --silver-dark:           29 16%  24%;
+    --silver-muted:          17  6%  44%;
+    --accent-gold:           29 16%  33%;
+    --accent-gold-hover:     29 16%  27%;
+    --success:               29 16%  33%;
+    --warning:               29 12%  45%;
+    --info:                  29 16%  33%;
     --danger:                 0 65%  52%;
 
-    --wa-bubble-out:         40 12%  91%;
-    --wa-bubble-in:           0  0%  97%;
+    --wa-bubble-out:         50  7%  79%;
+    --wa-bubble-in:         240 50%  99%;
   }
 }
 
@@ -76,12 +76,12 @@
 }
 
 @layer utilities {
-  /* ── Botão primário — marrom #615446 ── */
+  /* ── Botão primário — marrom #615346 ── */
   .gold-gradient {
-    background: linear-gradient(135deg, hsl(31 31% 33%), hsl(28 22% 26%));
+    background: linear-gradient(135deg, hsl(29 16% 33%), hsl(29 14% 26%));
   }
   .gold-gradient-text {
-    background: linear-gradient(135deg, hsl(31 31% 38%), hsl(31 31% 28%));
+    background: linear-gradient(135deg, hsl(29 16% 38%), hsl(29 16% 28%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -89,10 +89,10 @@
   .silver-shimmer {
     background: linear-gradient(
       110deg,
-      hsl(31 31% 33%) 0%,
-      hsl(31 28% 46%) 45%,
-      hsl(31 31% 33%) 55%,
-      hsl(31 31% 27%) 100%
+      hsl(29 16% 33%) 0%,
+      hsl(29 14% 46%) 45%,
+      hsl(29 16% 33%) 55%,
+      hsl(29 16% 27%) 100%
     );
   }
 
@@ -109,71 +109,83 @@
   }
   .card-glow {
     background: hsl(var(--bg-card));
-    border: 1px solid hsl(31 31% 33% / 0.2);
+    border: 1px solid hsl(29 16% 33% / 0.2);
     border-radius: 12px;
-    box-shadow: 0 0 0 1px hsl(31 31% 33% / 0.08), 0 2px 12px hsl(31 31% 33% / 0.04);
+    box-shadow: 0 0 0 1px hsl(29 16% 33% / 0.08), 0 2px 12px hsl(29 16% 33% / 0.04);
   }
 
-  /* ── Cartões escuros — Pipeline e Leads ── */
+  /* ── Cartões claros — Pipeline Leads ── */
+  .card-lead {
+    background: hsl(240 50% 99%);   /* near white */
+    border: 1px solid hsl(50 5% 76%);
+    border-radius: 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-lead:hover {
+    border-color: hsl(29 16% 45%);
+    box-shadow: 0 2px 8px hsl(0 0% 0% / 0.07);
+  }
+
+  /* ── Cartões escuros — mantidos para compatibilidade ── */
   .card-dark {
-    background: hsl(0 0% 18%);   /* #2E2E2E */
+    background: hsl(0 0% 18%);
     border: 1px solid hsl(0 0% 26%);
     border-radius: 12px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .card-dark:hover {
-    border-color: hsl(0 0% 36%);
-    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.15);
+    border-color: hsl(0 0% 38%);
+    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.2);
   }
 
-  /* ── Cartões KPI — brancos, sem fundo escuro ── */
+  /* ── Cartões KPI ── */
   .metric-card {
-    background: hsl(0 0% 100%);
-    border: 1px solid hsl(40 10% 88%);
+    background: hsl(var(--bg-card));
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     transition: all 0.2s ease;
   }
   .metric-card:hover {
-    border-color: hsl(31 31% 33% / 0.25);
+    border-color: hsl(29 16% 33% / 0.25);
     box-shadow: 0 2px 12px hsl(0 0% 0% / 0.04);
   }
 
-  /* ── Cartões de time/performance — brancos ── */
+  /* ── Cartões de time/performance ── */
   .card-team {
-    background: hsl(0 0% 100%);
-    border: 1px solid hsl(40 10% 88%);
+    background: hsl(var(--bg-card));
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     transition: all 0.2s ease;
   }
-  .card-team:hover { border-color: hsl(31 31% 33% / 0.2); }
+  .card-team:hover { border-color: hsl(29 16% 33% / 0.2); }
   .card-team-top {
-    background: hsl(40 18% 97%);
-    border: 1px solid hsl(31 31% 33% / 0.22);
+    background: hsl(50 9% 90%);
+    border: 1px solid hsl(29 16% 33% / 0.22);
     border-radius: 12px;
     transition: all 0.2s ease;
   }
 
   /* ── Sidebar item ativo ── */
   .sidebar-item-active {
-    background: hsl(31 31% 33% / 0.08);
-    border-left: 2px solid hsl(31 31% 33%);
+    background: hsl(29 16% 33% / 0.08);
+    border-left: 2px solid hsl(29 16% 33%);
   }
 
   /* ── Chat bubbles ── */
   .wa-bubble-out {
     background: hsl(var(--wa-bubble-out));
-    border: 1px solid hsl(40 10% 84%);
+    border: 1px solid hsl(50 5% 72%);
     border-radius: 12px 12px 2px 12px;
   }
   .wa-bubble-in {
     background: hsl(var(--wa-bubble-in));
-    border: 1px solid hsl(40 8% 88%);
+    border: 1px solid hsl(50 5% 76%);
     border-radius: 12px 12px 12px 2px;
   }
   .wa-bubble-note {
-    background: hsl(40 15% 94%);
-    border: 1px solid hsl(40 10% 85%);
-    border-left: 3px solid hsl(31 31% 33%);
+    background: hsl(50 9% 91%);
+    border: 1px solid hsl(50 5% 76%);
+    border-left: 3px solid hsl(29 16% 33%);
     border-radius: 0 8px 8px 0;
   }
 
@@ -218,8 +230,8 @@
 
   .status-dot-online {
     width: 8px; height: 8px;
-    background: hsl(31 31% 44%);
+    background: hsl(29 16% 44%);
     border-radius: 50%;
-    box-shadow: 0 0 6px hsl(31 31% 44%);
+    box-shadow: 0 0 6px hsl(29 16% 44%);
   }
 }

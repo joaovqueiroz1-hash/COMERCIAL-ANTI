@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DndContext, DragEndEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Flame, Clock, Plus, Search, GripVertical, Users, DollarSign } from 'lucide-react';
+import { Flame, Clock, Plus, Search, GripVertical, Users, DollarSign, SlidersHorizontal } from 'lucide-react';
 import { useMemo } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,19 +29,19 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
   const vendedor = profiles.find(p => p.id === lead.vendedor_id);
 
   return (
-    <div onClick={onClick} className="card-dark p-3 cursor-pointer transition-all animate-fade-in">
+    <div onClick={onClick} className="card-lead p-3 cursor-pointer transition-all animate-fade-in">
       <div className="flex items-start justify-between mb-1 gap-1">
-        <p className="text-sm font-medium text-white truncate flex-1">{lead.nome_completo}</p>
+        <p className="text-sm font-medium text-foreground truncate flex-1">{lead.nome_completo}</p>
         <div className="flex items-center gap-1 shrink-0">
           {hot && <Flame size={13} className="text-primary" />}
           {cardNumber != null && (
-            <span className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-white/10 text-white/40 leading-none">
+            <span className="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-secondary text-muted-foreground/40 leading-none">
               #{cardNumber}
             </span>
           )}
         </div>
       </div>
-      <p className="text-xs text-white/50 truncate mb-2">{lead.nome_empresa || '—'}</p>
+      <p className="text-xs text-muted-foreground truncate mb-2">{lead.nome_empresa || '—'}</p>
 
       {tags && tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
@@ -59,16 +59,16 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
 
       <div className="flex flex-wrap gap-1 mb-2">
         {(lead.faturamento_anual || 0) > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-foreground/70 font-medium">{formatCurrency(lead.faturamento_anual || 0)}</span>
         )}
         {lead.instagram_empresa && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/55 font-medium truncate max-w-[90px]">{lead.instagram_empresa}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/60 text-muted-foreground/60 font-medium truncate max-w-[90px]">{lead.instagram_empresa}</span>
         )}
         {(lead.tags || []).map((tag) => (
-          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-white/60 font-medium">{tag}</span>
+          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground/70 font-medium">{tag}</span>
         ))}
         {isOverdue && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 font-medium animate-pulse flex items-center gap-0.5">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 font-medium animate-pulse flex items-center gap-0.5">
             <Clock size={8} /> {daysSinceContact}d
           </span>
         )}
@@ -80,9 +80,9 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
             {vendedor.nome}
           </span>
         ) : (
-          <span className="text-[10px] text-white/25">Sem vendedor</span>
+          <span className="text-[10px] text-muted-foreground/40">Sem vendedor</span>
         )}
-        <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold text-white/60 shrink-0">
+        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[9px] font-bold text-muted-foreground/70 shrink-0">
           {vendedor ? vendedor.nome.charAt(0).toUpperCase() : '?'}
         </div>
       </div>
@@ -126,6 +126,14 @@ export default function Pipeline() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [vendorFilter, setVendorFilter] = useState('all');
+  const [nichoFilter, setNichoFilter] = useState('');
+  const [faturamentoMin, setFaturamentoMin] = useState('');
+  const [faturamentoMax, setFaturamentoMax] = useState('');
+  const [dorFilter, setDorFilter] = useState('');
+  const [reuniaoFilter, setReuniaoFilter] = useState<'all' | 'sim' | 'nao'>('all');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [pendingLostLead, setPendingLostLead] = useState<{ leadId: string; oldStatus: string } | null>(null);
   const [lossReason, setLossReason] = useState('');
   const [pendingClosedLead, setPendingClosedLead] = useState<{ leadId: string; oldStatus: string } | null>(null);
@@ -151,8 +159,21 @@ export default function Pipeline() {
     if (vendorFilter !== 'all') {
       result = result.filter(l => l.vendedor_id === vendorFilter);
     }
+    if (nichoFilter.trim()) {
+      const n = nichoFilter.toLowerCase();
+      result = result.filter(l => ((l as any).nicho || '').toLowerCase().includes(n));
+    }
+    if (faturamentoMin) result = result.filter(l => (l.faturamento_anual || 0) >= Number(faturamentoMin));
+    if (faturamentoMax) result = result.filter(l => (l.faturamento_anual || 0) <= Number(faturamentoMax));
+    if (dorFilter.trim()) {
+      const d = dorFilter.toLowerCase();
+      result = result.filter(l => (l.maior_dor || '').toLowerCase().includes(d));
+    }
+    if (reuniaoFilter !== 'all') result = result.filter(l => reuniaoFilter === 'sim' ? (l as any).reuniao_agendada === true : !(l as any).reuniao_agendada);
+    if (dataInicio) result = result.filter(l => new Date(l.created_at) >= new Date(dataInicio));
+    if (dataFim) result = result.filter(l => new Date(l.created_at) <= new Date(dataFim + 'T23:59:59'));
     return result;
-  }, [leads, search, vendorFilter]);
+  }, [leads, search, vendorFilter, nichoFilter, faturamentoMin, faturamentoMax, dorFilter, reuniaoFilter, dataInicio, dataFim]);
 
   const moveMutation = useMutation({
     mutationFn: async ({ leadId, newStatus, oldStatus, motivo, metaId, valorAcordado }: { leadId: string; newStatus: string; oldStatus: string; motivo?: string; metaId?: string; valorAcordado?: number }) => {
@@ -195,7 +216,7 @@ export default function Pipeline() {
     if (targetColumnKey) {
       const lead = leads.find(l => l.id === leadId);
       if (lead && lead.status_pipeline !== targetColumnKey) {
-        if (targetColumnKey === 'fechado') {
+        if (targetColumnKey === 'vendido') {
           setPendingClosedLead({ leadId, oldStatus: lead.status_pipeline });
           setClosedMetaId('');
           setClosedValorAcordado('');
@@ -225,7 +246,7 @@ export default function Pipeline() {
     if (!pendingClosedLead) return;
     moveMutation.mutate({
       leadId: pendingClosedLead.leadId,
-      newStatus: 'fechado',
+      newStatus: 'vendido',
       oldStatus: pendingClosedLead.oldStatus,
       metaId: closedMetaId || undefined,
       valorAcordado: closedValorAcordado ? Number(closedValorAcordado) : undefined,
@@ -259,9 +280,9 @@ export default function Pipeline() {
   }
 
   return (
-    <AppLayout title="Pipeline" subtitle={`${filteredLeads.length} leads ${search || vendorFilter !== 'all' ? 'filtrados' : 'no pipeline'}`}>
+    <AppLayout title="Pipeline" subtitle={`${filteredLeads.length} leads ${search || vendorFilter !== 'all' || nichoFilter || faturamentoMin || faturamentoMax || dorFilter || reuniaoFilter !== 'all' || dataInicio || dataFim ? 'filtrados' : 'no pipeline'}`}>
       {/* Filters bar */}
-      <div className="mb-4 animate-fade-in flex flex-wrap gap-2 items-center">
+      <div className="mb-2 animate-fade-in flex flex-wrap gap-2 items-center">
         <div className="relative w-72">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -285,17 +306,66 @@ export default function Pipeline() {
           </SelectContent>
         </Select>
 
-        {(search || vendorFilter !== 'all') && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-muted-foreground hover:text-foreground text-xs"
-            onClick={() => { setSearch(''); setVendorFilter('all'); }}
-          >
+        {/* Toggle filtros avançados */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowFilters(v => !v)}
+          className={`h-9 text-xs border-border gap-1.5 ${showFilters ? 'bg-primary/5 border-primary/30 text-primary' : ''}`}
+        >
+          <SlidersHorizontal size={13} /> Filtros
+          {(nichoFilter || faturamentoMin || faturamentoMax || dorFilter || reuniaoFilter !== 'all' || dataInicio || dataFim) && (
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+          )}
+        </Button>
+
+        {(search || vendorFilter !== 'all' || showFilters) && (
+          <Button variant="ghost" size="sm" className="h-9 text-muted-foreground hover:text-foreground text-xs"
+            onClick={() => { setSearch(''); setVendorFilter('all'); setNichoFilter(''); setFaturamentoMin(''); setFaturamentoMax(''); setDorFilter(''); setReuniaoFilter('all'); setDataInicio(''); setDataFim(''); }}>
             Limpar filtros
           </Button>
         )}
       </div>
+
+      {showFilters && (
+        <div className="card-premium p-3 mb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 animate-fade-in">
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wide">Nicho</p>
+            <Input value={nichoFilter} onChange={e => setNichoFilter(e.target.value)} placeholder="Ex: Saúde, Varejo..." className="h-8 text-xs bg-secondary border-border" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wide">Maior Dor</p>
+            <Input value={dorFilter} onChange={e => setDorFilter(e.target.value)} placeholder="Buscar na dor..." className="h-8 text-xs bg-secondary border-border" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wide">Fat. Mín (R$)</p>
+            <Input type="number" value={faturamentoMin} onChange={e => setFaturamentoMin(e.target.value)} placeholder="0" className="h-8 text-xs bg-secondary border-border" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wide">Fat. Máx (R$)</p>
+            <Input type="number" value={faturamentoMax} onChange={e => setFaturamentoMax(e.target.value)} placeholder="Ilimitado" className="h-8 text-xs bg-secondary border-border" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wide">Reunião Agendada</p>
+            <Select value={reuniaoFilter} onValueChange={v => setReuniaoFilter(v as any)}>
+              <SelectTrigger className="h-8 text-xs bg-secondary border-border"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="sim">Sim</SelectItem>
+                <SelectItem value="nao">Não</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wide">Criado de</p>
+            <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} className="h-8 text-xs bg-secondary border-border" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] uppercase font-bold text-muted-foreground tracking-wide">Criado até</p>
+            <Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="h-8 text-xs bg-secondary border-border" />
+          </div>
+        </div>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={(e) => setActiveId(e.active.id as string)} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 'calc(100vh - 220px)' }}>
@@ -303,7 +373,7 @@ export default function Pipeline() {
             const columnLeads = filteredLeads.filter(l => l.status_pipeline === col.key);
             const colNum = String(colIndex + 1).padStart(2, '0');
             const borderTop =
-              col.key === 'fechado' ? 'border-t-2 border-t-primary' :
+              col.key === 'vendido' ? 'border-t-2 border-t-primary' :
               col.key === 'perdido' ? 'border-t-2 border-t-muted-foreground/30' : '';
             return (
               <DroppableColumn key={col.key} id={col.key} className={`min-w-[240px] w-[240px] shrink-0 card-premium flex flex-col ${borderTop}`}>

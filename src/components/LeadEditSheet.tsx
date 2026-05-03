@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2 } from 'lucide-react';
+import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2, CheckCircle2 } from 'lucide-react';
 import { updateLead, updateLeadExtra, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, fetchMetas, Lead } from '@/lib/api';
 import type { TagSistema } from '@/lib/api';
 import { STATUS_LABELS, PipelineStatus, formatCurrency } from '@/lib/types';
@@ -29,6 +29,13 @@ interface LeadEditSheetProps {
   readOnly?: boolean;
 }
 
+const ATIVIDADE_STAGES = [
+  { key: '1_contato',    label: '1º Contato' },
+  { key: '2_contato',    label: '2º Contato' },
+  { key: '3_contato',    label: '3º Contato' },
+  { key: 'encerramento', label: '4º Encerramento' },
+];
+
 export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = false }: LeadEditSheetProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -36,6 +43,7 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const [form, setForm] = useState<Partial<Lead>>({});
   const [showInteraction, setShowInteraction] = useState(false);
   const [showAction, setShowAction] = useState(false);
+  const [atividades, setAtividades] = useState<any[]>([]);
 
   const { data: interacoes = [] } = useQuery({
     queryKey: ['interacoes', lead?.id],
@@ -70,7 +78,15 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const [tagLoading, setTagLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (lead) setForm({ ...lead });
+    if (lead) {
+      setForm({ ...lead });
+      const saved = (lead as any).atividades;
+      setAtividades(
+        Array.isArray(saved) && saved.length === 4
+          ? saved
+          : ATIVIDADE_STAGES.map(s => ({ key: s.key, concluido: false, data: '', notas: '' }))
+      );
+    }
   }, [lead]);
 
   const mutation = useMutation({
@@ -94,11 +110,24 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const tipoIcon: Record<string, any> = { whatsapp: <MessageCircle size={14} />, ligacao: <Phone size={14} />, reuniao: <Video size={14} />, email: <Mail size={14} /> };
   const tipoLabel: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'Ligação', reuniao: 'Reunião', email: 'E-mail' };
 
+  const toggleAtividade = (idx: number) => {
+    const updated = atividades.map((a, i) => i === idx ? { ...a, concluido: !a.concluido } : a);
+    setAtividades(updated);
+    updateLeadExtra(lead!.id, { atividades: updated });
+  };
+
+  const updateAtividadeField = (idx: number, field: string, value: string) => {
+    setAtividades(prev => prev.map((a, i) => i === idx ? { ...a, [field]: value } : a));
+  };
+
+  const saveAtividades = () => updateLeadExtra(lead!.id, { atividades });
+
   const handleSave = () => {
     const { id, created_at, updated_at, meta_id, ...updates } = form as any;
     // meta_id is a newer column — save separately so it never blocks the main update
     mutation.mutate(updates);
     if (meta_id !== undefined) updateLeadExtra(lead!.id, { meta_id: meta_id ?? null });
+    updateLeadExtra(lead!.id, { atividades });
   };
 
   const handleAddTag = async (tagId: string) => {
@@ -201,6 +230,7 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
               <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent h-9 px-4">
                 <TabsTrigger value="info" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Informações</TabsTrigger>
                 <TabsTrigger value="qualificacao" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Qualificação</TabsTrigger>
+                <TabsTrigger value="atividades" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Atividades</TabsTrigger>
                 <TabsTrigger value="timeline" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Timeline</TabsTrigger>
                 <TabsTrigger value="acoes" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none">Ações</TabsTrigger>
                 <TabsTrigger value="tags" className="text-xs data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none flex items-center gap-1">
@@ -447,6 +477,44 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                       </div>
                     )}
                 </FieldBlock>
+              </TabsContent>
+
+              {/* ATIVIDADES TAB */}
+              <TabsContent value="atividades" className="p-4 mt-0 space-y-2">
+                <p className="text-xs text-muted-foreground mb-3">Registre o progresso dos contatos com este lead.</p>
+                {ATIVIDADE_STAGES.map((stage, idx) => {
+                  const ativ = atividades[idx] || { concluido: false, data: '', notas: '' };
+                  return (
+                    <div key={stage.key} className={`p-3.5 rounded-xl border transition-colors ${ativ.concluido ? 'bg-primary/5 border-primary/25' : 'bg-secondary/40 border-border'}`}>
+                      <div className="flex items-center gap-3 mb-1">
+                        <button
+                          onClick={() => toggleAtividade(idx)}
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${ativ.concluido ? 'bg-primary border-primary' : 'border-muted-foreground/30 hover:border-primary/50'}`}
+                        >
+                          {ativ.concluido && <CheckCircle2 size={11} className="text-white" />}
+                        </button>
+                        <span className={`text-sm font-semibold ${ativ.concluido ? 'text-primary' : 'text-foreground'}`}>{stage.label}</span>
+                        {ativ.data && !editing && (
+                          <span className="text-[10px] text-muted-foreground ml-auto">{new Date(ativ.data + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                        )}
+                      </div>
+                      {editing ? (
+                        <div className="pl-8 space-y-2 mt-2">
+                          <Input type="date" value={ativ.data} onChange={e => updateAtividadeField(idx, 'data', e.target.value)} className="h-7 text-xs bg-secondary border-border" />
+                          <textarea
+                            value={ativ.notas}
+                            onChange={e => updateAtividadeField(idx, 'notas', e.target.value)}
+                            onBlur={saveAtividades}
+                            placeholder="Notas sobre este contato..."
+                            className="w-full min-h-[50px] text-xs p-2 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/30"
+                          />
+                        </div>
+                      ) : (
+                        ativ.notas && <p className="pl-8 text-xs text-muted-foreground mt-1">{ativ.notas}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </TabsContent>
 
               {/* TIMELINE TAB */}

@@ -41,7 +41,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   return (
     <div
       className="w-[230px] h-full flex flex-col select-none border-r border-border"
-      style={{ background: '#FFFFFF' }}
+      style={{ background: 'hsl(var(--sidebar-background))' }}
     >
       {/* ── Logo ── */}
       <div className="px-5 pt-6 pb-5 border-b border-border relative">
@@ -83,7 +83,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
                   ? 'text-muted-foreground/40 cursor-default pointer-events-none'
                   : isActive
                   ? 'sidebar-item-active text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.04]'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.06]'
               }`}
             >
               <item.icon

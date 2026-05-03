@@ -1,16 +1,20 @@
 export type PipelineStatus =
-  | 'novo_lead'
-  | 'congelado'
-  | 'contato_instagram'
-  | 'contato_whatsapp'
+  | 'entrada_lead'
   | 'tentativa_contato'
-  | 'contato_realizado'
+  | 'em_atendimento'
   | 'reuniao_agendada'
   | 'reuniao_realizada'
-  | 'followup'
   | 'negociacao'
-  | 'fechado'
-  | 'perdido';
+  | 'followup'
+  | 'vendido'
+  | 'perdido'
+  | 'congelado'
+  // legado — mantidos para dados históricos
+  | 'novo_lead'
+  | 'contato_instagram'
+  | 'contato_whatsapp'
+  | 'contato_realizado'
+  | 'fechado';
 
 export type Prioridade = 'alta' | 'media' | 'baixa';
 export type Perfil = 'admin' | 'gestor' | 'vendedor';
@@ -107,32 +111,35 @@ export interface PipelineLog {
 }
 
 export const PIPELINE_COLUMNS: { key: PipelineStatus; label: string; color: string }[] = [
-  { key: 'novo_lead',         label: 'Novo Lead',        color: 'hsl(0,0%,60%)' },
-  { key: 'congelado',         label: 'Congelado',        color: 'hsl(0,0%,32%)' },
-  { key: 'contato_instagram', label: 'Contato Instagram', color: 'hsl(0,0%,68%)' },
-  { key: 'contato_whatsapp',  label: 'Contato WhatsApp',  color: 'hsl(0,0%,64%)' },
-  { key: 'tentativa_contato', label: 'Sem Resposta',      color: 'hsl(0,0%,42%)' },
-  { key: 'reuniao_agendada',  label: 'Reunião Agendada',  color: 'hsl(0,0%,76%)' },
-  { key: 'reuniao_realizada', label: 'Reunião Realizada', color: 'hsl(0,0%,82%)' },
-  { key: 'followup',          label: 'Follow-up',         color: 'hsl(0,0%,70%)' },
-  { key: 'negociacao',        label: 'Negociação',        color: 'hsl(0,0%,86%)' },
-  { key: 'fechado',           label: 'Fechado',           color: 'hsl(0,0%,92%)' },
-  { key: 'perdido',           label: 'Perdido',           color: 'hsl(0,0%,28%)' },
+  { key: 'entrada_lead',      label: 'Entrada de Lead',      color: 'hsl(50,9%,72%)' },
+  { key: 'tentativa_contato', label: 'Tentativa de Contato', color: 'hsl(50,7%,68%)' },
+  { key: 'em_atendimento',    label: 'Em Atendimento',       color: 'hsl(50,7%,64%)' },
+  { key: 'reuniao_agendada',  label: 'Reunião Agendada',     color: 'hsl(29,16%,48%)' },
+  { key: 'reuniao_realizada', label: 'Reunião Realizada',    color: 'hsl(29,16%,44%)' },
+  { key: 'negociacao',        label: 'Negociação',           color: 'hsl(29,16%,40%)' },
+  { key: 'followup',          label: 'Follow-Up',            color: 'hsl(23,4%,49%)' },
+  { key: 'vendido',           label: 'Vendido',              color: 'hsl(29,16%,33%)' },
+  { key: 'perdido',           label: 'Perdido',              color: 'hsl(0,0%,35%)' },
+  { key: 'congelado',         label: 'Congelado',            color: 'hsl(0,0%,50%)' },
 ];
 
 export const STATUS_LABELS: Record<PipelineStatus, string> = {
-  novo_lead: 'Novo Lead',
-  congelado: 'Congelado',
-  contato_instagram: 'Contato Instagram',
-  contato_whatsapp: 'Contato WhatsApp',
-  tentativa_contato: 'Sem Resposta',
-  contato_realizado: 'Contato Realizado',
-  reuniao_agendada: 'Reunião Agendada',
+  entrada_lead:      'Entrada de Lead',
+  tentativa_contato: 'Tentativa de Contato',
+  em_atendimento:    'Em Atendimento',
+  reuniao_agendada:  'Reunião Agendada',
   reuniao_realizada: 'Reunião Realizada',
-  followup: 'Follow-up',
-  negociacao: 'Negociação',
-  fechado: 'Fechado',
-  perdido: 'Perdido',
+  negociacao:        'Negociação',
+  followup:          'Follow-Up',
+  vendido:           'Vendido',
+  perdido:           'Perdido',
+  congelado:         'Congelado',
+  // legado
+  novo_lead:         'Novo Lead',
+  contato_instagram: 'Contato Instagram',
+  contato_whatsapp:  'Contato WhatsApp',
+  contato_realizado: 'Contato Realizado',
+  fechado:           'Fechado',
 };
 
 export function isLeadQuente(lead: Lead): boolean {
