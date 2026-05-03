@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2, CheckCircle2 } from 'lucide-react';
+import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2, CheckCircle2, DollarSign } from 'lucide-react';
 import { updateLead, updateLeadExtra, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, fetchMetas, Lead } from '@/lib/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { TagSistema } from '@/lib/api';
-import { STATUS_LABELS, PipelineStatus, formatCurrency } from '@/lib/types';
+import { STATUS_LABELS, PIPELINE_COLUMNS, MOTIVOS_PERDA, PipelineStatus, formatCurrency } from '@/lib/types';
 import { validateWhatsApp, cleanWhatsAppNumber } from '@/lib/whatsapp-utils';
 import { toast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -76,6 +77,10 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   });
 
   const [tagLoading, setTagLoading] = useState<string | null>(null);
+  const [showVendidoDialog, setShowVendidoDialog] = useState(false);
+  const [showPerdidoDialog, setShowPerdidoDialog] = useState(false);
+  const [lossReason, setLossReason] = useState('');
+  const [pendingSave, setPendingSave] = useState<{ updates: any; meta_id?: any } | null>(null);
 
   useEffect(() => {
     if (lead) {
@@ -122,12 +127,44 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
 
   const saveAtividades = () => updateLeadExtra(lead!.id, { atividades });
 
-  const handleSave = () => {
-    const { id, created_at, updated_at, meta_id, ...updates } = form as any;
-    // meta_id is a newer column — save separately so it never blocks the main update
+  const doSave = (updates: any, meta_id?: any) => {
     mutation.mutate(updates);
     if (meta_id !== undefined) updateLeadExtra(lead!.id, { meta_id: meta_id ?? null });
     updateLeadExtra(lead!.id, { atividades });
+  };
+
+  const handleSave = () => {
+    const { id, created_at, updated_at, meta_id, ...updates } = form as any;
+    const wasVendido = lead!.status_pipeline === 'vendido' || lead!.status_pipeline === 'fechado';
+    const wasPerdido = lead!.status_pipeline === 'perdido';
+
+    if (updates.status_pipeline === 'vendido' && !wasVendido) {
+      setPendingSave({ updates, meta_id });
+      setShowVendidoDialog(true);
+      return;
+    }
+    if (updates.status_pipeline === 'perdido' && !wasPerdido) {
+      setPendingSave({ updates, meta_id });
+      setShowPerdidoDialog(true);
+      setLossReason('');
+      return;
+    }
+    doSave(updates, meta_id);
+  };
+
+  const confirmVendido = () => {
+    if (!pendingSave) return;
+    doSave(pendingSave.updates, pendingSave.meta_id);
+    setShowVendidoDialog(false);
+    setPendingSave(null);
+  };
+
+  const confirmPerdido = () => {
+    if (!pendingSave || !lossReason) return;
+    doSave({ ...pendingSave.updates, motivo_perda: lossReason }, pendingSave.meta_id);
+    setShowPerdidoDialog(false);
+    setPendingSave(null);
+    setLossReason('');
   };
 
   const handleAddTag = async (tagId: string) => {
@@ -157,18 +194,22 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
   const setField = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
   const statusColor: Record<string, string> = {
-    novo_lead:          'bg-secondary text-muted-foreground',
-    congelado:          'bg-secondary/60 text-muted-foreground/60',
-    contato_instagram:  'bg-secondary text-muted-foreground',
-    contato_whatsapp:   'bg-secondary text-muted-foreground',
+    entrada_lead:       'bg-secondary text-muted-foreground',
     tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',
-    contato_realizado:  'bg-secondary text-muted-foreground',
+    em_atendimento:     'bg-secondary text-muted-foreground',
     reuniao_agendada:   'bg-primary/8 text-primary',
     reuniao_realizada:  'bg-primary/12 text-primary',
-    followup:           'bg-primary/8 text-primary/80',
     negociacao:         'bg-primary/15 text-primary',
-    fechado:            'bg-primary/20 text-primary font-semibold',
+    followup:           'bg-primary/8 text-primary/80',
+    vendido:            'bg-primary/20 text-primary font-semibold',
     perdido:            'bg-secondary/50 text-muted-foreground/50',
+    congelado:          'bg-secondary/60 text-muted-foreground/60',
+    // legado
+    novo_lead:          'bg-secondary text-muted-foreground',
+    contato_instagram:  'bg-secondary text-muted-foreground',
+    contato_whatsapp:   'bg-secondary text-muted-foreground',
+    contato_realizado:  'bg-secondary text-muted-foreground',
+    fechado:            'bg-primary/20 text-primary font-semibold',
   };
 
   return (
@@ -316,9 +357,11 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
 
                 <FieldBlock label="Status Pipeline" editing={editing}>
                   {editing ? (
-                    <Select value={form.status_pipeline || 'novo_lead'} onValueChange={v => setField('status_pipeline', v)}>
+                    <Select value={form.status_pipeline || 'entrada_lead'} onValueChange={v => setField('status_pipeline', v)}>
                       <SelectTrigger className="h-8 text-xs bg-secondary border-border"><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {PIPELINE_COLUMNS.map(col => <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   ) : null}
                 </FieldBlock>
@@ -648,6 +691,56 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
           <ActionForm leadId={lead.id} profiles={profiles} userId={user?.id || null} open={showAction} onOpenChange={setShowAction} />
         </>
       )}
+
+      {/* Confirmação de fechamento (Vendido) */}
+      <Dialog open={showVendidoDialog} onOpenChange={o => { if (!o) { setShowVendidoDialog(false); setPendingSave(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><DollarSign size={16} className="text-primary" /> Confirmar Fechamento</DialogTitle>
+            <DialogDescription>Este lead será marcado como Vendido.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 my-3 p-3 rounded-lg bg-secondary/50 border border-border">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Meta vinculada:</span>
+              <span className="font-medium text-foreground">{(metas as any[]).find(m => m.id === (form as any).meta_id)?.titulo || '—'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Valor acordado:</span>
+              <span className="font-semibold text-primary">{(form as any).valor_acordado ? formatCurrency((form as any).valor_acordado) : '—'}</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Verifique os campos Meta Vinculada e Valor Acordado na aba Qualificação antes de confirmar.</p>
+          <div className="flex gap-2 mt-3">
+            <Button variant="outline" className="flex-1 h-9" onClick={() => { setShowVendidoDialog(false); setPendingSave(null); }}>Cancelar</Button>
+            <Button className="flex-1 h-9 gold-gradient text-primary-foreground" onClick={confirmVendido}>Confirmar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Motivo de perda */}
+      <Dialog open={showPerdidoDialog} onOpenChange={o => { if (!o) { setShowPerdidoDialog(false); setPendingSave(null); setLossReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Motivo da Perda</DialogTitle>
+            <DialogDescription>Selecione o motivo pelo qual este lead foi perdido.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5 my-2">
+            {MOTIVOS_PERDA.map(motivo => (
+              <button
+                key={motivo}
+                onClick={() => setLossReason(motivo)}
+                className={`text-left text-sm px-3 py-2 rounded-lg border transition-all ${lossReason === motivo ? 'border-primary bg-primary/5 text-foreground font-medium' : 'border-border bg-secondary/50 text-muted-foreground hover:border-primary/40 hover:text-foreground'}`}
+              >
+                {motivo}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 h-9" onClick={() => { setShowPerdidoDialog(false); setPendingSave(null); setLossReason(''); }}>Cancelar</Button>
+            <Button className="flex-1 h-9 gold-gradient text-primary-foreground" disabled={!lossReason} onClick={confirmPerdido}>Confirmar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

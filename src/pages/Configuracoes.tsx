@@ -89,7 +89,7 @@ function mapRowToLead(row: Record<string, any>): LeadInsert | null {
     faturamento_anual: parseNumber(row['faturamento'] || 0),
     capacidade_investimento: row['capacidade_investimento'] != null ? parseBool(row['capacidade_investimento']) : false,
     observacoes_iniciais: row['observacoes'] ? String(row['observacoes']).trim() : null,
-    status_pipeline: 'novo_lead',
+    status_pipeline: 'entrada_lead',
     prioridade: 'media',
   };
 }

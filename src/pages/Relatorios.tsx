@@ -34,15 +34,16 @@ export default function Relatorios() {
     </AppLayout>
   );
 
-  const fechados = leads.filter((l) => l.status_pipeline === 'fechado');
-  const ativos = leads.filter((l) => !['fechado', 'perdido'].includes(l.status_pipeline));
+  const isVendido = (s: string) => s === 'fechado' || s === 'vendido';
+  const fechados = leads.filter((l) => isVendido(l.status_pipeline));
+  const ativos = leads.filter((l) => !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido');
   const potencialTotal = ativos.reduce((s, l) => s + (l.faturamento_anual || 0), 0);
   const receitaFechada = fechados.reduce((s, l) => s + (l.faturamento_anual || 0), 0);
   const ticketMedio = fechados.length > 0 ? receitaFechada / fechados.length : 0;
 
   const vendedorData = profiles.filter((u) => u.perfil === 'vendedor' && u.ativo).map((u) => {
     const total = leads.filter((l) => l.vendedor_id === u.id).length;
-    const closed = leads.filter((l) => l.vendedor_id === u.id && l.status_pipeline === 'fechado').length;
+    const closed = leads.filter((l) => l.vendedor_id === u.id && isVendido(l.status_pipeline)).length;
     return { name: u.nome.split(' ')[0], taxa: total > 0 ? Math.round((closed / total) * 100) : 0 };
   });
 

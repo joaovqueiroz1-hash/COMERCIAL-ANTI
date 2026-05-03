@@ -139,7 +139,7 @@ export default function GestaoOperacional() {
     const listaLeads  = leadsRes.status  === "fulfilled" ? (leadsRes.value  || []) : [];
     setAlunos(listaAlunos);
     setLeadsFechados(listaLeads.filter(
-      l => l.status_pipeline === "fechado" && !listaAlunos.some((a: any) => a.lead_id === l.id),
+      l => ["fechado", "vendido"].includes(l.status_pipeline) && !listaAlunos.some((a: any) => a.lead_id === l.id),
     ));
     if (materiaisRes.status === "fulfilled") setMateriais((materiaisRes.value || []) as Material[]);
     if (sprintsRes.status  === "fulfilled") setSprints(sprintsRes.value || []);

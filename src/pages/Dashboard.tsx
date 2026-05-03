@@ -38,22 +38,23 @@ export default function Dashboard() {
   }
 
   // --- Metrics ---
-  const leadsNovos = leads.filter((l) => l.status_pipeline === 'novo_lead').length;
-  const emContato = leads.filter((l) => ['contato_instagram', 'contato_whatsapp', 'tentativa_contato', 'contato_realizado'].includes(l.status_pipeline)).length;
+  const isVendido = (s: string) => s === 'fechado' || s === 'vendido';
+  const leadsNovos = leads.filter((l) => l.status_pipeline === 'entrada_lead' || l.status_pipeline === 'novo_lead').length;
+  const emContato = leads.filter((l) => ['tentativa_contato', 'em_atendimento', 'contato_instagram', 'contato_whatsapp', 'contato_realizado'].includes(l.status_pipeline)).length;
   const reunioesAgendadas = leads.filter((l) => l.status_pipeline === 'reuniao_agendada').length;
-  const fechados = leads.filter((l) => l.status_pipeline === 'fechado');
+  const fechados = leads.filter((l) => isVendido(l.status_pipeline));
   const receitaFechada = fechados.reduce((sum, l) => sum + (l.faturamento_anual || 0), 0);
   const valorAcordadoTotal = leads
-    .filter((l) => ['fechado', 'negociacao'].includes(l.status_pipeline) && (l as any).valor_acordado)
+    .filter((l) => (isVendido(l.status_pipeline) || l.status_pipeline === 'negociacao') && (l as any).valor_acordado)
     .reduce((sum, l) => sum + ((l as any).valor_acordado || 0), 0);
   const totalAtivos = leads.filter((l) => l.status_pipeline !== 'perdido').length;
   const taxaConversao = totalAtivos > 0 ? ((fechados.length / totalAtivos) * 100).toFixed(1) : '0';
   const potencialTotal = leads
-    .filter((l) => !['fechado', 'perdido'].includes(l.status_pipeline))
+    .filter((l) => !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido')
     .reduce((s, l) => s + (l.faturamento_anual || 0), 0);
 
   const followupPendente = leads.filter(
-    (l) => l.proximo_followup && new Date(l.proximo_followup) < now && !['fechado', 'perdido'].includes(l.status_pipeline)
+    (l) => l.proximo_followup && new Date(l.proximo_followup) < now && !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido'
   ).length;
 
   const reunioesRealizadas = leads.filter((l) => l.status_pipeline === 'reuniao_realizada').length;
@@ -61,17 +62,17 @@ export default function Dashboard() {
   const perdidos = leads.filter((l) => l.status_pipeline === 'perdido').length;
 
   const leadsSemContato48h = leads.filter((l) => {
-    if (['fechado', 'perdido', 'novo_lead'].includes(l.status_pipeline)) return false;
+    if (isVendido(l.status_pipeline) || l.status_pipeline === 'perdido' || l.status_pipeline === 'entrada_lead' || l.status_pipeline === 'novo_lead') return false;
     if (!l.ultimo_contato) return true;
     return (now.getTime() - new Date(l.ultimo_contato).getTime()) > 48 * 60 * 60 * 1000;
   });
 
   const followupsVencidos = leads.filter(
-    (l) => l.proximo_followup && new Date(l.proximo_followup) < now && !['fechado', 'perdido'].includes(l.status_pipeline)
+    (l) => l.proximo_followup && new Date(l.proximo_followup) < now && !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido'
   );
 
   const leadsQuentesList = leads.filter(
-    (l) => isLeadQuente(l as any) && !['reuniao_agendada', 'fechado'].includes(l.status_pipeline)
+    (l) => isLeadQuente(l as any) && !isVendido(l.status_pipeline) && l.status_pipeline !== 'reuniao_agendada'
   );
 
   const reunioesHoje = acoes.filter((a) => {
@@ -85,10 +86,10 @@ export default function Dashboard() {
   const vendedores = profiles.filter((u) => u.ativo);
   const teamData = vendedores.map((u) => {
     const myLeads = leads.filter((l) => l.vendedor_id === u.id || l.gestor_id === u.id);
-    const closed = myLeads.filter((l) => l.status_pipeline === 'fechado').length;
-    const inPipe = myLeads.filter((l) => !['fechado', 'perdido'].includes(l.status_pipeline)).length;
+    const closed = myLeads.filter((l) => isVendido(l.status_pipeline)).length;
+    const inPipe = myLeads.filter((l) => !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido').length;
     const taxa = myLeads.length > 0 ? Math.round((closed / myLeads.length) * 100) : 0;
-    const receita = myLeads.filter((l) => l.status_pipeline === 'fechado').reduce((s, l) => s + (l.faturamento_anual || 0), 0);
+    const receita = myLeads.filter((l) => isVendido(l.status_pipeline)).reduce((s, l) => s + (l.faturamento_anual || 0), 0);
     return { id: u.id, nome: u.nome.split(' ')[0], nomeCompleto: u.nome, perfil: u.perfil, total: myLeads.length, closed, inPipe, taxa, receita };
   });
 
@@ -114,7 +115,7 @@ export default function Dashboard() {
   })).filter((d) => d.value > 0);
 
   const leadsPrioritarios = [...leads]
-    .filter((l) => !['fechado', 'perdido'].includes(l.status_pipeline))
+    .filter((l) => !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido')
     .sort((a, b) => (b.faturamento_anual || 0) - (a.faturamento_anual || 0))
     .slice(0, 7);
 
@@ -128,18 +129,22 @@ export default function Dashboard() {
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
-      novo_lead:          'bg-secondary text-muted-foreground',
-      congelado:          'bg-secondary/60 text-muted-foreground/60',
-      contato_instagram:  'bg-secondary text-muted-foreground',
-      contato_whatsapp:   'bg-secondary text-muted-foreground',
+      entrada_lead:       'bg-secondary text-muted-foreground',
       tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',
-      contato_realizado:  'bg-secondary text-muted-foreground',
+      em_atendimento:     'bg-secondary text-muted-foreground',
       reuniao_agendada:   'bg-primary/8 text-primary',
       reuniao_realizada:  'bg-primary/12 text-primary',
-      followup:           'bg-primary/8 text-primary/80',
       negociacao:         'bg-primary/15 text-primary',
-      fechado:            'bg-primary/20 text-primary font-semibold',
+      followup:           'bg-primary/8 text-primary/80',
+      vendido:            'bg-primary/20 text-primary font-semibold',
       perdido:            'bg-secondary/50 text-muted-foreground/50',
+      congelado:          'bg-secondary/60 text-muted-foreground/60',
+      // legado
+      novo_lead:          'bg-secondary text-muted-foreground',
+      contato_instagram:  'bg-secondary text-muted-foreground',
+      contato_whatsapp:   'bg-secondary text-muted-foreground',
+      contato_realizado:  'bg-secondary text-muted-foreground',
+      fechado:            'bg-primary/20 text-primary font-semibold',
     };
     return map[s] || 'bg-secondary text-muted-foreground';
   };
@@ -312,14 +317,14 @@ export default function Dashboard() {
                         Neg.
                       </button>
                     )}
-                    {lead.status_pipeline !== 'fechado' && (
+                    {!isVendido(lead.status_pipeline) && (
                       <button
-                        onClick={() => statusMutation.mutate({ id: lead.id, status: 'fechado' })}
+                        onClick={() => statusMutation.mutate({ id: lead.id, status: 'vendido' })}
                         disabled={statusMutation.isPending}
                         className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground hover:bg-primary/15 hover:text-primary transition-colors"
-                        title="Marcar como Fechado"
+                        title="Marcar como Vendido"
                       >
-                        Fechado
+                        Vendido
                       </button>
                     )}
                   </div>
@@ -435,7 +440,11 @@ export default function Dashboard() {
           </div>
           <div className="space-y-2.5">
             {PIPELINE_COLUMNS.map((col) => {
-              const count = leads.filter((l) => l.status_pipeline === col.key).length;
+              const count = leads.filter((l) =>
+              col.key === 'vendido'
+                ? (l.status_pipeline === 'vendido' || l.status_pipeline === 'fechado')
+                : l.status_pipeline === col.key
+            ).length;
               const pct = leads.length > 0 ? (count / leads.length) * 100 : 0;
               return (
                 <div key={col.key}>

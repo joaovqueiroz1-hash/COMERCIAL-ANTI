@@ -35,10 +35,10 @@ function calcValorAtual(tipo: string, leads: any[], dataInicio?: string, dataFim
   switch (tipo) {
     case 'receita':
       return leads
-        .filter(l => l.status_pipeline === 'fechado' && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId))
+        .filter(l => ['fechado', 'vendido'].includes(l.status_pipeline) && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId))
         .reduce((s, l) => s + ((l as any).valor_acordado || l.faturamento_anual || 0), 0);
     case 'fechamentos':
-      return leads.filter(l => l.status_pipeline === 'fechado' && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId)).length;
+      return leads.filter(l => ['fechado', 'vendido'].includes(l.status_pipeline) && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId)).length;
     case 'reunioes':
       return leads.filter(l => ['reuniao_agendada', 'reuniao_realizada'].includes(l.status_pipeline) && inPeriod(l.created_at)).length;
     case 'leads':
@@ -147,7 +147,7 @@ export default function Metas() {
             const formatVal = (v: number) => isReceita ? formatCurrency(v) : String(Math.round(v));
 
             // Always compute both linked stats regardless of meta type
-            const leadsVinculados = (leads as any[]).filter(l => l.meta_id === meta.id && l.status_pipeline === 'fechado');
+            const leadsVinculados = (leads as any[]).filter(l => l.meta_id === meta.id && ['fechado', 'vendido'].includes(l.status_pipeline));
             const statsFechamentos = leadsVinculados.length;
             const statsReceita = leadsVinculados.reduce((sum: number, l: any) => sum + (l.valor_acordado || 0), 0);
 

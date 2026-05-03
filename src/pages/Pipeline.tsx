@@ -194,6 +194,10 @@ export default function Pipeline() {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       toast({ title: 'Lead movido ✓' });
     },
+    onError: (err: any) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast({ title: 'Erro ao mover lead', description: err?.message || 'Verifique se o SQL de migração foi executado no Supabase.', variant: 'destructive' });
+    },
   });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -215,7 +219,11 @@ export default function Pipeline() {
 
     if (targetColumnKey) {
       const lead = leads.find(l => l.id === leadId);
-      if (lead && lead.status_pipeline !== targetColumnKey) {
+      const alreadyInTarget = lead && (
+        lead.status_pipeline === targetColumnKey ||
+        (targetColumnKey === 'vendido' && lead.status_pipeline === 'fechado')
+      );
+      if (lead && !alreadyInTarget) {
         if (targetColumnKey === 'vendido') {
           setPendingClosedLead({ leadId, oldStatus: lead.status_pipeline });
           setClosedMetaId('');
@@ -370,7 +378,11 @@ export default function Pipeline() {
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={(e) => setActiveId(e.active.id as string)} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 'calc(100vh - 220px)' }}>
           {PIPELINE_COLUMNS.map((col, colIndex) => {
-            const columnLeads = filteredLeads.filter(l => l.status_pipeline === col.key);
+            const columnLeads = filteredLeads.filter(l =>
+              col.key === 'vendido'
+                ? (l.status_pipeline === 'vendido' || l.status_pipeline === 'fechado')
+                : l.status_pipeline === col.key
+            );
             const colNum = String(colIndex + 1).padStart(2, '0');
             const borderTop =
               col.key === 'vendido' ? 'border-t-2 border-t-primary' :

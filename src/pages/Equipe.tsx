@@ -134,7 +134,7 @@ export default function Equipe() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {profiles.map((user) => {
           const leadsCount = leads.filter((l) => l.vendedor_id === user.id || l.gestor_id === user.id).length;
-          const fechados = leads.filter((l) => l.vendedor_id === user.id && l.status_pipeline === 'fechado').length;
+          const fechados = leads.filter((l) => l.vendedor_id === user.id && ['fechado', 'vendido'].includes(l.status_pipeline)).length;
           const isToggling = toggleAtivoMutation.isPending && toggleAtivoMutation.variables?.id === user.id;
 
           return (

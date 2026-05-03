@@ -32,7 +32,7 @@ export default function Historico() {
   const statusLabel = (s: string) => STATUS_LABELS[s as PipelineStatus] || s;
 
   const statusPill = (s: string) => {
-    const fechado = s === 'fechado';
+    const fechado = s === 'fechado' || s === 'vendido';
     const perdido = s === 'perdido';
     const congelado = s === 'congelado';
     return (

@@ -253,11 +253,20 @@ CREATE POLICY "metas_authenticated" ON public.metas
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS meta_id UUID REFERENCES public.metas(id) ON DELETE SET NULL;
 
 -- ── 16. Novos valores no enum pipeline_status ─────────────────
--- Execute cada linha separadamente com Run entre elas:
--- ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'entrada_lead';
--- ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'em_atendimento';
--- ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'vendido';
+-- CRÍTICO: ALTER TYPE ADD VALUE não pode rodar na mesma transação que UPDATE.
+-- Execute CADA bloco abaixo separado (clique Run em cada um):
 
+-- BLOCO A — cole e execute sozinho:
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'entrada_lead';
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'tentativa_contato';
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'em_atendimento';
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'reuniao_realizada';
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'negociacao';
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'followup';
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'vendido';
+ALTER TYPE public.pipeline_status ADD VALUE IF NOT EXISTS 'congelado';
+
+-- BLOCO B — só depois que o BLOCO A der sucesso, cole e execute:
 -- ── 17. Migrar leads para nova nomenclatura + atividades ──────
 UPDATE public.leads SET status_pipeline = 'entrada_lead'      WHERE status_pipeline = 'novo_lead';
 UPDATE public.leads SET status_pipeline = 'tentativa_contato' WHERE status_pipeline IN ('contato_instagram', 'contato_whatsapp');

@@ -61,7 +61,7 @@ export default function Leads() {
       nome_empresa: newLeadForm.nome_empresa,
       observacoes_iniciais: newLeadForm.observacoes_iniciais,
       vendedor_id: user?.id,
-      status_pipeline: 'novo_lead',
+      status_pipeline: 'entrada_lead',
       prioridade: 'media',
     });
   };
@@ -90,18 +90,22 @@ export default function Leads() {
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
-      novo_lead:          'bg-secondary text-muted-foreground',
-      congelado:          'bg-secondary/60 text-muted-foreground/60',
-      contato_instagram:  'bg-secondary text-muted-foreground',
-      contato_whatsapp:   'bg-secondary text-muted-foreground',
+      entrada_lead:       'bg-secondary text-muted-foreground',
       tentativa_contato:  'bg-secondary/60 text-muted-foreground/60',
-      contato_realizado:  'bg-secondary text-muted-foreground',
+      em_atendimento:     'bg-secondary text-muted-foreground',
       reuniao_agendada:   'bg-primary/8 text-primary',
       reuniao_realizada:  'bg-primary/12 text-primary',
-      followup:           'bg-primary/8 text-primary/80',
       negociacao:         'bg-primary/15 text-primary',
-      fechado:            'bg-primary/20 text-primary font-semibold',
+      followup:           'bg-primary/8 text-primary/80',
+      vendido:            'bg-primary/20 text-primary font-semibold',
       perdido:            'bg-secondary/50 text-muted-foreground/50',
+      congelado:          'bg-secondary/60 text-muted-foreground/60',
+      // legado
+      novo_lead:          'bg-secondary text-muted-foreground',
+      contato_instagram:  'bg-secondary text-muted-foreground',
+      contato_whatsapp:   'bg-secondary text-muted-foreground',
+      contato_realizado:  'bg-secondary text-muted-foreground',
+      fechado:            'bg-primary/20 text-primary font-semibold',
     };
     return map[s] || 'bg-secondary text-muted-foreground';
   };

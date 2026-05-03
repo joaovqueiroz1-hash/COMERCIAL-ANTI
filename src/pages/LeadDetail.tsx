@@ -115,6 +115,10 @@ export default function LeadDetail() {
     reuniao_realizada:  'bg-white/15 text-white/80',
     followup:           'bg-white/10 text-white/70',
     negociacao:         'bg-white/20 text-white/90',
+    entrada_lead:       'bg-white/10 text-white/60',
+    em_atendimento:     'bg-white/10 text-white/60',
+    vendido:            'bg-white/25 text-white',
+    congelado:          'bg-white/5 text-white/40',
     fechado:            'bg-white/25 text-white',
     perdido:            'bg-white/5 text-white/30',
   };
@@ -134,7 +138,7 @@ export default function LeadDetail() {
     <AppLayout title={lead.nome_completo} subtitle={lead.nome_empresa || undefined}
       actions={
         <div className="flex items-center gap-2">
-          {lead.status_pipeline === 'fechado' && !matricula && (
+          {(lead.status_pipeline === 'fechado' || lead.status_pipeline === 'vendido') && !matricula && (
              <Button onClick={() => setOpenMatricula(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white h-9 text-xs sm:text-sm px-3 shadow-lg shadow-emerald-500/20">
                 <GraduationCap size={16} className="mr-2" />
                 Matricular Aluno
