@@ -145,14 +145,34 @@ DROP POLICY IF EXISTS "lead_tags_authenticated" ON public.lead_tags;
 CREATE POLICY "lead_tags_authenticated" ON public.lead_tags
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- ── 9. Política INSERT na tabela profiles ─────────────────────────────
--- Necessário para o upsert manual durante a matrícula de alunos
+-- ── 9. Políticas INSERT + UPDATE na tabela profiles ───────────────────
+-- INSERT: necessário para o upsert manual durante a matrícula de alunos
 DROP POLICY IF EXISTS "Admin can insert profiles" ON public.profiles;
 CREATE POLICY "Admin can insert profiles"
   ON public.profiles
   FOR INSERT
   TO authenticated
   WITH CHECK (public.get_user_perfil(auth.uid()) IN ('admin', 'gestor', 'operacional'));
+
+-- UPDATE: sem esta policy o upsert falha silenciosamente quando o perfil
+-- já existe (o UPDATE path do upsert é bloqueado pelo RLS).
+-- A policy "Users can update own profile" só cobre o próprio usuário —
+-- o admin precisa desta policy para atualizar perfis de outros usuários.
+DROP POLICY IF EXISTS "Admin can update any profile" ON public.profiles;
+CREATE POLICY "Admin can update any profile"
+  ON public.profiles
+  FOR UPDATE
+  TO authenticated
+  USING  (public.get_user_perfil(auth.uid()) IN ('admin', 'gestor', 'operacional'))
+  WITH CHECK (public.get_user_perfil(auth.uid()) IN ('admin', 'gestor', 'operacional'));
+
+-- ── 9b. Unique constraint em alunos.profile_id ────────────────────────
+-- Necessário para que o upsert { onConflict: "profile_id" } funcione
+-- e evite duplicatas caso a matrícula seja tentada mais de uma vez.
+ALTER TABLE public.alunos
+  DROP CONSTRAINT IF EXISTS alunos_profile_id_key;
+ALTER TABLE public.alunos
+  ADD CONSTRAINT alunos_profile_id_key UNIQUE (profile_id);
 
 -- ── 10. Função confirm_user_signup ────────────────────────────────────
 -- Permite que admin matricule aluno sem precisar de confirmação de email

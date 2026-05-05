@@ -185,21 +185,30 @@ export default function GestaoOperacional() {
     if (senhaAluno.length < 6) { toast({ title: "Mínimo 6 caracteres." }); return; }
     setMatriculando(true);
     try {
+      const emailTrimmed = targetLead.email.trim();
+
+      // ── Passo 1: Criar usuário no Auth ──────────────────────────────────
+      // Usamos signUp com a anon key. Quando o e-mail já existe, o Supabase
+      // retorna user=null (sem erro, por segurança). Tratamos esse caso abaixo.
       const { data: signUpData, error: sErr } = await adminAuthClient.auth.signUp({
-        email: targetLead.email.trim(), password: senhaAluno,
+        email: emailTrimmed,
+        password: senhaAluno,
         options: { data: { nome: targetLead.nome_completo, perfil: "aluno" } },
       });
       if (sErr && !sErr.message.toLowerCase().includes("already registered")) throw sErr;
 
-      // signUp retorna user=null quando e-mail já existe no Auth (Supabase oculta por segurança)
-      // Nesse caso, buscamos o profile existente pelo e-mail
+      // ── Passo 2: Resolver o profile_id ──────────────────────────────────
+      // signUp retorna user=null quando o e-mail já existe no Auth.
+      // Nesse caso, o profile já foi criado pelo trigger handle_new_user —
+      // basta buscá-lo pelo e-mail.
       let pid: string | undefined = signUpData?.user?.id;
       if (!pid) {
-        const { data: existingProfile } = await supabase
+        const { data: existingProfile, error: profErr } = await supabase
           .from("profiles")
           .select("id")
-          .eq("email", targetLead.email.trim())
+          .eq("email", emailTrimmed)
           .maybeSingle();
+        if (profErr) throw new Error(`Erro ao buscar perfil existente: ${profErr.message}`);
         if (existingProfile?.id) {
           pid = existingProfile.id;
         } else {
@@ -207,26 +216,45 @@ export default function GestaoOperacional() {
         }
       }
 
-      // Auto-confirma o e-mail para que o aluno possa logar imediatamente
-      // Requer a função confirm_user_signup no Supabase (inclusa no SQL de migração)
-      await (supabase as any).rpc("confirm_user_signup", { user_id: pid }).catch(() => {
-        // Silencia se a função ainda não foi criada; admin deve rodar a migration SQL
-      });
+      // ── Passo 3: Confirmar e-mail via RPC ──────────────────────────────
+      // Requer a função confirm_user_signup (inclusa no SQL de migração).
+      // Silenciamos o erro caso a função ainda não exista.
+      await (supabase as any).rpc("confirm_user_signup", { user_id: pid }).catch(() => {});
 
-      await supabase.from("profiles").upsert({
-        id: pid, nome: targetLead.nome_completo,
-        email: targetLead.email.trim(), perfil: "aluno", ativo: true,
-      });
-      const { error: alErr } = await (supabase as any).from("alunos").insert({
-        lead_id: targetLead.id, profile_id: pid,
-        fase_atual: "Onboarding", pontuacao_total: 0,
-      });
-      if (alErr) throw alErr;
-      toast({ title: "Aluno matriculado!", description: `Acesso criado para ${targetLead.email.trim()}` });
-      setOpenMatricula(false); setSenhaAluno(""); setTargetLead(null);
+      // ── Passo 4: Garantir que o profile existe e está correto ───────────
+      // O trigger handle_new_user já cria o profile no signUp; o upsert
+      // aqui serve para garantir nome/perfil corretos caso o perfil já exista.
+      // IMPORTANTE: requer a policy "Admin can update any profile" no Supabase
+      // (migration 20260401000001). Sem ela o UPDATE path do upsert falha.
+      const { error: profUpsertErr } = await (supabase as any).from("profiles").upsert(
+        { id: pid, nome: targetLead.nome_completo, email: emailTrimmed, perfil: "aluno", ativo: true },
+        { onConflict: "id" },
+      );
+      if (profUpsertErr) {
+        // Falha não-fatal: o profile pode já existir com os dados certos.
+        // Registramos mas não abortamos a matrícula.
+        console.warn("[handleMatricular] profiles upsert:", profUpsertErr.message);
+      }
+
+      // ── Passo 5: Inserir (ou reconciliar) registro em alunos ───────────
+      // Usa upsert no profile_id para tolerar re-tentativas de matrícula.
+      // Se já existir um aluno para este profile_id, não duplica.
+      const { error: alErr } = await (supabase as any).from("alunos").upsert(
+        { lead_id: targetLead.id, profile_id: pid, fase_atual: "Onboarding", pontuacao_total: 0 },
+        { onConflict: "profile_id", ignoreDuplicates: false },
+      );
+      if (alErr) throw new Error(`Erro ao criar registro do aluno: ${alErr.message}`);
+
+      toast({ title: "Aluno matriculado!", description: `Acesso criado para ${emailTrimmed}` });
+      setOpenMatricula(false);
+      setSenhaAluno("");
+      setTargetLead(null);
       loadData();
-    } catch (err: any) { toast({ title: "Falha na matrícula", description: err.message, variant: "destructive" }); }
-    finally { setMatriculando(false); }
+    } catch (err: any) {
+      toast({ title: "Falha na matrícula", description: err.message, variant: "destructive" });
+    } finally {
+      setMatriculando(false);
+    }
   };
 
   // ── aluno: resetar senha ──────────────────────────────────────────────────
