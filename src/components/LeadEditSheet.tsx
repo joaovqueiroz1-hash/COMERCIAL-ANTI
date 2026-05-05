@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2, CheckCircle2, DollarSign } from 'lucide-react';
+import { Star, Save, X, Flame, AlertTriangle, MessageCircle, Phone, Video, Mail, Instagram, Tag, Plus, Loader2, CheckCircle2, DollarSign, Archive, ArchiveRestore } from 'lucide-react';
 import { updateLead, updateLeadExtra, fetchInteracoes, fetchProximasAcoes, fetchLeadTags, fetchTagsSistema, addLeadTag, removeLeadTag, fetchMetas, Lead } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { TagSistema } from '@/lib/api';
@@ -103,6 +103,15 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
       setEditing(false);
     },
     onError: () => toast({ title: 'Erro ao salvar', variant: 'destructive' }),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (arquivado: boolean) => updateLeadExtra(lead!.id, { arquivado }),
+    onSuccess: (_, arquivado) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast({ title: arquivado ? 'Lead arquivado ✓' : 'Lead desarquivado ✓' });
+      if (arquivado) onOpenChange(false);
+    },
   });
 
   if (!lead) return null;
@@ -243,9 +252,24 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                       </Button>
                     </>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 px-3 border-border text-xs text-foreground">
-                      Editar
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => archiveMutation.mutate(!(lead as any).arquivado)}
+                        disabled={archiveMutation.isPending}
+                        className={`h-8 px-2.5 text-xs gap-1 ${(lead as any).arquivado ? 'border-primary/40 text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                        title={(lead as any).arquivado ? 'Desarquivar lead' : 'Arquivar lead'}
+                      >
+                        {(lead as any).arquivado
+                          ? <><ArchiveRestore size={13} /> Desarquivar</>
+                          : <><Archive size={13} /> Arquivar</>
+                        }
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 px-3 border-border text-xs text-foreground">
+                        Editar
+                      </Button>
+                    </>
                   )}
                 </div>
               )}

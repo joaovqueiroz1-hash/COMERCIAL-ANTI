@@ -189,9 +189,23 @@ export default function GestaoOperacional() {
         email: targetLead.email.trim(), password: senhaAluno,
         options: { data: { nome: targetLead.nome_completo, perfil: "aluno" } },
       });
-      if (sErr && !sErr.message.includes("already registered")) throw sErr;
-      const pid = signUpData?.user?.id;
-      if (!pid) throw new Error("Usuário já cadastrado com outro perfil ou resposta vazia.");
+      if (sErr && !sErr.message.toLowerCase().includes("already registered")) throw sErr;
+
+      // signUp retorna user=null quando e-mail já existe no Auth (Supabase oculta por segurança)
+      // Nesse caso, buscamos o profile existente pelo e-mail
+      let pid: string | undefined = signUpData?.user?.id;
+      if (!pid) {
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", targetLead.email.trim())
+          .maybeSingle();
+        if (existingProfile?.id) {
+          pid = existingProfile.id;
+        } else {
+          throw new Error("Não foi possível criar o acesso. Verifique se o e-mail é válido e tente novamente.");
+        }
+      }
 
       // Auto-confirma o e-mail para que o aluno possa logar imediatamente
       // Requer a função confirm_user_signup no Supabase (inclusa no SQL de migração)
