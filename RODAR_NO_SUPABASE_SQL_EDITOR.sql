@@ -274,6 +274,11 @@ UPDATE public.leads SET status_pipeline = 'em_atendimento'    WHERE status_pipel
 UPDATE public.leads SET status_pipeline = 'vendido'           WHERE status_pipeline = 'fechado';
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS atividades JSONB DEFAULT '[]'::jsonb;
 
+-- ── 18. Coluna arquivado + arquivar todos os congelados ───────────────
+-- Rode este bloco inteiro de uma vez (não tem enum, não precisa separar):
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS arquivado BOOLEAN NOT NULL DEFAULT false;
+UPDATE public.leads SET arquivado = true WHERE status_pipeline = 'congelado';
+
 -- =====================================================================
 -- FEITO! Agora o sistema está pronto para uso.
 -- =====================================================================

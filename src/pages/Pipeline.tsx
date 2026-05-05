@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { fetchLeads, fetchProfiles, updateLead, updateLeadExtra, createPipelineLog, fetchAllLeadTagsMap, fetchMetas, Lead } from '@/lib/api';
 import type { TagSistema } from '@/lib/api';
-import { PipelineStatus, PIPELINE_COLUMNS, MOTIVOS_PERDA, formatCurrency, getInitials } from '@/lib/types';
+import { PipelineStatus, PIPELINE_COLUMNS, MOTIVOS_PERDA, STATUS_LABELS, formatCurrency, getInitials } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { DndContext, DragEndEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Flame, Clock, Plus, Search, GripVertical, Users, DollarSign, SlidersHorizontal } from 'lucide-react';
+import { Flame, Clock, Plus, Search, GripVertical, Users, DollarSign, SlidersHorizontal, Archive, ArchiveRestore } from 'lucide-react';
 import { useMemo } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -90,7 +90,7 @@ function LeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; p
   );
 }
 
-function SortableLeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead: Lead; profiles: any[]; tags?: TagSistema[]; onClick?: () => void; cardNumber?: number }) {
+function SortableLeadCard({ lead, profiles, tags, onClick, cardNumber, onArchive }: { lead: Lead; profiles: any[]; tags?: TagSistema[]; onClick?: () => void; cardNumber?: number; onArchive?: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id, data: { columnId: lead.status_pipeline } });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
@@ -102,6 +102,13 @@ function SortableLeadCard({ lead, profiles, tags, onClick, cardNumber }: { lead:
       >
         <GripVertical size={11} className="text-muted-foreground/50" />
       </div>
+      <button
+        onClick={e => { e.stopPropagation(); onArchive?.(); }}
+        className="absolute right-1.5 top-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-secondary/80"
+        title="Arquivar lead"
+      >
+        <Archive size={10} className="text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
+      </button>
       <div className="pl-4">
         <LeadCard lead={lead} profiles={profiles} tags={tags} onClick={onClick} cardNumber={cardNumber} />
       </div>
@@ -139,14 +146,17 @@ export default function Pipeline() {
   const [pendingClosedLead, setPendingClosedLead] = useState<{ leadId: string; oldStatus: string } | null>(null);
   const [closedMetaId, setClosedMetaId] = useState('');
   const [closedValorAcordado, setClosedValorAcordado] = useState('');
+  const [showArquivados, setShowArquivados] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
   const { data: tagsMap = {} } = useQuery({ queryKey: ['lead_tags_map'], queryFn: fetchAllLeadTagsMap });
   const { data: metas = [] } = useQuery({ queryKey: ['metas'], queryFn: fetchMetas });
 
+  const arquivadosLeads = useMemo(() => (leads as any[]).filter(l => l.arquivado), [leads]);
+
   const filteredLeads = useMemo(() => {
-    let result = leads;
+    let result = leads.filter(l => !(l as any).arquivado);
     if (search.trim()) {
       const s = search.toLowerCase();
       result = result.filter(l =>
@@ -198,6 +208,16 @@ export default function Pipeline() {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       toast({ title: 'Erro ao mover lead', description: err?.message || 'Verifique se o SQL de migração foi executado no Supabase.', variant: 'destructive' });
     },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (leadId: string) => updateLeadExtra(leadId, { arquivado: true }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['leads'] }); toast({ title: 'Lead arquivado ✓' }); },
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: (leadId: string) => updateLeadExtra(leadId, { arquivado: false }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['leads'] }); toast({ title: 'Lead desarquivado ✓' }); },
   });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -333,6 +353,20 @@ export default function Pipeline() {
             Limpar filtros
           </Button>
         )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowArquivados(true)}
+          className="h-9 text-xs border-border gap-1.5 text-muted-foreground ml-auto"
+        >
+          <Archive size={13} /> Arquivados
+          {arquivadosLeads.length > 0 && (
+            <span className="bg-secondary text-muted-foreground text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+              {arquivadosLeads.length}
+            </span>
+          )}
+        </Button>
       </div>
 
       {showFilters && (
@@ -407,6 +441,7 @@ export default function Pipeline() {
                         tags={tagsMap[lead.id]}
                         onClick={() => handleCardClick(lead)}
                         cardNumber={leadNumberMap[lead.id]}
+                        onArchive={() => archiveMutation.mutate(lead.id)}
                       />
                     ))}
                     {columnLeads.length === 0 && <p className="text-[10px] text-muted-foreground text-center py-4">Vazio</p>}
@@ -492,6 +527,59 @@ export default function Pipeline() {
             <Button className="flex-1 gold-gradient text-primary-foreground" onClick={confirmClose}>
               Confirmar fechamento
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Arquivados Dialog */}
+      <Dialog open={showArquivados} onOpenChange={setShowArquivados}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive size={16} className="text-muted-foreground" />
+              Leads Arquivados
+              <span className="text-[11px] font-normal text-muted-foreground">({arquivadosLeads.length})</span>
+            </DialogTitle>
+            <DialogDescription>
+              Leads arquivados não aparecem no kanban. Clique em Desarquivar para reativá-los.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-2 mt-1 pr-1">
+            {arquivadosLeads.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-10">Nenhum lead arquivado.</p>
+            ) : (
+              arquivadosLeads.map((lead: any) => {
+                const vendedor = profiles.find((p: any) => p.id === lead.vendedor_id);
+                return (
+                  <div key={lead.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-[11px] font-bold text-muted-foreground shrink-0">
+                      {lead.nome_completo.split(' ').filter(Boolean).slice(0, 2).map((n: string) => n[0]).join('').toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{lead.nome_completo}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {lead.nome_empresa && `${lead.nome_empresa} · `}
+                        {STATUS_LABELS[lead.status_pipeline as PipelineStatus] || lead.status_pipeline}
+                      </p>
+                    </div>
+                    {vendedor && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium shrink-0">
+                        {vendedor.nome.split(' ')[0]}
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs shrink-0 gap-1"
+                      onClick={() => unarchiveMutation.mutate(lead.id)}
+                      disabled={unarchiveMutation.isPending}
+                    >
+                      <ArchiveRestore size={11} /> Desarquivar
+                    </Button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </DialogContent>
       </Dialog>
