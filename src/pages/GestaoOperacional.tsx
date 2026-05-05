@@ -213,7 +213,8 @@ export default function GestaoOperacional() {
       }
 
       // ── Passo 3: Confirmar e-mail via RPC ──────────────────────────────
-      await (supabase as any).rpc("confirm_user_signup", { user_id: pid }).catch(() => {});
+      const { error: rpcError } = await (supabase as any).rpc("confirm_user_signup", { user_id: pid });
+      if (rpcError) console.warn("[handleMatricular] confirm_user_signup:", rpcError);
 
       // ── Passo 4: Garantir que o profile existe e está correto ───────────
       // O trigger handle_new_user já cria o profile no signUp; o upsert
