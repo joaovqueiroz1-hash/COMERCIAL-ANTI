@@ -89,6 +89,7 @@ export default function GestaoOperacional() {
   const [tarefasDetalhe,  setTarefasDetalhe]  = useState<any[]>([]);
   const [loadingTarefas,  setLoadingTarefas]  = useState(false);
   const [aprovando,       setAprovando]       = useState<string | null>(null);
+  const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca">("tarefas");
 
   // ── matrícula ─────────────────────────────────────────────────────────────
   const [openMatricula, setOpenMatricula] = useState(false);
@@ -152,6 +153,7 @@ export default function GestaoOperacional() {
   // ── detalhe aluno ─────────────────────────────────────────────────────────
   async function abrirDetalhe(aluno: any) {
     setAlunoDetalhes(aluno);
+    setSheetTab("tarefas");
     setLoadingTarefas(true);
     try { setTarefasDetalhe(await fetchSprintTarefas(aluno.id) || []); }
     finally { setLoadingTarefas(false); }
@@ -701,89 +703,176 @@ export default function GestaoOperacional() {
                   </div>
                 </div>
               </SheetHeader>
-              {pendentesAprovacao.length > 0 && (
-                <div className="px-6 py-3 bg-primary/10 border-b border-primary/20 shrink-0">
-                  <p className="text-xs text-primary font-bold flex items-center gap-1.5">
-                    <Clock size={12} /> {pendentesAprovacao.length} entrega(s) aguardando validação
-                  </p>
-                </div>
-              )}
-              <div className="flex-1 px-6 py-5 overflow-y-auto space-y-6">
-                {/* Ações rápidas */}
-                <div className="space-y-2">
-                  <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                    onClick={() => { setNovaTarefa(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarTarefa(true); }}>
-                    <PlusCircle size={14} /> Atribuir Nova Tarefa a Este Aluno
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline"
-                      className="flex-1 gap-1.5 border-border text-muted-foreground hover:text-foreground"
-                      onClick={handleResetarSenha}
-                      disabled={resetandoSenha || !alunoDetalhes?.profiles?.email}>
-                      {resetandoSenha ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
-                      Resetar Senha
-                    </Button>
-                    <Button size="sm" variant="outline"
-                      className={cn("flex-1 gap-1.5 transition-colors",
-                        confirmDelete
-                          ? "border-destructive text-destructive hover:bg-destructive/10"
-                          : "border-border text-muted-foreground hover:text-destructive hover:border-destructive/50"
-                      )}
-                      onClick={handleExcluirAluno}
-                      disabled={excluindo}>
-                      {excluindo ? <Loader2 size={13} className="animate-spin" /> : <UserMinus size={13} />}
-                      {confirmDelete ? "Confirmar exclusão" : "Excluir Aluno"}
-                    </Button>
-                  </div>
-                </div>
+              
+              <div className="px-6 border-b border-border/20 shrink-0 flex gap-1 bg-zinc-900/30 overflow-x-auto">
+                <button onClick={() => setSheetTab("tarefas")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "tarefas" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  <Star size={14} /> Sprints & Tarefas
+                </button>
+                <button onClick={() => setSheetTab("eventos")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "eventos" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  <Calendar size={14} /> Eventos
+                </button>
+                <button onClick={() => setSheetTab("biblioteca")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "biblioteca" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  <BookOpen size={14} /> Biblioteca
+                </button>
+              </div>
 
-                {loadingTarefas ? (
-                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" size={24} /></div>
-                ) : tarefasDetalhe.length === 0 ? (
-                  <p className="text-center py-10 text-muted-foreground text-sm">Nenhuma tarefa alocada ainda.</p>
-                ) : (
-                  sprintsComTarefas.map(sprint => (
-                    <div key={sprint.id}>
-                      <h4 className="text-xs uppercase tracking-widest text-muted-foreground/60 font-bold mb-3">{sprint.titulo}</h4>
-                      <div className="space-y-2">
-                        {sprint.tarefas.map((tarefa: any) => (
-                          <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
-                            tarefa.aprovada_por_equipe ? "bg-emerald-500/5 border-emerald-500/20"
-                            : tarefa.concluida ? "bg-primary/5 border-primary/20"
-                            : "bg-zinc-900/40 border-border/30")}>
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-3 flex-1 min-w-0">
-                                {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
-                                : tarefa.concluida ? <Clock size={16} className="text-primary mt-0.5 shrink-0" />
-                                : <div className="w-4 h-4 rounded-full border-2 border-border mt-0.5 shrink-0" />}
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
-                                  <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                                    <Star size={9} className="text-emerald-400" /> {tarefa.xp_recompensa} XP
-                                    {tarefa.prazo && <span className="ml-1">• {new Date(tarefa.prazo).toLocaleDateString("pt-BR")}</span>}
-                                  </p>
-                                </div>
-                              </div>
-                              {tarefa.concluida && !tarefa.aprovada_por_equipe && (
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <button onClick={() => handleAprovar(tarefa.id, alunoDetalhes.id, tarefa.xp_recompensa)} disabled={aprovando === tarefa.id}
-                                    className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50">
-                                    {aprovando === tarefa.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />} Aprovar
-                                  </button>
-                                  <button onClick={() => handleRejeitar(tarefa.id)} disabled={aprovando === tarefa.id}
-                                    className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 disabled:opacity-50">
-                                    <XCircle size={11} /> Devolver
-                                  </button>
-                                </div>
-                              )}
-                              {tarefa.aprovada_por_equipe && <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide shrink-0">Aprovado</span>}
-                            </div>
-                          </div>
-                        ))}
+              <div className="flex-1 px-6 py-5 overflow-y-auto space-y-6">
+                {/* ── ABA: TAREFAS ────────────────────────────────────────── */}
+                {sheetTab === "tarefas" && (
+                  <>
+                    {pendentesAprovacao.length > 0 && (
+                      <div className="p-3 mb-4 rounded-lg bg-primary/10 border border-primary/20">
+                        <p className="text-xs text-primary font-bold flex items-center gap-1.5">
+                          <Clock size={12} /> {pendentesAprovacao.length} entrega(s) aguardando validação
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="space-y-2">
+                      <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                        onClick={() => { setNovaTarefa(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarTarefa(true); }}>
+                        <PlusCircle size={14} /> Atribuir Nova Tarefa a Este Aluno
+                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="flex-1 gap-1.5 border-border text-muted-foreground hover:text-foreground"
+                          onClick={handleResetarSenha} disabled={resetandoSenha || !alunoDetalhes?.profiles?.email}>
+                          {resetandoSenha ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Resetar Senha
+                        </Button>
+                        <Button size="sm" variant="outline"
+                          className={cn("flex-1 gap-1.5 transition-colors", confirmDelete ? "border-destructive text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:text-destructive hover:border-destructive/50")}
+                          onClick={handleExcluirAluno} disabled={excluindo}>
+                          {excluindo ? <Loader2 size={13} className="animate-spin" /> : <UserMinus size={13} />} {confirmDelete ? "Confirmar exclusão" : "Excluir Aluno"}
+                        </Button>
                       </div>
                     </div>
-                  ))
+
+                    {loadingTarefas ? (
+                      <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" size={24} /></div>
+                    ) : tarefasDetalhe.length === 0 ? (
+                      <p className="text-center py-10 text-muted-foreground text-sm">Nenhuma tarefa alocada ainda.</p>
+                    ) : (
+                      sprintsComTarefas.map(sprint => (
+                        <div key={sprint.id}>
+                          <h4 className="text-xs uppercase tracking-widest text-muted-foreground/60 font-bold mb-3">{sprint.titulo}</h4>
+                          <div className="space-y-2">
+                            {sprint.tarefas.map((tarefa: any) => (
+                              <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
+                                tarefa.aprovada_por_equipe ? "bg-emerald-500/5 border-emerald-500/20"
+                                : tarefa.concluida ? "bg-primary/5 border-primary/20"
+                                : "bg-zinc-900/40 border-border/30")}>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                                    {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                    : tarefa.concluida ? <Clock size={16} className="text-primary mt-0.5 shrink-0" />
+                                    : <div className="w-4 h-4 rounded-full border-2 border-border mt-0.5 shrink-0" />}
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
+                                      <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                                        <Star size={9} className="text-emerald-400" /> {tarefa.xp_recompensa} XP
+                                        {tarefa.prazo && <span className="ml-1">• {new Date(tarefa.prazo).toLocaleDateString("pt-BR")}</span>}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {tarefa.concluida && !tarefa.aprovada_por_equipe && (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <button onClick={() => handleAprovar(tarefa.id, alunoDetalhes.id, tarefa.xp_recompensa)} disabled={aprovando === tarefa.id}
+                                        className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50">
+                                        {aprovando === tarefa.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />} Aprovar
+                                      </button>
+                                      <button onClick={() => handleRejeitar(tarefa.id)} disabled={aprovando === tarefa.id}
+                                        className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 disabled:opacity-50">
+                                        <XCircle size={11} /> Devolver
+                                      </button>
+                                    </div>
+                                  )}
+                                  {tarefa.aprovada_por_equipe && <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide shrink-0">Aprovado</span>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </>
                 )}
+
+                {/* ── ABA: EVENTOS ────────────────────────────────────────── */}
+                {sheetTab === "eventos" && (() => {
+                  const eventosAluno = eventos.filter(e => e.aluno_id === alunoDetalhes.id || e.aluno_id === null || e.aluno_id === "__todos__");
+                  return (
+                    <>
+                      <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 mb-6"
+                        onClick={() => { setNovoEvento(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarEvento(true); }}>
+                        <PlusCircle size={14} /> Agendar Evento para Este Aluno
+                      </Button>
+                      
+                      {eventosAluno.length === 0 ? (
+                        <p className="text-center py-10 text-muted-foreground text-sm">Nenhum evento agendado.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {eventosAluno.map(ev => (
+                            <div key={ev.id} className="p-4 rounded-xl border border-border/40 bg-zinc-900/40 hover:border-primary/30 transition-all flex justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="outline" className="text-[10px] uppercase">{ev.tipo}</Badge>
+                                  {(!ev.aluno_id || ev.aluno_id === "__todos__") && <Badge variant="outline" className="text-[9px] px-1 bg-white/5">Global</Badge>}
+                                </div>
+                                <h4 className="font-semibold text-sm text-foreground truncate">{ev.titulo}</h4>
+                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                  <Calendar size={12} /> {new Date(ev.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                                </p>
+                              </div>
+                              <button onClick={() => handleDeleteEvento(ev.id)} disabled={deletingEvento === ev.id} className="text-muted-foreground hover:text-destructive shrink-0">
+                                {deletingEvento === ev.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+
+                {/* ── ABA: BIBLIOTECA ─────────────────────────────────────── */}
+                {sheetTab === "biblioteca" && (() => {
+                  const materiaisAluno = materiais.filter(m => m.aluno_id === alunoDetalhes.id || m.aluno_id === null || m.aluno_id === "__global__");
+                  return (
+                    <>
+                      <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 mb-6"
+                        onClick={() => { setNovoMaterial(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenAddMaterial(true); }}>
+                        <PlusCircle size={14} /> Adicionar Material para Este Aluno
+                      </Button>
+                      
+                      {materiaisAluno.length === 0 ? (
+                        <p className="text-center py-10 text-muted-foreground text-sm">Nenhum material na biblioteca deste aluno.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {materiaisAluno.map(mat => (
+                            <div key={mat.id} className="p-4 rounded-xl border border-border/40 bg-zinc-900/40 hover:border-primary/30 transition-all flex justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                  {mat.tipo === 'video' ? <Video size={14} /> : mat.tipo === 'pdf' ? <FileText size={14} /> : <BookOpen size={14} />}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold text-sm text-foreground truncate">{mat.titulo}</h4>
+                                    {(!mat.aluno_id || mat.aluno_id === "__global__") && <Badge variant="outline" className="text-[9px] px-1 bg-white/5">Global</Badge>}
+                                  </div>
+                                  <a href={mat.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary hover:underline flex items-center gap-1 mt-1 truncate">
+                                    <Link2 size={10} /> Acessar conteúdo
+                                  </a>
+                                </div>
+                              </div>
+                              <button onClick={() => handleDeleteMaterial(mat.id)} disabled={deletingMaterial === mat.id} className="text-muted-foreground hover:text-destructive shrink-0">
+                                {deletingMaterial === mat.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </>
           )}
