@@ -187,38 +187,32 @@ export default function GestaoOperacional() {
     try {
       const emailTrimmed = targetLead.email.trim();
 
-      // ── Passo 1: Criar usuário no Auth ──────────────────────────────────
-      // Usamos signUp com a anon key. Quando o e-mail já existe, o Supabase
-      // retorna user=null (sem erro, por segurança). Tratamos esse caso abaixo.
-      const { data: signUpData, error: sErr } = await adminAuthClient.auth.signUp({
-        email: emailTrimmed,
-        password: senhaAluno,
-        options: { data: { nome: targetLead.nome_completo, perfil: "aluno" } },
-      });
-      if (sErr && !sErr.message.toLowerCase().includes("already registered")) throw sErr;
+      // ── Passo 1: Verificar se já existe profile com este e-mail ─────────
+      // Fazemos isso ANTES de chamar signUp para evitar o rate limit do Supabase
+      // que ocorre quando tentamos criar o mesmo e-mail múltiplas vezes.
+      const { data: existingProfile, error: checkErr } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", emailTrimmed)
+        .maybeSingle();
+      if (checkErr) throw new Error(`Erro ao verificar perfil: ${checkErr.message}`);
 
-      // ── Passo 2: Resolver o profile_id ──────────────────────────────────
-      // signUp retorna user=null quando o e-mail já existe no Auth.
-      // Nesse caso, o profile já foi criado pelo trigger handle_new_user —
-      // basta buscá-lo pelo e-mail.
-      let pid: string | undefined = signUpData?.user?.id;
+      let pid: string | undefined = existingProfile?.id;
+
+      // ── Passo 2: Se não existe, criar usuário no Auth ───────────────────
+      // Só chama signUp quando o e-mail não está cadastrado, evitando rate limit.
       if (!pid) {
-        const { data: existingProfile, error: profErr } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("email", emailTrimmed)
-          .maybeSingle();
-        if (profErr) throw new Error(`Erro ao buscar perfil existente: ${profErr.message}`);
-        if (existingProfile?.id) {
-          pid = existingProfile.id;
-        } else {
-          throw new Error("Não foi possível criar o acesso. Verifique se o e-mail é válido e tente novamente.");
-        }
+        const { data: signUpData, error: sErr } = await adminAuthClient.auth.signUp({
+          email: emailTrimmed,
+          password: senhaAluno,
+          options: { data: { nome: targetLead.nome_completo, perfil: "aluno" } },
+        });
+        if (sErr) throw sErr;
+        pid = signUpData?.user?.id;
+        if (!pid) throw new Error("Não foi possível criar o acesso. Verifique se o e-mail é válido e tente novamente.");
       }
 
       // ── Passo 3: Confirmar e-mail via RPC ──────────────────────────────
-      // Requer a função confirm_user_signup (inclusa no SQL de migração).
-      // Silenciamos o erro caso a função ainda não exista.
       await (supabase as any).rpc("confirm_user_signup", { user_id: pid }).catch(() => {});
 
       // ── Passo 4: Garantir que o profile existe e está correto ───────────
