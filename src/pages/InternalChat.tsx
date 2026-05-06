@@ -172,7 +172,7 @@ export default function InternalChat() {
 
                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4" style={{ scrollBehavior: 'smooth' }}>
                     <div className="text-center py-4">
-                       <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold bg-zinc-900/50 inline-block px-3 py-1 rounded-full border border-border/20">Início da Conversa</p>
+                       <p className="text-[10px] text-white/60 uppercase tracking-widest font-semibold bg-zinc-900/50 inline-block px-3 py-1 rounded-full border border-white/10">Início da Conversa</p>
                     </div>
 
                     {mensagens.map(msg => {
@@ -186,9 +186,9 @@ export default function InternalChat() {
                                </span>
                             )}
                             <div className={`relative px-4 py-3 max-w-[85%] sm:max-w-[70%] rounded-2xl text-sm shadow-sm ${
-                               ehMeu 
-                               ? 'bg-primary text-primary-foreground rounded-br-none' 
-                               : 'bg-zinc-800 text-foreground border border-border/40 rounded-bl-none'
+                               ehMeu
+                               ? 'bg-primary text-primary-foreground rounded-br-none'
+                               : 'bg-zinc-800 text-white border border-white/10 rounded-bl-none'
                             }`}>
                                {msg.mensagem}
                             </div>
@@ -207,7 +207,7 @@ export default function InternalChat() {
                          value={texto}
                          onChange={e => setTexto(e.target.value)}
                          placeholder="Digite uma mensagem..."
-                         className="flex-1 bg-black/40 border-border/50 h-12 rounded-xl pl-4 pr-12 text-sm text-foreground focus-visible:ring-1 focus-visible:ring-primary backdrop-blur-sm"
+                         className="flex-1 bg-black/40 border-white/10 h-12 rounded-xl pl-4 pr-12 text-sm text-white placeholder:text-white/40 focus-visible:ring-1 focus-visible:ring-primary backdrop-blur-sm"
                        />
                        <Button 
                          type="submit" 

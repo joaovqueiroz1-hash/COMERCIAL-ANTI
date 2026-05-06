@@ -928,7 +928,7 @@ export default function GestaoOperacional() {
                 <div className="px-3 py-2 bg-secondary/50 rounded-md text-sm opacity-70">{targetLead.email || "—"}</div>
               </div>
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Senha Inicial</Label>
-                <Input type="password" value={senhaAluno} onChange={e => setSenhaAluno(e.target.value)} className="bg-zinc-900 border-border h-11" placeholder="Mínimo 6 caracteres" required />
+                <Input type="password" value={senhaAluno} onChange={e => setSenhaAluno(e.target.value)} className="bg-secondary border-border h-11" placeholder="Mínimo 6 caracteres" required />
               </div>
               <Button type="submit" disabled={matriculando || !targetLead.email} className="w-full h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
                 {matriculando ? <Loader2 size={16} className="animate-spin" /> : "Confirmar e Criar Acesso"}
@@ -948,10 +948,10 @@ export default function GestaoOperacional() {
           </DialogHeader>
           <form onSubmit={handleCriarSprint} className="space-y-4">
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título *</Label>
-              <Input value={novoSprint.titulo} onChange={e => setNovoSprint(p => ({ ...p, titulo: e.target.value }))} className="bg-zinc-900 border-border" placeholder="Ex: Sprint 1 — Diagnóstico & Base" required />
+              <Input value={novoSprint.titulo} onChange={e => setNovoSprint(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Sprint 1 — Diagnóstico & Base" required />
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
-              <Textarea value={novoSprint.descricao} onChange={e => setNovoSprint(p => ({ ...p, descricao: e.target.value }))} className="bg-zinc-900 border-border resize-none" rows={2} />
+              <Textarea value={novoSprint.descricao} onChange={e => setNovoSprint(p => ({ ...p, descricao: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} />
             </div>
             <Button type="submit" disabled={savingSprint} className="w-full h-11 font-bold">
               {savingSprint ? <Loader2 size={16} className="animate-spin" /> : "Criar Sprint"}
@@ -969,13 +969,13 @@ export default function GestaoOperacional() {
           <form onSubmit={handleCriarTarefa} className="space-y-4">
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Sprint *</Label>
               <Select value={novaTarefa.sprint_id} onValueChange={v => setNovaTarefa(p => ({ ...p, sprint_id: v }))}>
-                <SelectTrigger className="bg-zinc-900 border-border"><SelectValue placeholder="Selecione o sprint" /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o sprint" /></SelectTrigger>
                 <SelectContent>{sprints.map(s => <SelectItem key={s.id} value={s.id}>{s.titulo}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Aluno</Label>
               <Select value={novaTarefa.aluno_id} onValueChange={v => setNovaTarefa(p => ({ ...p, aluno_id: v }))}>
-                <SelectTrigger className="bg-zinc-900 border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__todos__">Todos os Alunos</SelectItem>
                   {alunos.map(a => <SelectItem key={a.id} value={a.id}>{a.profiles?.nome || a.leads?.nome_completo}</SelectItem>)}
@@ -983,14 +983,14 @@ export default function GestaoOperacional() {
               </Select>
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título da Tarefa *</Label>
-              <Input value={novaTarefa.titulo} onChange={e => setNovaTarefa(p => ({ ...p, titulo: e.target.value }))} className="bg-zinc-900 border-border" placeholder="Ex: Criar calendário editorial do mês" required />
+              <Input value={novaTarefa.titulo} onChange={e => setNovaTarefa(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Criar calendário editorial do mês" required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">XP de Recompensa</Label>
-                <Input type="number" min={1} max={500} value={novaTarefa.xp_recompensa} onChange={e => setNovaTarefa(p => ({ ...p, xp_recompensa: Number(e.target.value) }))} className="bg-zinc-900 border-border" />
+                <Input type="number" min={1} max={500} value={novaTarefa.xp_recompensa} onChange={e => setNovaTarefa(p => ({ ...p, xp_recompensa: Number(e.target.value) }))} className="bg-secondary border-border" />
               </div>
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Prazo (opcional)</Label>
-                <Input type="date" value={novaTarefa.prazo} onChange={e => setNovaTarefa(p => ({ ...p, prazo: e.target.value }))} className="bg-zinc-900 border-border" />
+                <Input type="date" value={novaTarefa.prazo} onChange={e => setNovaTarefa(p => ({ ...p, prazo: e.target.value }))} className="bg-secondary border-border" />
               </div>
             </div>
             <Button type="submit" disabled={savingTarefa || !novaTarefa.sprint_id} className="w-full h-11 font-bold">
@@ -1008,12 +1008,12 @@ export default function GestaoOperacional() {
           </DialogHeader>
           <form onSubmit={handleCriarEvento} className="space-y-4">
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título *</Label>
-              <Input value={novoEvento.titulo} onChange={e => setNovoEvento(p => ({ ...p, titulo: e.target.value }))} className="bg-zinc-900 border-border" placeholder="Ex: Reunião Mensal Sprint 3" required />
+              <Input value={novoEvento.titulo} onChange={e => setNovoEvento(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Reunião Mensal Sprint 3" required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Tipo</Label>
                 <Select value={novoEvento.tipo} onValueChange={v => setNovoEvento(p => ({ ...p, tipo: v as TipoEvento }))}>
-                  <SelectTrigger className="bg-zinc-900 border-border"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="reuniao">Reunião</SelectItem>
                     <SelectItem value="aula">Aula</SelectItem>
@@ -1024,12 +1024,12 @@ export default function GestaoOperacional() {
                 </Select>
               </div>
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Data & Hora *</Label>
-                <Input type="datetime-local" value={novoEvento.data_hora} onChange={e => setNovoEvento(p => ({ ...p, data_hora: e.target.value }))} className="bg-zinc-900 border-border" required />
+                <Input type="datetime-local" value={novoEvento.data_hora} onChange={e => setNovoEvento(p => ({ ...p, data_hora: e.target.value }))} className="bg-secondary border-border" required />
               </div>
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Visibilidade</Label>
               <Select value={novoEvento.aluno_id} onValueChange={v => setNovoEvento(p => ({ ...p, aluno_id: v }))}>
-                <SelectTrigger className="bg-zinc-900 border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__todos__">Todos os Alunos</SelectItem>
                   {alunos.map(a => <SelectItem key={a.id} value={a.id}>{a.profiles?.nome || a.leads?.nome_completo}</SelectItem>)}
@@ -1037,7 +1037,7 @@ export default function GestaoOperacional() {
               </Select>
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição / Link (opcional)</Label>
-              <Textarea value={novoEvento.descricao} onChange={e => setNovoEvento(p => ({ ...p, descricao: e.target.value }))} className="bg-zinc-900 border-border resize-none" rows={2} placeholder="Link da reunião, instruções..." />
+              <Textarea value={novoEvento.descricao} onChange={e => setNovoEvento(p => ({ ...p, descricao: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} placeholder="Link da reunião, instruções..." />
             </div>
             <Button type="submit" disabled={savingEvento || !novoEvento.data_hora} className="w-full h-11 font-bold">
               {savingEvento ? <Loader2 size={16} className="animate-spin" /> : "Salvar Evento"}
@@ -1054,7 +1054,7 @@ export default function GestaoOperacional() {
           </DialogHeader>
           <form onSubmit={handleResetarSenha} className="space-y-4">
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Nova Senha *</Label>
-              <Input type="password" value={novaSenhaAdmin} onChange={e => setNovaSenhaAdmin(e.target.value)} className="bg-zinc-900 border-border" placeholder="Mínimo 6 caracteres" minLength={6} required />
+              <Input type="password" value={novaSenhaAdmin} onChange={e => setNovaSenhaAdmin(e.target.value)} className="bg-secondary border-border" placeholder="Mínimo 6 caracteres" minLength={6} required />
             </div>
             <Button type="submit" disabled={resetandoSenha || novaSenhaAdmin.length < 6} className="w-full h-11 font-bold">
               {resetandoSenha ? <Loader2 size={16} className="animate-spin" /> : "Confirmar Nova Senha"}
@@ -1071,12 +1071,12 @@ export default function GestaoOperacional() {
           </DialogHeader>
           <form onSubmit={handleSalvarMaterial} className="space-y-4">
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título *</Label>
-              <Input value={novoMaterial.titulo} onChange={e => setNovoMaterial(p => ({ ...p, titulo: e.target.value }))} className="bg-zinc-900 border-border" placeholder="Ex: Aula 01 — Fundamentos" required />
+              <Input value={novoMaterial.titulo} onChange={e => setNovoMaterial(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Aula 01 — Fundamentos" required />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Tipo *</Label>
                 <Select value={novoMaterial.tipo} onValueChange={v => setNovoMaterial(p => ({ ...p, tipo: v as TipoMaterial }))}>
-                  <SelectTrigger className="bg-zinc-900 border-border"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="video">Vídeo</SelectItem>
                     <SelectItem value="pdf">PDF</SelectItem>
@@ -1087,7 +1087,7 @@ export default function GestaoOperacional() {
               </div>
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Visibilidade</Label>
                 <Select value={novoMaterial.aluno_id} onValueChange={v => setNovoMaterial(p => ({ ...p, aluno_id: v }))}>
-                  <SelectTrigger className="bg-zinc-900 border-border"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__global__">Todos os Alunos</SelectItem>
                     {alunos.map(a => <SelectItem key={a.id} value={a.id}>{a.profiles?.nome || a.leads?.nome_completo}</SelectItem>)}
@@ -1103,14 +1103,14 @@ export default function GestaoOperacional() {
                 <Button type="button" variant={materialMode === "upload" ? "default" : "outline"} onClick={() => setMaterialMode("upload")} className="flex-1 text-xs h-8">Upload de Arquivo</Button>
               </div>
               {materialMode === "link" ? (
-                <Input value={novoMaterial.url} onChange={e => setNovoMaterial(p => ({ ...p, url: e.target.value }))} className="bg-zinc-900 border-border" placeholder="https://..." type="url" required />
+                <Input value={novoMaterial.url} onChange={e => setNovoMaterial(p => ({ ...p, url: e.target.value }))} className="bg-secondary border-border" placeholder="https://..." type="url" required />
               ) : (
-                <Input type="file" onChange={e => setMaterialFile(e.target.files?.[0] || null)} className="bg-zinc-900 border-border cursor-pointer pt-1.5" required />
+                <Input type="file" onChange={e => setMaterialFile(e.target.files?.[0] || null)} className="bg-secondary border-border cursor-pointer pt-1.5" required />
               )}
             </div>
 
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
-              <Textarea value={novoMaterial.descricao} onChange={e => setNovoMaterial(p => ({ ...p, descricao: e.target.value }))} className="bg-zinc-900 border-border resize-none" rows={2} />
+              <Textarea value={novoMaterial.descricao} onChange={e => setNovoMaterial(p => ({ ...p, descricao: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} />
             </div>
             <Button type="submit" disabled={savingMaterial || (materialMode === "upload" && !materialFile) || (materialMode === "link" && !novoMaterial.url)} className="w-full h-11 font-bold">
               {savingMaterial ? <Loader2 size={16} className="animate-spin" /> : "Salvar Material"}

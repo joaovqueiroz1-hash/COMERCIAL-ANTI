@@ -367,7 +367,7 @@ export default function PortalAluno() {
                     <span className="text-[10px] font-bold uppercase tracking-widest">Desbloqueado!</span>
                   </div>
                 ) : (
-                  <div className="w-32 h-32 bg-zinc-900 border-2 border-dashed border-border rounded-full flex flex-col items-center justify-center text-muted-foreground/30 relative overflow-hidden">
+                  <div className="w-32 h-32 bg-zinc-900 border-2 border-dashed border-border rounded-full flex flex-col items-center justify-center text-white/50 relative overflow-hidden">
                     <Lock size={32} className="mb-2 relative z-10" />
                     <span className="text-[10px] font-bold uppercase tracking-widest relative z-10">Mystery Trip</span>
                     <div
@@ -389,7 +389,7 @@ export default function PortalAluno() {
                 <h3 className="text-lg font-bold text-foreground">Módulo de Execução</h3>
                 <div className="flex items-center gap-2 bg-zinc-800/60 rounded-full px-3 py-1">
                   <span className="text-xs text-emerald-400 font-bold">{concluidas}/{totalTarefas}</span>
-                  <span className="text-xs text-muted-foreground">aprovadas</span>
+                  <span className="text-xs text-white/70">aprovadas</span>
                 </div>
               </div>
 
@@ -414,21 +414,21 @@ export default function PortalAluno() {
                           isUnlocked ? "border-primary" : "border-border",
                         )} />
 
-                        <h4 className={cn("font-bold mb-1", isUnlocked ? "text-foreground" : "text-muted-foreground")}>
+                        <h4 className={cn("font-bold mb-1", isUnlocked ? "text-white" : "text-zinc-300")}>
                           {sprint.titulo}
                         </h4>
                         {sprint.descricao && (
-                          <p className="text-xs text-muted-foreground mb-3">{sprint.descricao}</p>
+                          <p className="text-xs text-zinc-400 mb-3">{sprint.descricao}</p>
                         )}
 
                         {!isUnlocked && (
-                          <div className="bg-black/20 p-3 rounded-lg border border-white/5 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                          <div className="bg-black/20 p-3 rounded-lg border border-white/10 flex items-center justify-center gap-2 text-xs text-white/60">
                             <Lock size={12} /> Conclua o Sprint anterior para desbloquear
                           </div>
                         )}
 
                         {isUnlocked && minhasTarefas.length === 0 && (
-                          <div className="bg-black/20 p-3 rounded-lg border border-white/5 text-xs text-muted-foreground text-center">
+                          <div className="bg-black/20 p-3 rounded-lg border border-white/10 text-xs text-white/60 text-center">
                             Nenhuma meta alocada neste Sprint ainda.
                           </div>
                         )}
@@ -450,12 +450,12 @@ export default function PortalAluno() {
                                       )}
                                     />
                                   ) : (
-                                    <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+                                    <div className="w-4 h-4 rounded-full border-2 border-white/30 shrink-0" />
                                   )}
                                   <div className="min-w-0">
                                     <span className={cn(
                                       "text-sm block truncate",
-                                      tarefa.aprovada_por_equipe ? "text-muted-foreground line-through" : "text-white",
+                                      tarefa.aprovada_por_equipe ? "text-zinc-400 line-through" : "text-white",
                                     )}>
                                       {tarefa.titulo}
                                     </span>
@@ -465,7 +465,7 @@ export default function PortalAluno() {
                                       </p>
                                     )}
                                     {tarefa.prazo && !tarefa.aprovada_por_equipe && (
-                                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                                      <p className="text-[10px] text-zinc-400 mt-0.5">
                                         Prazo: {new Date(tarefa.prazo).toLocaleDateString('pt-BR')}
                                       </p>
                                     )}
