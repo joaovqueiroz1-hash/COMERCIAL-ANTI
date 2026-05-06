@@ -303,10 +303,25 @@ export async function fetchAlunoLogado(profileId: string): Promise<AlunoRow | nu
   return data;
 }
 
+export async function fetchAlunoById(alunoId: string): Promise<AlunoRow | null> {
+  const { data, error } = await supabase
+    .from('alunos')
+    .select('*')
+    .eq('id', alunoId)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data;
+}
+
 export async function updateAluno(id: string, updates: { fase_atual?: string; pontuacao_total?: number }) {
   const { data, error } = await supabase.from('alunos').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
+}
+
+export async function resetUserPasswordAdmin(profileId: string, newPassword: string) {
+  const { error } = await db.rpc('admin_update_user_password', { p_user_id: profileId, p_new_password: newPassword });
+  if (error) throw error;
 }
 
 // ── SPRINTS ───────────────────────────────────────────────────────────────────
@@ -448,6 +463,21 @@ export async function updateMaterial(id: string, updates: MaterialUpdate) {
 export async function deleteMaterial(id: string) {
   const { error } = await supabase.from('materiais').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function uploadMaterialFile(file: File) {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('materiais')
+    .upload(filePath, file);
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from('materiais').getPublicUrl(filePath);
+  return data.publicUrl;
 }
 
 // ── EVENTOS ───────────────────────────────────────────────────────────────────

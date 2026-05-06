@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import { useParams, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  fetchAlunoLogado, fetchSprints, fetchSprintTarefas,
+  fetchAlunoLogado, fetchAlunoById, fetchSprints, fetchSprintTarefas,
   fetchMateriaisAluno, fetchEventosAluno, marcarTarefaConcluida,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
@@ -79,6 +80,7 @@ function MaterialCard({ material }: { material: Material & { sprints?: { titulo:
 
 export default function PortalAluno() {
   const { profile } = useAuth();
+  const { aluno_id } = useParams();
   const [aluno, setAluno] = useState<any>(null);
   const [sprints, setSprints] = useState<any[]>([]);
   const [tarefas, setTarefas] = useState<any[]>([]);
@@ -88,17 +90,25 @@ export default function PortalAluno() {
   const [filtroMaterial, setFiltroMaterial] = useState<TipoFiltro>('todos');
   const [concluindo, setConcluindo] = useState<string | null>(null);
 
+  const isAdminOrGestor = profile && ['admin', 'gestor', 'equipe'].includes(profile.perfil);
+
   const loadData = useCallback(async () => {
     if (!profile) return;
     try {
-      const logado = await fetchAlunoLogado(profile.id);
-      setAluno(logado);
-      if (logado) {
+      let targetAluno = null;
+      if (aluno_id && isAdminOrGestor) {
+        targetAluno = await fetchAlunoById(aluno_id);
+      } else {
+        targetAluno = await fetchAlunoLogado(profile.id);
+      }
+      
+      setAluno(targetAluno);
+      if (targetAluno) {
         const [sprintsData, tarefasData, materiaisData, eventosData] = await Promise.all([
           fetchSprints(),
-          fetchSprintTarefas(logado.id),
-          fetchMateriaisAluno(logado.id),
-          fetchEventosAluno(logado.id),
+          fetchSprintTarefas(targetAluno.id),
+          fetchMateriaisAluno(targetAluno.id),
+          fetchEventosAluno(targetAluno.id),
         ]);
         setSprints(sprintsData || []);
         setTarefas(tarefasData || []);
@@ -110,7 +120,7 @@ export default function PortalAluno() {
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile, aluno_id, isAdminOrGestor]);
 
   useEffect(() => { loadData(); }, [loadData]);
 

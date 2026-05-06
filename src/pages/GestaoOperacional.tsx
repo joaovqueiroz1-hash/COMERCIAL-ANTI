@@ -6,6 +6,7 @@ import {
   fetchTodosMateriais, createMaterial, deleteMaterial,
   fetchTodosEventos, createEvento, deleteEvento,
   createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
+  resetUserPasswordAdmin, uploadMaterialFile,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
 import {
@@ -13,7 +14,7 @@ import {
   CheckCircle2, XCircle, Clock, BookOpen, Video,
   FileText, Link2, Trash2, Globe, UserCheck, ChevronRight,
   Star, Calendar, Zap, Layers, LayoutTemplate,
-  MapPin, KeyRound, UserMinus,
+  MapPin, KeyRound, UserMinus, ExternalLink,
 } from "lucide-react";
 import { getInitials } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -101,6 +102,8 @@ export default function GestaoOperacional() {
   const [excluindo,       setExcluindo]       = useState(false);
   const [resetandoSenha,  setResetandoSenha]  = useState(false);
   const [confirmDelete,   setConfirmDelete]   = useState(false);
+  const [openResetSenha,  setOpenResetSenha]  = useState(false);
+  const [novaSenhaAdmin,  setNovaSenhaAdmin]  = useState("");
 
   // ── sprint + tarefa ───────────────────────────────────────────────────────
   const [openCriarSprint,  setOpenCriarSprint]  = useState(false);
@@ -129,6 +132,8 @@ export default function GestaoOperacional() {
   });
   const [savingMaterial,   setSavingMaterial]   = useState(false);
   const [deletingMaterial, setDeletingMaterial] = useState<string | null>(null);
+  const [materialMode,     setMaterialMode]     = useState<"link" | "upload">("link");
+  const [materialFile,     setMaterialFile]     = useState<File | null>(null);
 
   // ── carga ─────────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -255,18 +260,20 @@ export default function GestaoOperacional() {
   };
 
   // ── aluno: resetar senha ──────────────────────────────────────────────────
-  async function handleResetarSenha() {
-    const email = alunoDetalhes?.profiles?.email;
-    if (!email) return;
+  async function handleResetarSenha(e: React.FormEvent) {
+    e.preventDefault();
+    if (!alunoDetalhes?.profile_id || novaSenhaAdmin.length < 6) {
+      toast({ title: "A senha deve ter pelo menos 6 caracteres.", variant: "destructive" });
+      return;
+    }
     setResetandoSenha(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/portal`,
-      });
-      if (error) throw error;
-      toast({ title: "Email de redefinição enviado!", description: `Link enviado para ${email}` });
+      await resetUserPasswordAdmin(alunoDetalhes.profile_id, novaSenhaAdmin);
+      toast({ title: "Senha alterada com sucesso!", description: "O aluno já pode fazer login com a nova senha." });
+      setOpenResetSenha(false);
+      setNovaSenhaAdmin("");
     } catch (err: any) {
-      toast({ title: "Erro ao enviar email", description: err.message, variant: "destructive" });
+      toast({ title: "Erro ao alterar senha", description: err.message, variant: "destructive" });
     } finally { setResetandoSenha(false); }
   }
 
@@ -372,12 +379,21 @@ export default function GestaoOperacional() {
   // ── materiais ─────────────────────────────────────────────────────────────
   async function handleSalvarMaterial(e: React.FormEvent) {
     e.preventDefault();
-    if (!novoMaterial.titulo || !novoMaterial.url) return;
+    if (!novoMaterial.titulo) return;
+    if (materialMode === "link" && !novoMaterial.url) return;
+    if (materialMode === "upload" && !materialFile) return;
+
     setSavingMaterial(true);
     try {
+      let finalUrl = novoMaterial.url;
+      
+      if (materialMode === "upload" && materialFile) {
+        finalUrl = await uploadMaterialFile(materialFile);
+      }
+
       await createMaterial({
         titulo: novoMaterial.titulo, descricao: novoMaterial.descricao || null,
-        tipo: novoMaterial.tipo, url: novoMaterial.url,
+        tipo: novoMaterial.tipo, url: finalUrl,
         aluno_id: novoMaterial.aluno_id === "__global__" ? null : novoMaterial.aluno_id,
         sprint_id: novoMaterial.sprint_id === "__none__" ? null : novoMaterial.sprint_id,
         criado_por: profile?.id ?? null,
@@ -385,8 +401,12 @@ export default function GestaoOperacional() {
       toast({ title: "Material adicionado!" });
       setOpenAddMaterial(false);
       setNovoMaterial({ titulo: "", descricao: "", tipo: "link", url: "", aluno_id: "__global__", sprint_id: "__none__" });
+      setMaterialMode("link");
+      setMaterialFile(null);
       setMateriais((await fetchTodosMateriais() || []) as Material[]);
-    } catch { toast({ title: "Erro ao salvar.", variant: "destructive" }); }
+    } catch (err: any) { 
+      toast({ title: "Erro ao salvar material.", description: err.message, variant: "destructive" }); 
+    }
     finally { setSavingMaterial(false); }
   }
 
@@ -733,13 +753,17 @@ export default function GestaoOperacional() {
                         onClick={() => { setNovaTarefa(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarTarefa(true); }}>
                         <PlusCircle size={14} /> Atribuir Nova Tarefa a Este Aluno
                       </Button>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1 gap-1.5 border-border text-muted-foreground hover:text-foreground"
-                          onClick={handleResetarSenha} disabled={resetandoSenha || !alunoDetalhes?.profiles?.email}>
-                          {resetandoSenha ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Resetar Senha
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button size="sm" variant="outline" className="col-span-2 gap-1.5 border-primary/20 text-primary hover:bg-primary/5"
+                          onClick={() => window.open(`/portal/${alunoDetalhes.id}`, '_blank')}>
+                          <ExternalLink size={13} /> Acessar Visão do Aluno
+                        </Button>
+                        <Button size="sm" variant="outline" className="gap-1.5 border-border text-muted-foreground hover:text-foreground"
+                          onClick={() => setOpenResetSenha(true)} disabled={!alunoDetalhes?.profile_id}>
+                          <KeyRound size={13} /> Alterar Senha
                         </Button>
                         <Button size="sm" variant="outline"
-                          className={cn("flex-1 gap-1.5 transition-colors", confirmDelete ? "border-destructive text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:text-destructive hover:border-destructive/50")}
+                          className={cn("gap-1.5 transition-colors", confirmDelete ? "border-destructive text-destructive hover:bg-destructive/10" : "border-border text-muted-foreground hover:text-destructive hover:border-destructive/50")}
                           onClick={handleExcluirAluno} disabled={excluindo}>
                           {excluindo ? <Loader2 size={13} className="animate-spin" /> : <UserMinus size={13} />} {confirmDelete ? "Confirmar exclusão" : "Excluir Aluno"}
                         </Button>
@@ -1022,6 +1046,23 @@ export default function GestaoOperacional() {
         </DialogContent>
       </Dialog>
 
+      {/* ══ DIALOG: Resetar Senha ══════════════════════════════════════════════ */}
+      <Dialog open={openResetSenha} onOpenChange={setOpenResetSenha}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><KeyRound className="text-primary" size={18} /> Alterar Senha do Aluno</DialogTitle>
+            <DialogDescription>A nova senha será aplicada imediatamente para {alunoDetalhes?.profiles?.nome || "este aluno"}.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetarSenha} className="space-y-4">
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Nova Senha *</Label>
+              <Input type="password" value={novaSenhaAdmin} onChange={e => setNovaSenhaAdmin(e.target.value)} className="bg-zinc-900 border-border" placeholder="Mínimo 6 caracteres" minLength={6} required />
+            </div>
+            <Button type="submit" disabled={resetandoSenha || novaSenhaAdmin.length < 6} className="w-full h-11 font-bold">
+              {resetandoSenha ? <Loader2 size={16} className="animate-spin" /> : "Confirmar Nova Senha"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* ══ DIALOG: Adicionar Material ════════════════════════════════════════ */}
       <Dialog open={openAddMaterial} onOpenChange={setOpenAddMaterial}>
         <DialogContent className="bg-card border-border sm:max-w-lg">
@@ -1054,13 +1095,24 @@ export default function GestaoOperacional() {
                 </Select>
               </div>
             </div>
-            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">URL *</Label>
-              <Input value={novoMaterial.url} onChange={e => setNovoMaterial(p => ({ ...p, url: e.target.value }))} className="bg-zinc-900 border-border" placeholder="https://..." type="url" required />
+            
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Método de Envio *</Label>
+              <div className="flex gap-2 mb-3">
+                <Button type="button" variant={materialMode === "link" ? "default" : "outline"} onClick={() => setMaterialMode("link")} className="flex-1 text-xs h-8">Link Externo</Button>
+                <Button type="button" variant={materialMode === "upload" ? "default" : "outline"} onClick={() => setMaterialMode("upload")} className="flex-1 text-xs h-8">Upload de Arquivo</Button>
+              </div>
+              {materialMode === "link" ? (
+                <Input value={novoMaterial.url} onChange={e => setNovoMaterial(p => ({ ...p, url: e.target.value }))} className="bg-zinc-900 border-border" placeholder="https://..." type="url" required />
+              ) : (
+                <Input type="file" onChange={e => setMaterialFile(e.target.files?.[0] || null)} className="bg-zinc-900 border-border cursor-pointer pt-1.5" required />
+              )}
             </div>
+
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
               <Textarea value={novoMaterial.descricao} onChange={e => setNovoMaterial(p => ({ ...p, descricao: e.target.value }))} className="bg-zinc-900 border-border resize-none" rows={2} />
             </div>
-            <Button type="submit" disabled={savingMaterial} className="w-full h-11 font-bold">
+            <Button type="submit" disabled={savingMaterial || (materialMode === "upload" && !materialFile) || (materialMode === "link" && !novoMaterial.url)} className="w-full h-11 font-bold">
               {savingMaterial ? <Loader2 size={16} className="animate-spin" /> : "Salvar Material"}
             </Button>
           </form>

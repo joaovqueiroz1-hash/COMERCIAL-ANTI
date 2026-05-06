@@ -92,6 +92,7 @@ const App = () => {
 
                 {/* Aluno */}
                 <Route path="/portal"          element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
+                <Route path="/portal/:aluno_id" element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
 
                 {/* Operacional */}
                 <Route path="/gestao-operacional" element={<ProtectedRoute><GestaoOperacional /></ProtectedRoute>} />
