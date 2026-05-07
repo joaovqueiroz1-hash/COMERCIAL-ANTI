@@ -313,7 +313,7 @@ export async function fetchAlunoById(alunoId: string): Promise<AlunoRow | null> 
   return data;
 }
 
-export async function updateAluno(id: string, updates: { fase_atual?: string; pontuacao_total?: number }) {
+export async function updateAluno(id: string, updates: { fase_atual?: string; pontuacao_total?: number; premio_titulo?: string | null; premio_descricao?: string | null; premio_xp_meta?: number | null }) {
   const { data, error } = await supabase.from('alunos').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
@@ -330,13 +330,25 @@ export async function fetchSprints() {
   const { data, error } = await supabase
     .from('sprints')
     .select('*')
+    .is('aluno_id', null)
     .order('ordem', { ascending: true });
   if (error) throw error;
   return data;
 }
 
-export async function createSprint(titulo: string, descricao?: string, ordem: number = 0) {
-  const { data, error } = await supabase.from('sprints').insert({ titulo, descricao, ordem }).select().single();
+export async function fetchSprintsForAluno(alunoId: string) {
+  const { data, error } = await supabase
+    .from('sprints')
+    .select('*')
+    .or(`aluno_id.is.null,aluno_id.eq.${alunoId}`)
+    .order('ordem', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function createSprint(titulo: string, descricao?: string, ordem: number = 0, aluno_id?: string | null) {
+  const payload: any = { titulo, descricao, ordem, aluno_id: aluno_id ?? null };
+  const { data, error } = await supabase.from('sprints').insert(payload).select().single();
   if (error) throw error;
   return data;
 }

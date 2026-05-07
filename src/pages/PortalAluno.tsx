@@ -3,7 +3,7 @@ import { useParams, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  fetchAlunoLogado, fetchAlunoById, fetchSprints, fetchSprintTarefas,
+  fetchAlunoLogado, fetchAlunoById, fetchSprintsForAluno, fetchSprintTarefas,
   fetchMateriaisAluno, fetchEventosAluno, marcarTarefaConcluida,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
@@ -37,19 +37,18 @@ function MaterialCard({ material }: { material: Material & { sprints?: { titulo:
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "group flex flex-col gap-3 p-4 rounded-xl border bg-zinc-900/60 hover:bg-zinc-900 transition-all duration-200 hover:border-primary/40 cursor-pointer",
-        meta.bg,
+        "group flex flex-col gap-3 p-4 rounded-xl border bg-card hover:bg-secondary/40 transition-all duration-200 hover:border-primary/40 cursor-pointer",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border", meta.bg, meta.color)}>
           {meta.icon}
         </div>
-        <ExternalLink size={13} className="text-muted-foreground/40 group-hover:text-muted-foreground mt-0.5 shrink-0 transition-colors" />
+        <ExternalLink size={13} className="text-muted-foreground/40 group-hover:text-primary mt-0.5 shrink-0 transition-colors" />
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2 group-hover:text-white transition-colors">
+        <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
           {material.titulo}
         </p>
         {material.descricao && (
@@ -105,7 +104,7 @@ export default function PortalAluno() {
       setAluno(targetAluno);
       if (targetAluno) {
         const [sprintsData, tarefasData, materiaisData, eventosData] = await Promise.all([
-          fetchSprints(),
+          fetchSprintsForAluno(targetAluno.id),
           fetchSprintTarefas(targetAluno.id),
           fetchMateriaisAluno(targetAluno.id),
           fetchEventosAluno(targetAluno.id),
@@ -190,7 +189,9 @@ export default function PortalAluno() {
   const totalTarefas = tarefas.length;
   const concluidas = tarefas.filter(t => t.concluida && t.aprovada_por_equipe).length;
   const progresso = totalTarefas > 0 ? Math.round((concluidas / totalTarefas) * 100) : 0;
-  const xpMeta = 1000;
+  const xpMeta = aluno.premio_xp_meta ?? 1000;
+  const premioTitulo = aluno.premio_titulo ?? "Viagem de Comemoração Surpresa";
+  const premioDescricao = aluno.premio_descricao ?? null;
   const xpAtual = aluno.pontuacao_total || 0;
   const progressViagem = Math.min(100, Math.round((xpAtual / xpMeta) * 100));
 
@@ -335,11 +336,16 @@ export default function PortalAluno() {
                   <h2 className="text-xl font-bold text-white uppercase tracking-widest">O Grande Prêmio</h2>
                 </div>
                 <p className="text-sm text-muted-foreground mb-6">
-                  Bata{" "}
-                  <span className="text-white font-semibold">{xpMeta} XP</span>{" "}
-                  cumprindo todos os Sprints com consistência para garantir sua{" "}
-                  <strong className="text-white">Viagem de Comemoração Surpresa</strong>.
-                  O destino é secreto, a experiência será inesquecível.
+                  {premioDescricao ? (
+                    premioDescricao
+                  ) : (
+                    <>
+                      Acumule{" "}
+                      <span className="text-white font-semibold">{xpMeta} XP</span>{" "}
+                      cumprindo todos os Sprints para conquistar:{" "}
+                      <strong className="text-white">{premioTitulo}</strong>.
+                    </>
+                  )}
                 </p>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
@@ -384,12 +390,12 @@ export default function PortalAluno() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             {/* ── Trilha de Sprints ──────────────────────────────────── */}
-            <section className="bg-zinc-900/40 rounded-2xl border border-border/40 p-6">
+            <section className="bg-card rounded-2xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-foreground">Módulo de Execução</h3>
-                <div className="flex items-center gap-2 bg-zinc-800/60 rounded-full px-3 py-1">
-                  <span className="text-xs text-emerald-400 font-bold">{concluidas}/{totalTarefas}</span>
-                  <span className="text-xs text-white/70">aprovadas</span>
+                <div className="flex items-center gap-2 bg-secondary rounded-full px-3 py-1">
+                  <span className="text-xs text-emerald-600 font-bold">{concluidas}/{totalTarefas}</span>
+                  <span className="text-xs text-muted-foreground">aprovadas</span>
                 </div>
               </div>
 
@@ -414,21 +420,21 @@ export default function PortalAluno() {
                           isUnlocked ? "border-primary" : "border-border",
                         )} />
 
-                        <h4 className={cn("font-bold mb-1", isUnlocked ? "text-white" : "text-zinc-300")}>
+                        <h4 className={cn("font-bold mb-1", isUnlocked ? "text-foreground" : "text-muted-foreground")}>
                           {sprint.titulo}
                         </h4>
                         {sprint.descricao && (
-                          <p className="text-xs text-zinc-400 mb-3">{sprint.descricao}</p>
+                          <p className="text-xs text-muted-foreground mb-3">{sprint.descricao}</p>
                         )}
 
                         {!isUnlocked && (
-                          <div className="bg-black/20 p-3 rounded-lg border border-white/10 flex items-center justify-center gap-2 text-xs text-white/60">
+                          <div className="bg-secondary p-3 rounded-lg border border-border flex items-center justify-center gap-2 text-xs text-muted-foreground">
                             <Lock size={12} /> Conclua o Sprint anterior para desbloquear
                           </div>
                         )}
 
                         {isUnlocked && minhasTarefas.length === 0 && (
-                          <div className="bg-black/20 p-3 rounded-lg border border-white/10 text-xs text-white/60 text-center">
+                          <div className="bg-secondary p-3 rounded-lg border border-border text-xs text-muted-foreground text-center">
                             Nenhuma meta alocada neste Sprint ainda.
                           </div>
                         )}
@@ -438,7 +444,7 @@ export default function PortalAluno() {
                             {minhasTarefas.map(tarefa => (
                               <div
                                 key={tarefa.id}
-                                className="flex items-center justify-between bg-black/20 p-3 rounded-lg border border-white/5 gap-3"
+                                className="flex items-center justify-between bg-secondary p-3 rounded-lg border border-border gap-3"
                               >
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                   {tarefa.concluida ? (
@@ -450,12 +456,12 @@ export default function PortalAluno() {
                                       )}
                                     />
                                   ) : (
-                                    <div className="w-4 h-4 rounded-full border-2 border-white/30 shrink-0" />
+                                    <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/40 shrink-0" />
                                   )}
                                   <div className="min-w-0">
                                     <span className={cn(
                                       "text-sm block truncate",
-                                      tarefa.aprovada_por_equipe ? "text-zinc-400 line-through" : "text-white",
+                                      tarefa.aprovada_por_equipe ? "text-muted-foreground line-through" : "text-foreground",
                                     )}>
                                       {tarefa.titulo}
                                     </span>
@@ -465,7 +471,7 @@ export default function PortalAluno() {
                                       </p>
                                     )}
                                     {tarefa.prazo && !tarefa.aprovada_por_equipe && (
-                                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">
                                         Prazo: {new Date(tarefa.prazo).toLocaleDateString('pt-BR')}
                                       </p>
                                     )}
@@ -502,7 +508,7 @@ export default function PortalAluno() {
             {/* ── Coluna Direita ─────────────────────────────────────── */}
             <div className="space-y-6">
               {/* Status do Aluno */}
-              <section className="bg-zinc-900/40 rounded-2xl border border-border/40 p-6">
+              <section className="bg-card rounded-2xl border border-border p-6">
                 <h3 className="text-lg font-bold text-foreground mb-4">Seu Status</h3>
                 <div className="space-y-4">
                   <div>
@@ -512,13 +518,13 @@ export default function PortalAluno() {
                   <div>
                     <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">Evolução Geral</p>
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${progresso}%` }} />
                       </div>
-                      <span className="text-xs font-bold text-emerald-500 w-8 text-right">{progresso}%</span>
+                      <span className="text-xs font-bold text-emerald-600 w-8 text-right">{progresso}%</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between bg-black/20 rounded-lg p-3 mt-2">
+                  <div className="flex items-center justify-between bg-secondary/60 rounded-lg p-3 mt-2">
                     <div>
                       <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">XP Total</p>
                       <p className="text-2xl font-bold text-primary mt-0.5">{xpAtual}</p>
@@ -543,7 +549,7 @@ export default function PortalAluno() {
                       "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
                       filtroMaterial === f.key
                         ? "bg-primary text-primary-foreground shadow"
-                        : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5",
                     )}
                   >
                     {f.label}
@@ -558,8 +564,8 @@ export default function PortalAluno() {
             </div>
 
             {materiaisFiltrados.length === 0 ? (
-              <div className="bg-zinc-900/30 rounded-2xl border border-dashed border-border/50 p-12 text-center">
-                <BookOpen size={32} className="text-muted-foreground/30 mx-auto mb-3" />
+              <div className="bg-secondary/40 rounded-2xl border border-dashed border-border p-12 text-center">
+                <BookOpen size={32} className="text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-muted-foreground text-sm font-medium">
                   {filtroMaterial === 'todos'
                     ? 'Nenhum material disponível ainda. A equipe está preparando seus conteúdos.'

@@ -77,14 +77,14 @@ export interface Database {
         Update: { id?: string; lead_id?: string | null; message_id?: string; phone?: string; text_content?: string | null; from_me?: boolean; status?: string; sender_name?: string | null; timestamp?: string; created_at?: string }
       }
       alunos: {
-        Row: { id: string; created_at: string; lead_id: string | null; profile_id: string | null; fase_atual: string; pontuacao_total: number }
-        Insert: { id?: string; created_at?: string; lead_id?: string | null; profile_id?: string | null; fase_atual: string; pontuacao_total?: number }
-        Update: { id?: string; created_at?: string; lead_id?: string | null; profile_id?: string | null; fase_atual?: string; pontuacao_total?: number }
+        Row: { id: string; created_at: string; lead_id: string | null; profile_id: string | null; fase_atual: string; pontuacao_total: number; premio_titulo: string | null; premio_descricao: string | null; premio_xp_meta: number | null }
+        Insert: { id?: string; created_at?: string; lead_id?: string | null; profile_id?: string | null; fase_atual: string; pontuacao_total?: number; premio_titulo?: string | null; premio_descricao?: string | null; premio_xp_meta?: number | null }
+        Update: { id?: string; created_at?: string; lead_id?: string | null; profile_id?: string | null; fase_atual?: string; pontuacao_total?: number; premio_titulo?: string | null; premio_descricao?: string | null; premio_xp_meta?: number | null }
       }
       sprints: {
-        Row: { id: string; created_at: string; titulo: string; descricao: string | null; ordem: number }
-        Insert: { id?: string; created_at?: string; titulo: string; descricao?: string | null; ordem?: number }
-        Update: { id?: string; created_at?: string; titulo?: string; descricao?: string | null; ordem?: number }
+        Row: { id: string; created_at: string; titulo: string; descricao: string | null; ordem: number; aluno_id: string | null }
+        Insert: { id?: string; created_at?: string; titulo: string; descricao?: string | null; ordem?: number; aluno_id?: string | null }
+        Update: { id?: string; created_at?: string; titulo?: string; descricao?: string | null; ordem?: number; aluno_id?: string | null }
       }
       sprint_tarefas: {
         Row: { id: string; created_at: string; sprint_id: string; aluno_id: string; titulo: string; xp_recompensa: number; prazo: string | null; concluida: boolean; aprovada_por_equipe: boolean }

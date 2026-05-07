@@ -6,7 +6,7 @@ import {
   fetchTodosMateriais, createMaterial, deleteMaterial,
   fetchTodosEventos, createEvento, deleteEvento,
   createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
-  resetUserPasswordAdmin, uploadMaterialFile,
+  resetUserPasswordAdmin, uploadMaterialFile, updateAluno,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
 import {
@@ -90,7 +90,9 @@ export default function GestaoOperacional() {
   const [tarefasDetalhe,  setTarefasDetalhe]  = useState<any[]>([]);
   const [loadingTarefas,  setLoadingTarefas]  = useState(false);
   const [aprovando,       setAprovando]       = useState<string | null>(null);
-  const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca">("tarefas");
+  const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca" | "premio">("tarefas");
+  const [premioEdit,      setPremioEdit]      = useState({ titulo: "", descricao: "", xp_meta: 1000 });
+  const [savingPremio,    setSavingPremio]    = useState(false);
 
   // ── matrícula ─────────────────────────────────────────────────────────────
   const [openMatricula, setOpenMatricula] = useState(false);
@@ -111,7 +113,7 @@ export default function GestaoOperacional() {
   const [savingSprint,     setSavingSprint]     = useState(false);
   const [savingTarefa,     setSavingTarefa]     = useState(false);
   const [importandoTemplate, setImportandoTemplate] = useState(false);
-  const [novoSprint, setNovoSprint] = useState({ titulo: "", descricao: "" });
+  const [novoSprint, setNovoSprint] = useState({ titulo: "", descricao: "", aluno_id: null as string | null });
   const [novaTarefa, setNovaTarefa] = useState({
     sprint_id: "", aluno_id: "__todos__", titulo: "", xp_recompensa: 50, prazo: "",
   });
@@ -159,9 +161,32 @@ export default function GestaoOperacional() {
   async function abrirDetalhe(aluno: any) {
     setAlunoDetalhes(aluno);
     setSheetTab("tarefas");
+    setPremioEdit({
+      titulo: aluno.premio_titulo ?? "",
+      descricao: aluno.premio_descricao ?? "",
+      xp_meta: aluno.premio_xp_meta ?? 1000,
+    });
     setLoadingTarefas(true);
     try { setTarefasDetalhe(await fetchSprintTarefas(aluno.id) || []); }
     finally { setLoadingTarefas(false); }
+  }
+
+  async function handleSalvarPremio(e: React.FormEvent) {
+    e.preventDefault();
+    if (!alunoDetalhes) return;
+    setSavingPremio(true);
+    try {
+      const updated = await updateAluno(alunoDetalhes.id, {
+        premio_titulo: premioEdit.titulo || null,
+        premio_descricao: premioEdit.descricao || null,
+        premio_xp_meta: premioEdit.xp_meta || 1000,
+      });
+      setAlunoDetalhes((prev: any) => ({ ...prev, ...updated }));
+      setAlunos(prev => prev.map(a => a.id === alunoDetalhes.id ? { ...a, ...updated } : a));
+      toast({ title: "Prêmio atualizado!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar prêmio.", description: "Execute a migração SQL no Supabase primeiro.", variant: "destructive" });
+    } finally { setSavingPremio(false); }
   }
 
   async function handleAprovar(tarefaId: string, alunoId: string, xp: number) {
@@ -299,10 +324,12 @@ export default function GestaoOperacional() {
     if (!novoSprint.titulo) return;
     setSavingSprint(true);
     try {
-      const newS = await createSprint(novoSprint.titulo, novoSprint.descricao || undefined, sprints.length + 1);
-      setSprints(prev => [...prev, newS]);
-      toast({ title: "Sprint criado!" });
-      setOpenCriarSprint(false); setNovoSprint({ titulo: "", descricao: "" });
+      const ordem = sprints.length + 1;
+      const newS = await createSprint(novoSprint.titulo, novoSprint.descricao || undefined, ordem, novoSprint.aluno_id);
+      if (!novoSprint.aluno_id) setSprints(prev => [...prev, newS]);
+      toast({ title: novoSprint.aluno_id ? "Sprint exclusivo criado!" : "Sprint criado!" });
+      setOpenCriarSprint(false);
+      setNovoSprint({ titulo: "", descricao: "", aluno_id: null });
     } catch { toast({ title: "Erro ao criar sprint.", variant: "destructive" }); }
     finally { setSavingSprint(false); }
   }
@@ -504,15 +531,15 @@ export default function GestaoOperacional() {
                   <section>
                     <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><UserCheck className="text-primary" size={20} /> Alunos Ativos</h2>
                     {alunos.length === 0 ? (
-                      <div className="bg-zinc-900/30 rounded-2xl border border-border/40 p-10 text-center">
-                        <Users size={32} className="text-muted-foreground/20 mx-auto mb-3" />
+                      <div className="bg-secondary/40 rounded-2xl border border-border p-10 text-center">
+                        <Users size={32} className="text-muted-foreground/40 mx-auto mb-3" />
                         <p className="text-muted-foreground text-sm">Nenhum aluno ativo ainda.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {alunos.map(aluno => (
                           <button key={aluno.id} onClick={() => abrirDetalhe(aluno)}
-                            className="bg-zinc-900 border border-border/40 p-5 rounded-xl hover:border-primary/50 text-left group w-full transition-all">
+                            className="bg-card border border-border p-5 rounded-xl hover:border-primary/50 hover:shadow-sm text-left group w-full transition-all">
                             <div className="flex items-center gap-4 mb-4">
                               <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center font-bold text-lg text-primary shrink-0">
                                 {getInitials(aluno.profiles?.nome || aluno.leads?.nome_completo || "?")}
@@ -522,14 +549,14 @@ export default function GestaoOperacional() {
                                 <p className="text-xs text-muted-foreground truncate">{aluno.leads?.whatsapp || aluno.profiles?.email}</p>
                               </div>
                             </div>
-                            <div className="flex justify-between items-center bg-black/20 p-3 rounded-lg mb-3">
+                            <div className="flex justify-between items-center bg-secondary/60 p-3 rounded-lg mb-3">
                               <div>
                                 <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5">Fase</p>
                                 <p className="text-sm font-medium gold-gradient bg-clip-text text-transparent">{aluno.fase_atual}</p>
                               </div>
                               <div className="text-right">
                                 <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5 flex items-center gap-1 justify-end"><Award size={9} /> XP</p>
-                                <p className="text-sm font-bold text-emerald-400">{aluno.pontuacao_total} pts</p>
+                                <p className="text-sm font-bold text-emerald-600">{aluno.pontuacao_total} pts</p>
                               </div>
                             </div>
                             <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">
@@ -709,10 +736,10 @@ export default function GestaoOperacional() {
 
       {/* ══ SHEET: Detalhe do Aluno ══════════════════════════════════════════ */}
       <Sheet open={!!alunoDetalhes} onOpenChange={open => { if (!open) { setAlunoDetalhes(null); setConfirmDelete(false); } }}>
-        <SheetContent side="right" className="w-full sm:max-w-xl bg-zinc-950 border-border/40 overflow-y-auto flex flex-col gap-0 p-0">
+        <SheetContent side="right" className="w-full sm:max-w-xl bg-card border-border overflow-y-auto flex flex-col gap-0 p-0">
           {alunoDetalhes && (
             <>
-              <SheetHeader className="px-6 py-5 border-b border-border/30 bg-zinc-900/60 shrink-0">
+              <SheetHeader className="px-6 py-5 border-b border-border bg-secondary/40 shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full gold-gradient flex items-center justify-center text-primary-foreground font-bold text-lg shrink-0">
                     {getInitials(alunoDetalhes.profiles?.nome || alunoDetalhes.leads?.nome_completo || "?")}
@@ -724,7 +751,7 @@ export default function GestaoOperacional() {
                 </div>
               </SheetHeader>
               
-              <div className="px-6 border-b border-border/20 shrink-0 flex gap-1 bg-zinc-900/30 overflow-x-auto">
+              <div className="px-6 border-b border-border shrink-0 flex gap-1 bg-secondary/20 overflow-x-auto">
                 <button onClick={() => setSheetTab("tarefas")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "tarefas" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
                   <Star size={14} /> Sprints & Tarefas
                 </button>
@@ -733,6 +760,9 @@ export default function GestaoOperacional() {
                 </button>
                 <button onClick={() => setSheetTab("biblioteca")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "biblioteca" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
                   <BookOpen size={14} /> Biblioteca
+                </button>
+                <button onClick={() => setSheetTab("premio")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "premio" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  <Award size={14} /> Prêmio
                 </button>
               </div>
 
@@ -752,6 +782,10 @@ export default function GestaoOperacional() {
                       <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
                         onClick={() => { setNovaTarefa(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarTarefa(true); }}>
                         <PlusCircle size={14} /> Atribuir Nova Tarefa a Este Aluno
+                      </Button>
+                      <Button size="sm" variant="outline" className="w-full gap-2 border-border text-muted-foreground hover:text-foreground"
+                        onClick={() => { setNovoSprint(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarSprint(true); }}>
+                        <Layers size={14} /> Criar Sprint Exclusivo para Este Aluno
                       </Button>
                       <div className="grid grid-cols-2 gap-2">
                         <Button size="sm" variant="outline" className="col-span-2 gap-1.5 border-primary/20 text-primary hover:bg-primary/5"
@@ -783,7 +817,7 @@ export default function GestaoOperacional() {
                               <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
                                 tarefa.aprovada_por_equipe ? "bg-emerald-500/5 border-emerald-500/20"
                                 : tarefa.concluida ? "bg-primary/5 border-primary/20"
-                                : "bg-zinc-900/40 border-border/30")}>
+                                : "bg-secondary/40 border-border")}>
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex items-start gap-3 flex-1 min-w-0">
                                     {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -835,7 +869,7 @@ export default function GestaoOperacional() {
                       ) : (
                         <div className="space-y-3">
                           {eventosAluno.map(ev => (
-                            <div key={ev.id} className="p-4 rounded-xl border border-border/40 bg-zinc-900/40 hover:border-primary/30 transition-all flex justify-between gap-3">
+                            <div key={ev.id} className="p-4 rounded-xl border border-border bg-secondary/30 hover:border-primary/30 transition-all flex justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                   <Badge variant="outline" className="text-[10px] uppercase">{ev.tipo}</Badge>
@@ -857,6 +891,48 @@ export default function GestaoOperacional() {
                   );
                 })()}
 
+                {/* ── ABA: PRÊMIO ─────────────────────────────────────────── */}
+                {sheetTab === "premio" && (
+                  <form onSubmit={handleSalvarPremio} className="space-y-4">
+                    <div className="p-4 bg-secondary/40 rounded-xl border border-border">
+                      <p className="text-xs text-muted-foreground">Configure o prêmio personalizado deste aluno. Ele verá isso no portal como meta final da mentoria.</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase mb-2 block">Título do Prêmio *</Label>
+                      <Input
+                        value={premioEdit.titulo}
+                        onChange={e => setPremioEdit(p => ({ ...p, titulo: e.target.value }))}
+                        className="bg-secondary border-border"
+                        placeholder="Ex: Viagem para Paris, Mentoria com especialista..."
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
+                      <Textarea
+                        value={premioEdit.descricao}
+                        onChange={e => setPremioEdit(p => ({ ...p, descricao: e.target.value }))}
+                        className="bg-secondary border-border resize-none"
+                        rows={3}
+                        placeholder="Descreva o prêmio em detalhes para motivar o aluno..."
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase mb-2 block">Meta de XP para Desbloquear</Label>
+                      <Input
+                        type="number"
+                        min={100}
+                        max={10000}
+                        value={premioEdit.xp_meta}
+                        onChange={e => setPremioEdit(p => ({ ...p, xp_meta: Number(e.target.value) }))}
+                        className="bg-secondary border-border"
+                      />
+                    </div>
+                    <Button type="submit" disabled={savingPremio} className="w-full h-11 font-bold">
+                      {savingPremio ? <Loader2 size={16} className="animate-spin" /> : "Salvar Prêmio"}
+                    </Button>
+                  </form>
+                )}
+
                 {/* ── ABA: BIBLIOTECA ─────────────────────────────────────── */}
                 {sheetTab === "biblioteca" && (() => {
                   const materiaisAluno = materiais.filter(m => m.aluno_id === alunoDetalhes.id || m.aluno_id === null || m.aluno_id === "__global__");
@@ -872,7 +948,7 @@ export default function GestaoOperacional() {
                       ) : (
                         <div className="space-y-3">
                           {materiaisAluno.map(mat => (
-                            <div key={mat.id} className="p-4 rounded-xl border border-border/40 bg-zinc-900/40 hover:border-primary/30 transition-all flex justify-between gap-3">
+                            <div key={mat.id} className="p-4 rounded-xl border border-border bg-secondary/30 hover:border-primary/30 transition-all flex justify-between gap-3">
                               <div className="flex items-start gap-3 flex-1 min-w-0">
                                 <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                                   {mat.tipo === 'video' ? <Video size={14} /> : mat.tipo === 'pdf' ? <FileText size={14} /> : <BookOpen size={14} />}
@@ -941,12 +1017,24 @@ export default function GestaoOperacional() {
       </Dialog>
 
       {/* ══ DIALOG: Criar Sprint ══════════════════════════════════════════════ */}
-      <Dialog open={openCriarSprint} onOpenChange={setOpenCriarSprint}>
+      <Dialog open={openCriarSprint} onOpenChange={open => { if (!open) { setNovoSprint({ titulo: "", descricao: "", aluno_id: null }); } setOpenCriarSprint(open); }}>
         <DialogContent className="bg-card border-border">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Layers className="text-primary" size={18} /> Criar Sprint</DialogTitle>
-            <DialogDescription>Módulo de execução da mentoria.</DialogDescription>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" size={18} />
+              {novoSprint.aluno_id ? "Criar Sprint Exclusivo" : "Criar Sprint"}
+            </DialogTitle>
+            <DialogDescription>
+              {novoSprint.aluno_id
+                ? `Este sprint ficará visível apenas para ${alunos.find(a => a.id === novoSprint.aluno_id)?.profiles?.nome || "este aluno"}.`
+                : "Módulo de execução da mentoria (visível para todos os alunos)."}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCriarSprint} className="space-y-4">
+            {novoSprint.aluno_id && (
+              <div className="px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-xs text-primary font-medium">
+                Sprint exclusivo — não aparece para outros alunos
+              </div>
+            )}
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título *</Label>
               <Input value={novoSprint.titulo} onChange={e => setNovoSprint(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Sprint 1 — Diagnóstico & Base" required />
             </div>
@@ -954,7 +1042,7 @@ export default function GestaoOperacional() {
               <Textarea value={novoSprint.descricao} onChange={e => setNovoSprint(p => ({ ...p, descricao: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} />
             </div>
             <Button type="submit" disabled={savingSprint} className="w-full h-11 font-bold">
-              {savingSprint ? <Loader2 size={16} className="animate-spin" /> : "Criar Sprint"}
+              {savingSprint ? <Loader2 size={16} className="animate-spin" /> : novoSprint.aluno_id ? "Criar Sprint Exclusivo" : "Criar Sprint"}
             </Button>
           </form>
         </DialogContent>
