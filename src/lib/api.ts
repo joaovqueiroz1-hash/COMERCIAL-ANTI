@@ -239,18 +239,14 @@ export async function updateSprintTarefa(id: string, updates: { xp_recompensa?: 
 // Arquiva todos os leads que não estão fechados/vendidos.
 // Pré-requisito: ALTER TYPE pipeline_status ADD VALUE IF NOT EXISTS 'arquivado'; no Supabase SQL Editor
 export async function arquivarLeadsNaoFechados(): Promise<number> {
-  const { data: targets, error: fetchErr } = await db
+  const { data, error } = await db
     .from('leads')
-    .select('id')
+    .update({ arquivado: true })
     .neq('status_pipeline', 'fechado')
     .neq('status_pipeline', 'vendido')
-    .neq('status_pipeline', 'arquivado');
-  if (fetchErr) throw fetchErr;
-  if (!targets || targets.length === 0) return 0;
-  const ids = (targets as any[]).map(l => l.id);
-  const { error } = await db.from('leads').update({ status_pipeline: 'arquivado' }).in('id', ids);
+    .select('id');
   if (error) throw error;
-  return ids.length;
+  return (data || []).length;
 }
 
 // ── HISTÓRICO / PIPELINE LOGS GLOBAL ─────────────────────────────────────────
