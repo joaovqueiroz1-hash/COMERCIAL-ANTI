@@ -1121,7 +1121,7 @@ export default function GestaoOperacional() {
                                   </a>
                                 </div>
                               </div>
-                              <button onClick={() => handleDeleteMaterial(mat.id)} disabled={deletingMaterial === mat.id} className="text-muted-foreground hover:text-destructive shrink-0">
+                              <button onClick={() => handleDeletarMaterial(mat.id)} disabled={deletingMaterial === mat.id} className="text-muted-foreground hover:text-destructive shrink-0">
                                 {deletingMaterial === mat.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                               </button>
                             </div>
