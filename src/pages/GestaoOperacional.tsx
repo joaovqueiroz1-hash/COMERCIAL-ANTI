@@ -6,7 +6,7 @@ import {
   fetchTodosMateriais, createMaterial, deleteMaterial,
   fetchTodosEventos, createEvento, deleteEvento,
   createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
-  resetUserPasswordAdmin, uploadMaterialFile, updateAluno,
+  resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
 import {
@@ -94,6 +94,7 @@ export default function GestaoOperacional() {
   const [premioEdit,      setPremioEdit]      = useState({ titulo: "", descricao: "", xp_meta: 1000 });
   const [savingPremio,    setSavingPremio]    = useState(false);
   const [sprintsAluno,    setSprintsAluno]    = useState<any[]>([]);
+  const [tarefaXpEdit,    setTarefaXpEdit]    = useState<Record<string, number>>({});
 
   // ── matrícula ─────────────────────────────────────────────────────────────
   const [openMatricula, setOpenMatricula] = useState(false);
@@ -184,6 +185,9 @@ export default function GestaoOperacional() {
       ]);
       setTarefasDetalhe(tarefas || []);
       setSprintsAluno(spAluno || []);
+      const xpInit: Record<string, number> = {};
+      for (const t of (tarefas || [])) xpInit[t.id] = t.xp_recompensa ?? 100;
+      setTarefaXpEdit(xpInit);
     }
     finally { setLoadingTarefas(false); }
   }
@@ -995,44 +999,96 @@ export default function GestaoOperacional() {
 
                 {/* ── ABA: PRÊMIO ─────────────────────────────────────────── */}
                 {sheetTab === "premio" && (
-                  <form onSubmit={handleSalvarPremio} className="space-y-4">
-                    <div className="p-4 bg-secondary/40 rounded-xl border border-border">
-                      <p className="text-xs text-muted-foreground">Configure o prêmio personalizado deste aluno. Ele verá isso no portal como meta final da mentoria.</p>
+                  <div className="space-y-6">
+                    <form onSubmit={handleSalvarPremio} className="space-y-4">
+                      <div className="p-4 bg-secondary/40 rounded-xl border border-border">
+                        <p className="text-xs text-muted-foreground">Configure o prêmio personalizado deste aluno. Ele verá isso no portal como meta final da mentoria.</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase mb-2 block">Título do Prêmio *</Label>
+                        <Input
+                          value={premioEdit.titulo}
+                          onChange={e => setPremioEdit(p => ({ ...p, titulo: e.target.value }))}
+                          className="bg-secondary border-border"
+                          placeholder="Ex: Viagem para Paris, Mentoria com especialista..."
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
+                        <Textarea
+                          value={premioEdit.descricao}
+                          onChange={e => setPremioEdit(p => ({ ...p, descricao: e.target.value }))}
+                          className="bg-secondary border-border resize-none"
+                          rows={3}
+                          placeholder="Descreva o prêmio em detalhes para motivar o aluno..."
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground uppercase mb-2 block">Meta de XP para Desbloquear</Label>
+                        <Input
+                          type="number"
+                          min={100}
+                          max={10000}
+                          value={premioEdit.xp_meta}
+                          onChange={e => setPremioEdit(p => ({ ...p, xp_meta: Number(e.target.value) }))}
+                          className="bg-secondary border-border"
+                        />
+                      </div>
+                      <Button type="submit" disabled={savingPremio} className="w-full h-11 font-bold">
+                        {savingPremio ? <Loader2 size={16} className="animate-spin" /> : "Salvar Prêmio"}
+                      </Button>
+                    </form>
+
+                    {/* XP por tarefa */}
+                    <div className="border-t border-border pt-5">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                        <Zap size={12} className="text-primary" /> XP por Tarefa
+                      </p>
+                      {sprintsAluno.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhum sprint criado para este aluno.</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {sprintsAluno.map(sprint => {
+                            const tarefasSprint = tarefasDetalhe.filter(t => t.sprint_id === sprint.id);
+                            return (
+                              <div key={sprint.id}>
+                                <p className="text-xs font-semibold text-foreground mb-2">{sprint.titulo}</p>
+                                {tarefasSprint.length === 0 ? (
+                                  <p className="text-[11px] text-muted-foreground pl-2">Sem tarefas</p>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {tarefasSprint.map(tarefa => (
+                                      <div key={tarefa.id} className="flex items-center gap-2 py-1 px-2.5 rounded-lg bg-secondary/50">
+                                        <span className="text-xs text-foreground flex-1 truncate">{tarefa.titulo}</span>
+                                        <Input
+                                          type="number"
+                                          min={0}
+                                          max={9999}
+                                          className="w-20 h-7 text-xs bg-background border-border text-center px-1"
+                                          value={tarefaXpEdit[tarefa.id] ?? (tarefa.xp_recompensa ?? 100)}
+                                          onChange={e => setTarefaXpEdit(p => ({ ...p, [tarefa.id]: Number(e.target.value) }))}
+                                          onBlur={async () => {
+                                            const xp = tarefaXpEdit[tarefa.id] ?? tarefa.xp_recompensa ?? 100;
+                                            try {
+                                              await updateSprintTarefa(tarefa.id, { xp_recompensa: xp });
+                                              toast({ title: `XP atualizado: ${xp} XP` });
+                                            } catch {
+                                              toast({ title: "Erro ao salvar XP", variant: "destructive" });
+                                            }
+                                          }}
+                                        />
+                                        <span className="text-[10px] text-muted-foreground shrink-0">XP</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground uppercase mb-2 block">Título do Prêmio *</Label>
-                      <Input
-                        value={premioEdit.titulo}
-                        onChange={e => setPremioEdit(p => ({ ...p, titulo: e.target.value }))}
-                        className="bg-secondary border-border"
-                        placeholder="Ex: Viagem para Paris, Mentoria com especialista..."
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
-                      <Textarea
-                        value={premioEdit.descricao}
-                        onChange={e => setPremioEdit(p => ({ ...p, descricao: e.target.value }))}
-                        className="bg-secondary border-border resize-none"
-                        rows={3}
-                        placeholder="Descreva o prêmio em detalhes para motivar o aluno..."
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground uppercase mb-2 block">Meta de XP para Desbloquear</Label>
-                      <Input
-                        type="number"
-                        min={100}
-                        max={10000}
-                        value={premioEdit.xp_meta}
-                        onChange={e => setPremioEdit(p => ({ ...p, xp_meta: Number(e.target.value) }))}
-                        className="bg-secondary border-border"
-                      />
-                    </div>
-                    <Button type="submit" disabled={savingPremio} className="w-full h-11 font-bold">
-                      {savingPremio ? <Loader2 size={16} className="animate-spin" /> : "Salvar Prêmio"}
-                    </Button>
-                  </form>
+                  </div>
                 )}
 
                 {/* ── ABA: BIBLIOTECA ─────────────────────────────────────── */}

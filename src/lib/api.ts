@@ -66,6 +66,9 @@ export async function createLeadsBatch(leads: LeadInsert[]) {
 export async function updateLead(id: string, updates: LeadUpdate) {
   const { data, error } = await supabase.from('leads').update(updates).eq('id', id).select().single();
   if (error) throw error;
+  if (updates.status_pipeline && ['fechado', 'vendido'].includes(updates.status_pipeline)) {
+    await updateLeadExtra(id, { data_fechamento: new Date().toISOString() });
+  }
   return data;
 }
 
@@ -225,6 +228,27 @@ export async function deleteMeta(id: string) {
 export async function updateLeadExtra(id: string, fields: Record<string, any>): Promise<void> {
   const { error } = await db.from('leads').update(fields).eq('id', id);
   if (error) console.warn('[updateLeadExtra]', error.message);
+}
+
+export async function updateSprintTarefa(id: string, updates: { xp_recompensa?: number; titulo?: string; prazo?: string | null }) {
+  const { data, error } = await db.from('sprint_tarefas').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// Arquiva todos os leads que não estão fechados/vendidos.
+// Pré-requisito: ALTER TYPE pipeline_status ADD VALUE IF NOT EXISTS 'arquivado'; no Supabase SQL Editor
+export async function arquivarLeadsNaoFechados(): Promise<number> {
+  const { data: targets, error: fetchErr } = await db
+    .from('leads')
+    .select('id')
+    .not('status_pipeline', 'in', '("fechado","vendido","arquivado")');
+  if (fetchErr) throw fetchErr;
+  if (!targets || targets.length === 0) return 0;
+  const ids = (targets as any[]).map(l => l.id);
+  const { error } = await db.from('leads').update({ status_pipeline: 'arquivado' }).in('id', ids);
+  if (error) throw error;
+  return ids.length;
 }
 
 // ── HISTÓRICO / PIPELINE LOGS GLOBAL ─────────────────────────────────────────

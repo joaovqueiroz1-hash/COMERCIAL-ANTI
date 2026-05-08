@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Ban, Copy, MessageSquare, Wifi, WifiOff, Eye, EyeOff, Trash2, Info, Tag, Plus, X } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Ban, Copy, MessageSquare, Wifi, WifiOff, Eye, EyeOff, Trash2, Info, Tag, Plus, X, Users, Archive } from 'lucide-react';
 import { getZApiStatus, ZApiConfig } from '@/lib/zapi';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { fetchLeads, fetchZApiConfigGlobally, upsertZApiConfigGlobally, deleteZApiConfigGlobally, fetchTagsSistema, createTagSistema, deleteTagSistema } from '@/lib/api';
+import { fetchLeads, fetchZApiConfigGlobally, upsertZApiConfigGlobally, deleteZApiConfigGlobally, fetchTagsSistema, createTagSistema, deleteTagSistema, fetchProfiles, arquivarLeadsNaoFechados } from '@/lib/api';
 import type { LeadInsert, TagSistema } from '@/lib/api';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { normalizeWhatsAppKey } from '@/lib/whatsapp-utils';
@@ -182,6 +182,9 @@ export default function Configuracoes() {
     errorRows: string[];
   } | null>(null);
   const queryClient = useQueryClient();
+  const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
+  const [distribProfiles, setDistribProfiles] = useState<string[]>([]);
+  const [archiving, setArchiving] = useState(false);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -256,6 +259,13 @@ export default function Configuracoes() {
 
         seenKeys.add(key);
         validLeads.push(lead);
+      }
+
+      // Round-robin distribution to selected team members
+      if (distribProfiles.length > 0) {
+        validLeads.forEach((lead, i) => {
+          (lead as any).vendedor_id = distribProfiles[i % distribProfiles.length];
+        });
       }
 
       // Insert in batches of 50 directly via Supabase client
@@ -360,13 +370,49 @@ export default function Configuracoes() {
           </div>
 
           {file && (
-            <div className="mt-4 p-3 bg-secondary rounded-lg flex items-center gap-3 flex-wrap sm:flex-nowrap">
-              <CheckCircle size={16} className="text-success shrink-0" />
-              <span className="text-sm text-foreground flex-1 truncate">{file.name}</span>
+            <div className="mt-4 space-y-3">
+              <div className="p-3 bg-secondary rounded-lg flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                <CheckCircle size={16} className="text-success shrink-0" />
+                <span className="text-sm text-foreground flex-1 truncate">{file.name}</span>
+              </div>
+
+              {/* Distribuição por membro da equipe */}
+              {profiles.length > 0 && (
+                <div className="p-3 bg-secondary/60 border border-border rounded-lg">
+                  <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    <Users size={12} className="text-primary" /> Distribuir leads para (round-robin):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {profiles.filter((p: any) => p.ativo).map((p: any) => {
+                      const selected = distribProfiles.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setDistribProfiles(prev =>
+                            selected ? prev.filter(id => id !== p.id) : [...prev, p.id]
+                          )}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                            selected
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background text-foreground border-border hover:border-primary/50'
+                          }`}
+                        >
+                          {p.nome}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {distribProfiles.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground mt-1.5">Nenhum selecionado — leads não serão atribuídos.</p>
+                  )}
+                </div>
+              )}
+
               <Button
                 onClick={handleImport}
                 disabled={importing}
-                className="gold-gradient text-primary-foreground font-semibold text-xs h-8 px-4 w-full sm:w-auto"
+                className="gold-gradient text-primary-foreground font-semibold text-xs h-9 px-4 w-full"
               >
                 {importing ? <><Loader2 size={14} className="animate-spin mr-1" /> Importando...</> : 'Importar'}
               </Button>
@@ -631,6 +677,48 @@ export default function Configuracoes() {
               })}
             </div>
           )}
+        </div>
+
+        {/* Operações em Massa */}
+        <div className="card-premium p-4 sm:p-6 border border-destructive/20">
+          <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+            <Archive size={16} className="text-destructive" />
+            Operações em Massa
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Ações irreversíveis que afetam múltiplos registros. Use com atenção.
+          </p>
+          <div className="flex items-start gap-3 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">Arquivar leads não-fechados</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Move todos os leads que não estão como "Fechado" ou "Vendido" para o status "Arquivado".
+                Requer que a coluna <code className="text-primary bg-primary/10 px-1 rounded">arquivado</code> exista no enum do banco.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={archiving}
+              onClick={async () => {
+                if (!window.confirm('Isso vai arquivar TODOS os leads não-fechados. Tem certeza?')) return;
+                setArchiving(true);
+                try {
+                  const count = await arquivarLeadsNaoFechados();
+                  queryClient.invalidateQueries({ queryKey: ['leads'] });
+                  toast.success(`${count} lead(s) arquivado(s).`);
+                } catch (err: any) {
+                  toast.error('Erro: ' + (err.message || 'Verifique se o enum pipeline_status tem o valor "arquivado" no Supabase.'));
+                } finally {
+                  setArchiving(false);
+                }
+              }}
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 shrink-0 text-xs h-8"
+            >
+              {archiving ? <Loader2 size={13} className="animate-spin mr-1" /> : <Archive size={13} className="mr-1" />}
+              Arquivar
+            </Button>
+          </div>
         </div>
 
       </div>

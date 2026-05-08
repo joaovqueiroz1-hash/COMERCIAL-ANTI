@@ -19,6 +19,7 @@ export interface Database {
           status_pipeline: string; gestor_id: string | null; vendedor_id: string | null; prioridade: string
           fit_mentoria: number | null; probabilidade_fechamento: number | null; ultimo_contato: string | null
           proximo_followup: string | null; tags: string[] | null; observacoes_estrategicas: string | null; origem: string | null
+          data_fechamento: string | null
         }
         Insert: {
           id?: string; created_at?: string; updated_at?: string; nome_completo: string
@@ -29,6 +30,7 @@ export interface Database {
           status_pipeline?: string; gestor_id?: string | null; vendedor_id?: string | null; prioridade?: string
           fit_mentoria?: number | null; probabilidade_fechamento?: number | null; ultimo_contato?: string | null
           proximo_followup?: string | null; tags?: string[] | null; observacoes_estrategicas?: string | null; origem?: string | null
+          data_fechamento?: string | null
         }
         Update: {
           id?: string; created_at?: string; updated_at?: string; nome_completo?: string
@@ -39,6 +41,7 @@ export interface Database {
           status_pipeline?: string; gestor_id?: string | null; vendedor_id?: string | null; prioridade?: string
           fit_mentoria?: number | null; probabilidade_fechamento?: number | null; ultimo_contato?: string | null
           proximo_followup?: string | null; tags?: string[] | null; observacoes_estrategicas?: string | null; origem?: string | null
+          data_fechamento?: string | null
         }
       }
       interacoes: {

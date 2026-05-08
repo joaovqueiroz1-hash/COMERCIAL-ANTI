@@ -52,7 +52,7 @@ export default function Dashboard() {
   const leadsFiltradosMes = !filtroMes ? leadsBase : leadsBase.filter(l => l.created_at.startsWith(filtroMes));
   const fechadosNoMes = !filtroMes
     ? leadsBase.filter(l => isVendido(l.status_pipeline))
-    : leadsBase.filter(l => isVendido(l.status_pipeline) && (l.updated_at || l.created_at).startsWith(filtroMes));
+    : leadsBase.filter(l => isVendido(l.status_pipeline) && ((l as any).data_fechamento || l.updated_at || l.created_at).startsWith(filtroMes));
 
   const leadsNovos = leadsFiltradosMes.filter((l) => l.status_pipeline === 'entrada_lead' || l.status_pipeline === 'novo_lead').length;
   const emContato = leadsFiltradosMes.filter((l) => ['tentativa_contato', 'em_atendimento', 'contato_instagram', 'contato_whatsapp', 'contato_realizado'].includes(l.status_pipeline)).length;
@@ -76,7 +76,7 @@ export default function Dashboard() {
     const fl = filtroResponsavel
       ? leads.filter(l => l.vendedor_id === filtroResponsavel || l.gestor_id === filtroResponsavel)
       : leads;
-    const f = fl.filter(l => isVendido(l.status_pipeline) && (l.updated_at || l.created_at).startsWith(m));
+    const f = fl.filter(l => isVendido(l.status_pipeline) && ((l as any).data_fechamento || l.updated_at || l.created_at).startsWith(m));
     const label = new Date(m + '-02').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
     return { mes: label, fechamentos: f.length, valor: f.reduce((s, l) => s + ((l as any).valor_acordado || 0), 0) };
   });
