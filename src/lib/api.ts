@@ -364,7 +364,7 @@ export async function fetchSprintsForAluno(alunoId: string) {
   const { data, error } = await supabase
     .from('sprints')
     .select('*')
-    .or(`aluno_id.is.null,aluno_id.eq.${alunoId}`)
+    .eq('aluno_id', alunoId)
     .order('ordem', { ascending: true });
   if (error) throw error;
   return data;
