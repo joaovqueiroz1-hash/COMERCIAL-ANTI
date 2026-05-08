@@ -223,7 +223,8 @@ export default function PortalAluno() {
               </span>
             </h1>
             <p className="text-muted-foreground mt-2 text-sm max-w-xl">
-              Sua base do Business Club. Acompanhe seus Sprints, acesse materiais e acumule XP para destravar a viagem exclusiva!
+              Sua base do Business Club. Acompanhe seus Sprints, acesse materiais e acumule XP para destravar{' '}
+              <span className="font-semibold text-foreground">{premioTitulo}</span>!
             </p>
           </div>
         </header>

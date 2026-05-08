@@ -907,55 +907,64 @@ export default function GestaoOperacional() {
 
                     {loadingTarefas ? (
                       <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" size={24} /></div>
-                    ) : tarefasDetalhe.length === 0 ? (
-                      <p className="text-center py-10 text-muted-foreground text-sm">Nenhuma tarefa alocada ainda.</p>
+                    ) : sprintsAluno.length === 0 ? (
+                      <p className="text-center py-10 text-muted-foreground text-sm">Nenhum sprint criado. Crie um sprint exclusivo para este aluno.</p>
                     ) : (
-                      sprintsComTarefas.map(sprint => (
-                        <div key={sprint.id}>
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-xs uppercase tracking-widest text-muted-foreground/60 font-bold">{sprint.titulo}</h4>
-                            <button onClick={() => handleDeletarSprint(sprint.id)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded" title="Remover sprint">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {sprint.tarefas.map((tarefa: any) => (
-                              <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
-                                tarefa.aprovada_por_equipe ? "bg-emerald-500/5 border-emerald-500/20"
-                                : tarefa.concluida ? "bg-primary/5 border-primary/20"
-                                : "bg-secondary/40 border-border")}>
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
-                                    : tarefa.concluida ? <Clock size={16} className="text-primary mt-0.5 shrink-0" />
-                                    : <div className="w-4 h-4 rounded-full border-2 border-border mt-0.5 shrink-0" />}
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
-                                      <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                                        <Star size={9} className="text-emerald-400" /> {tarefa.xp_recompensa} XP
-                                        {tarefa.prazo && <span className="ml-1">• {new Date(tarefa.prazo).toLocaleDateString("pt-BR")}</span>}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  {tarefa.concluida && !tarefa.aprovada_por_equipe && (
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <button onClick={() => handleAprovar(tarefa.id, alunoDetalhes.id, tarefa.xp_recompensa)} disabled={aprovando === tarefa.id}
-                                        className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50">
-                                        {aprovando === tarefa.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />} Aprovar
-                                      </button>
-                                      <button onClick={() => handleRejeitar(tarefa.id)} disabled={aprovando === tarefa.id}
-                                        className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 disabled:opacity-50">
-                                        <XCircle size={11} /> Devolver
-                                      </button>
-                                    </div>
-                                  )}
-                                  {tarefa.aprovada_por_equipe && <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide shrink-0">Aprovado</span>}
-                                </div>
+                      <div className="space-y-5">
+                        {sprintsAluno.map(sprint => {
+                          const tarefasSprint = tarefasDetalhe.filter(t => t.sprint_id === sprint.id);
+                          return (
+                            <div key={sprint.id}>
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-xs uppercase tracking-widest text-muted-foreground/60 font-bold">{sprint.titulo}</h4>
+                                <button onClick={() => handleDeletarSprint(sprint.id)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded" title="Remover sprint">
+                                  <Trash2 size={12} />
+                                </button>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))
+                              {tarefasSprint.length === 0 ? (
+                                <p className="text-xs text-muted-foreground/60 pl-1 py-2 italic">Nenhuma tarefa neste sprint ainda.</p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {tarefasSprint.map((tarefa: any) => (
+                                    <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
+                                      tarefa.aprovada_por_equipe ? "bg-emerald-500/5 border-emerald-500/20"
+                                      : tarefa.concluida ? "bg-primary/5 border-primary/20"
+                                      : "bg-secondary/40 border-border")}>
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                          {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                                          : tarefa.concluida ? <Clock size={16} className="text-primary mt-0.5 shrink-0" />
+                                          : <div className="w-4 h-4 rounded-full border-2 border-border mt-0.5 shrink-0" />}
+                                          <div className="min-w-0">
+                                            <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                                              <Star size={9} className="text-emerald-400" /> {tarefa.xp_recompensa} XP
+                                              {tarefa.prazo && <span className="ml-1">• {new Date(tarefa.prazo).toLocaleDateString("pt-BR")}</span>}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        {tarefa.concluida && !tarefa.aprovada_por_equipe && (
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <button onClick={() => handleAprovar(tarefa.id, alunoDetalhes.id, tarefa.xp_recompensa)} disabled={aprovando === tarefa.id}
+                                              className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50">
+                                              {aprovando === tarefa.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />} Aprovar
+                                            </button>
+                                            <button onClick={() => handleRejeitar(tarefa.id)} disabled={aprovando === tarefa.id}
+                                              className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 disabled:opacity-50">
+                                              <XCircle size={11} /> Devolver
+                                            </button>
+                                          </div>
+                                        )}
+                                        {tarefa.aprovada_por_equipe && <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide shrink-0">Aprovado</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </>
                 )}

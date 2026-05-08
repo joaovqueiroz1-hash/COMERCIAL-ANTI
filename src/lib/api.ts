@@ -482,9 +482,13 @@ export async function fetchTodosMateriais() {
   return data;
 }
 
-export async function createMaterial(material: MaterialInsert) {
-  const { data, error } = await supabase.from('materiais').insert(material).select().single();
+export async function createMaterial(material: MaterialInsert & { pasta?: string | null }) {
+  const { pasta, ...rest } = material as any;
+  const { data, error } = await db.from('materiais').insert(rest).select().single();
   if (error) throw error;
+  if (pasta && data?.id) {
+    await db.from('materiais').update({ pasta }).eq('id', data.id);
+  }
   return data;
 }
 
