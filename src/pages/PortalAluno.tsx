@@ -218,7 +218,7 @@ export default function PortalAluno() {
           <div className="relative z-10">
             <h1 className="text-3xl font-bold text-foreground">
               Bem-vindo(a),{" "}
-              <span className="gold-gradient bg-clip-text text-transparent">
+              <span className="gold-gradient-text">
                 {profile?.nome.split(" ")[0]}
               </span>
             </h1>
