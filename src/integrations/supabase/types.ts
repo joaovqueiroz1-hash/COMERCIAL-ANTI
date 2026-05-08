@@ -97,9 +97,9 @@ export interface Database {
         Update: { id?: string; created_at?: string; aluno_id?: string; remetente_id?: string; mensagem?: string }
       }
       materiais: {
-        Row: { id: string; created_at: string; titulo: string; descricao: string | null; tipo: string; url: string; thumbnail_url: string | null; aluno_id: string | null; sprint_id: string | null; criado_por: string | null }
-        Insert: { id?: string; created_at?: string; titulo: string; descricao?: string | null; tipo: string; url: string; thumbnail_url?: string | null; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null }
-        Update: { id?: string; created_at?: string; titulo?: string; descricao?: string | null; tipo?: string; url?: string; thumbnail_url?: string | null; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null }
+        Row: { id: string; created_at: string; titulo: string; descricao: string | null; tipo: string; url: string; thumbnail_url: string | null; aluno_id: string | null; sprint_id: string | null; criado_por: string | null; pasta: string | null }
+        Insert: { id?: string; created_at?: string; titulo: string; descricao?: string | null; tipo: string; url: string; thumbnail_url?: string | null; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null; pasta?: string | null }
+        Update: { id?: string; created_at?: string; titulo?: string; descricao?: string | null; tipo?: string; url?: string; thumbnail_url?: string | null; aluno_id?: string | null; sprint_id?: string | null; criado_por?: string | null; pasta?: string | null }
       }
       eventos: {
         Row: { id: string; created_at: string; titulo: string; descricao: string | null; data_hora: string; tipo: string; aluno_id: string | null; sprint_id: string | null; criado_por: string | null }

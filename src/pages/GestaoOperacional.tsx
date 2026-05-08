@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
-  fetchAlunos, fetchLeads, fetchSprintTarefas, fetchSprints,
+  fetchAlunos, fetchLeads, fetchSprintTarefas, fetchSprints, fetchSprintsForAluno,
   aprovarTarefa, rejeitarTarefa,
   fetchTodosMateriais, createMaterial, deleteMaterial,
   fetchTodosEventos, createEvento, deleteEvento,
@@ -117,6 +117,7 @@ export default function GestaoOperacional() {
   const [novaTarefa, setNovaTarefa] = useState({
     sprint_id: "", aluno_id: "__todos__", titulo: "", xp_recompensa: 50, prazo: "",
   });
+  const [sprintsParaTarefa, setSprintsParaTarefa] = useState<any[]>([]);
 
   // ── eventos ───────────────────────────────────────────────────────────────
   const [openCriarEvento, setOpenCriarEvento] = useState(false);
@@ -130,8 +131,9 @@ export default function GestaoOperacional() {
   const [openAddMaterial, setOpenAddMaterial] = useState(false);
   const [novoMaterial,    setNovoMaterial]    = useState({
     titulo: "", descricao: "", tipo: "link" as TipoMaterial, url: "",
-    aluno_id: "__global__", sprint_id: "__none__",
+    aluno_id: "__global__", sprint_id: "__none__", pasta: "",
   });
+  const [novaPasta, setNovaPasta] = useState("");
   const [savingMaterial,   setSavingMaterial]   = useState(false);
   const [deletingMaterial, setDeletingMaterial] = useState<string | null>(null);
   const [materialMode,     setMaterialMode]     = useState<"link" | "upload">("link");
@@ -318,6 +320,29 @@ export default function GestaoOperacional() {
     } finally { setExcluindo(false); }
   }
 
+  // ── tarefa: abrir dialog (carrega sprints do aluno selecionado) ──────────
+  async function abrirDialogTarefa(alunoIdPreSelecionado?: string) {
+    const alunoId = alunoIdPreSelecionado ?? "__todos__";
+    setNovaTarefa(p => ({ ...p, aluno_id: alunoId, sprint_id: "" }));
+    if (alunoId !== "__todos__") {
+      const data = await fetchSprintsForAluno(alunoId);
+      setSprintsParaTarefa(data || []);
+    } else {
+      setSprintsParaTarefa(sprints);
+    }
+    setOpenCriarTarefa(true);
+  }
+
+  async function handleAlterarAlunoTarefa(alunoId: string) {
+    setNovaTarefa(p => ({ ...p, aluno_id: alunoId, sprint_id: "" }));
+    if (alunoId !== "__todos__") {
+      const data = await fetchSprintsForAluno(alunoId);
+      setSprintsParaTarefa(data || []);
+    } else {
+      setSprintsParaTarefa(sprints);
+    }
+  }
+
   // ── sprints ───────────────────────────────────────────────────────────────
   async function handleCriarSprint(e: React.FormEvent) {
     e.preventDefault();
@@ -418,16 +443,19 @@ export default function GestaoOperacional() {
         finalUrl = await uploadMaterialFile(materialFile);
       }
 
+      const pastaFinal = (novoMaterial.pasta.trim() || novaPasta.trim()) || null;
       await createMaterial({
         titulo: novoMaterial.titulo, descricao: novoMaterial.descricao || null,
         tipo: novoMaterial.tipo, url: finalUrl,
         aluno_id: novoMaterial.aluno_id === "__global__" ? null : novoMaterial.aluno_id,
         sprint_id: novoMaterial.sprint_id === "__none__" ? null : novoMaterial.sprint_id,
         criado_por: profile?.id ?? null,
-      });
+        pasta: pastaFinal,
+      } as any);
       toast({ title: "Material adicionado!" });
       setOpenAddMaterial(false);
-      setNovoMaterial({ titulo: "", descricao: "", tipo: "link", url: "", aluno_id: "__global__", sprint_id: "__none__" });
+      setNovoMaterial({ titulo: "", descricao: "", tipo: "link", url: "", aluno_id: "__global__", sprint_id: "__none__", pasta: "" });
+      setNovaPasta("");
       setMaterialMode("link");
       setMaterialFile(null);
       setMateriais((await fetchTodosMateriais() || []) as Material[]);
@@ -583,7 +611,7 @@ export default function GestaoOperacional() {
                         {importandoTemplate ? <Loader2 size={13} className="animate-spin" /> : <LayoutTemplate size={13} />}
                         Importar Template 1 Ano
                       </Button>
-                      <Button size="sm" onClick={() => setOpenCriarTarefa(true)} variant="outline" className="gap-1.5 border-border">
+                      <Button size="sm" onClick={() => abrirDialogTarefa()} variant="outline" className="gap-1.5 border-border">
                         <Star size={13} /> Nova Tarefa
                       </Button>
                       <Button size="sm" onClick={() => setOpenCriarSprint(true)} className="gap-1.5">
@@ -692,18 +720,34 @@ export default function GestaoOperacional() {
                     <Button size="sm" onClick={() => setOpenAddMaterial(true)} className="gap-1.5"><PlusCircle size={13} /> Adicionar</Button>
                   </div>
                   {materiais.length === 0 ? (
-                    <div className="bg-zinc-900/30 rounded-2xl border border-dashed border-border/40 p-12 text-center">
-                      <BookOpen size={32} className="text-muted-foreground/20 mx-auto mb-3" />
+                    <div className="bg-secondary/30 rounded-2xl border border-dashed border-border p-12 text-center">
+                      <BookOpen size={32} className="text-muted-foreground/40 mx-auto mb-3" />
                       <p className="text-muted-foreground text-sm">Nenhum material cadastrado.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {materiais.map(m => {
+                    <div className="space-y-6">
+                      {(() => {
+                        const pastas = Array.from(new Set(materiais.map(m => (m as any).pasta || null)));
+                        const grupos: (string | null)[] = [null, ...pastas.filter(Boolean) as string[]];
+                        return grupos.map(pasta => {
+                          const grupo = materiais.filter(m => ((m as any).pasta || null) === pasta);
+                          if (grupo.length === 0) return null;
+                          return (
+                            <div key={pasta ?? "__sem__"}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                                  {pasta ? `📁 ${pasta}` : "Sem pasta"}
+                                </span>
+                                <div className="flex-1 h-px bg-border" />
+                                <span className="text-[10px] text-muted-foreground">{grupo.length}</span>
+                              </div>
+                              <div className="space-y-2">
+                                {grupo.map(m => {
                         const meta = TIPO_MATERIAL_META[m.tipo as TipoMaterial] ?? TIPO_MATERIAL_META.link;
                         const alunoNome = (m as any).alunos?.profiles?.nome;
                         return (
-                          <div key={m.id} className="flex items-center gap-4 p-4 bg-zinc-900/50 rounded-xl border border-border/30 hover:border-border/60 transition-colors">
-                            <div className={cn("w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0", meta.color)}>{meta.icon}</div>
+                          <div key={m.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:border-primary/30 transition-colors">
+                            <div className={cn("w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0", meta.color)}>{meta.icon}</div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-foreground truncate">{m.titulo}</p>
                               {m.descricao && <p className="text-xs text-muted-foreground truncate">{m.descricao}</p>}
@@ -725,6 +769,11 @@ export default function GestaoOperacional() {
                           </div>
                         );
                       })}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </div>
@@ -780,7 +829,7 @@ export default function GestaoOperacional() {
                     
                     <div className="space-y-2">
                       <Button size="sm" variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                        onClick={() => { setNovaTarefa(p => ({ ...p, aluno_id: alunoDetalhes.id })); setOpenCriarTarefa(true); }}>
+                        onClick={() => abrirDialogTarefa(alunoDetalhes.id)}>
                         <PlusCircle size={14} /> Atribuir Nova Tarefa a Este Aluno
                       </Button>
                       <Button size="sm" variant="outline" className="w-full gap-2 border-border text-muted-foreground hover:text-foreground"
@@ -1055,18 +1104,25 @@ export default function GestaoOperacional() {
             <DialogDescription>Cria uma meta em um Sprint para um ou todos os alunos.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCriarTarefa} className="space-y-4">
-            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Sprint *</Label>
-              <Select value={novaTarefa.sprint_id} onValueChange={v => setNovaTarefa(p => ({ ...p, sprint_id: v }))}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o sprint" /></SelectTrigger>
-                <SelectContent>{sprints.map(s => <SelectItem key={s.id} value={s.id}>{s.titulo}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Aluno</Label>
-              <Select value={novaTarefa.aluno_id} onValueChange={v => setNovaTarefa(p => ({ ...p, aluno_id: v }))}>
+              <Select value={novaTarefa.aluno_id} onValueChange={handleAlterarAlunoTarefa}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__todos__">Todos os Alunos</SelectItem>
                   {alunos.map(a => <SelectItem key={a.id} value={a.id}>{a.profiles?.nome || a.leads?.nome_completo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Sprint *</Label>
+              <Select value={novaTarefa.sprint_id} onValueChange={v => setNovaTarefa(p => ({ ...p, sprint_id: v }))}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o sprint" /></SelectTrigger>
+                <SelectContent>
+                  {sprintsParaTarefa.length === 0 && <SelectItem value="__none__" disabled>Nenhum sprint disponível</SelectItem>}
+                  {sprintsParaTarefa.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.titulo}{s.aluno_id ? " ★" : ""}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1197,10 +1253,46 @@ export default function GestaoOperacional() {
               )}
             </div>
 
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Pasta</Label>
+              {(() => {
+                const pastasExistentes = Array.from(new Set(
+                  materiais.map(m => (m as any).pasta).filter(Boolean)
+                )) as string[];
+                return (
+                  <>
+                    <Select
+                      value={novoMaterial.pasta || "__sem__"}
+                      onValueChange={v => {
+                        if (v === "__nova__") { setNovoMaterial(p => ({ ...p, pasta: "__nova__" })); }
+                        else if (v === "__sem__") { setNovoMaterial(p => ({ ...p, pasta: "" })); setNovaPasta(""); }
+                        else { setNovoMaterial(p => ({ ...p, pasta: v })); setNovaPasta(""); }
+                      }}
+                    >
+                      <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem pasta" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__sem__">Sem pasta</SelectItem>
+                        {pastasExistentes.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        <SelectItem value="__nova__">+ Criar nova pasta...</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {novoMaterial.pasta === "__nova__" && (
+                      <Input
+                        className="bg-secondary border-border mt-2"
+                        placeholder="Nome da nova pasta"
+                        value={novaPasta}
+                        onChange={e => setNovaPasta(e.target.value)}
+                        required
+                      />
+                    )}
+                  </>
+                );
+              })()}
+            </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
               <Textarea value={novoMaterial.descricao} onChange={e => setNovoMaterial(p => ({ ...p, descricao: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} />
             </div>
-            <Button type="submit" disabled={savingMaterial || (materialMode === "upload" && !materialFile) || (materialMode === "link" && !novoMaterial.url)} className="w-full h-11 font-bold">
+            <Button type="submit" disabled={savingMaterial || (materialMode === "upload" && !materialFile) || (materialMode === "link" && !novoMaterial.url) || (novoMaterial.pasta === "__nova__" && !novaPasta.trim())} className="w-full h-11 font-bold">
               {savingMaterial ? <Loader2 size={16} className="animate-spin" /> : "Salvar Material"}
             </Button>
           </form>

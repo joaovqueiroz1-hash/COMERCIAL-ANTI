@@ -572,6 +572,35 @@ export default function PortalAluno() {
                     : `Nenhum ${TIPO_META[filtroMaterial]?.label ?? filtroMaterial} disponível.`}
                 </p>
               </div>
+            ) : filtroMaterial === 'todos' ? (
+              <div className="space-y-6">
+                {(() => {
+                  const pastas = Array.from(new Set(materiaisFiltrados.map(m => (m as any).pasta || null)));
+                  const grupos: (string | null)[] = [null, ...pastas.filter(Boolean) as string[]];
+                  return grupos.map(pasta => {
+                    const grupo = materiaisFiltrados.filter(m => ((m as any).pasta || null) === pasta);
+                    if (grupo.length === 0) return null;
+                    return (
+                      <div key={pasta ?? "__sem__"}>
+                        {pasta && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                              📁 {pasta}
+                            </span>
+                            <div className="flex-1 h-px bg-border" />
+                            <span className="text-[10px] text-muted-foreground">{grupo.length}</span>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {grupo.map(m => (
+                            <MaterialCard key={m.id} material={m as any} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {materiaisFiltrados.map(m => (
