@@ -43,7 +43,7 @@ type TipoEvento = "reuniao" | "evento" | "checkpoint" | "aula" | "entrega";
 
 const TIPO_MATERIAL_META: Record<TipoMaterial, { icon: React.ReactNode; label: string; color: string }> = {
   video:     { icon: <Video size={14} />,    label: "Vídeo",     color: "text-red-400" },
-  pdf:       { icon: <FileText size={14} />, label: "PDF",       color: "text-orange-400" },
+  pdf:       { icon: <FileText size={14} />, label: "PDF",       color: "text-primary" },
   documento: { icon: <BookOpen size={14} />, label: "Documento", color: "text-blue-400" },
   link:      { icon: <Link2 size={14} />,    label: "Link",      color: "text-emerald-400" },
 };
@@ -93,6 +93,7 @@ export default function GestaoOperacional() {
   const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca" | "premio">("tarefas");
   const [premioEdit,      setPremioEdit]      = useState({ titulo: "", descricao: "", xp_meta: 1000 });
   const [savingPremio,    setSavingPremio]    = useState(false);
+  const [sprintsAluno,    setSprintsAluno]    = useState<any[]>([]);
 
   // ── matrícula ─────────────────────────────────────────────────────────────
   const [openMatricula, setOpenMatricula] = useState(false);
@@ -113,11 +114,17 @@ export default function GestaoOperacional() {
   const [savingSprint,     setSavingSprint]     = useState(false);
   const [savingTarefa,     setSavingTarefa]     = useState(false);
   const [importandoTemplate, setImportandoTemplate] = useState(false);
+  const [importandoParaAluno, setImportandoParaAluno] = useState<string | null>(null);
   const [novoSprint, setNovoSprint] = useState({ titulo: "", descricao: "", aluno_id: null as string | null });
   const [novaTarefa, setNovaTarefa] = useState({
-    sprint_id: "", aluno_id: "__todos__", titulo: "", xp_recompensa: 50, prazo: "",
+    sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "",
   });
   const [sprintsParaTarefa, setSprintsParaTarefa] = useState<any[]>([]);
+
+  // ── biblioteca: pastas ────────────────────────────────────────────────────
+  const [openNovaPastaDialog, setOpenNovaPastaDialog] = useState(false);
+  const [novaPastaInput, setNovaPastaInput] = useState("");
+  const [pastasLocais, setPastasLocais] = useState<string[]>([]);
 
   // ── eventos ───────────────────────────────────────────────────────────────
   const [openCriarEvento, setOpenCriarEvento] = useState(false);
@@ -163,13 +170,21 @@ export default function GestaoOperacional() {
   async function abrirDetalhe(aluno: any) {
     setAlunoDetalhes(aluno);
     setSheetTab("tarefas");
+    setSprintsAluno([]);
     setPremioEdit({
       titulo: aluno.premio_titulo ?? "",
       descricao: aluno.premio_descricao ?? "",
       xp_meta: aluno.premio_xp_meta ?? 1000,
     });
     setLoadingTarefas(true);
-    try { setTarefasDetalhe(await fetchSprintTarefas(aluno.id) || []); }
+    try {
+      const [tarefas, spAluno] = await Promise.all([
+        fetchSprintTarefas(aluno.id),
+        fetchSprintsForAluno(aluno.id),
+      ]);
+      setTarefasDetalhe(tarefas || []);
+      setSprintsAluno(spAluno || []);
+    }
     finally { setLoadingTarefas(false); }
   }
 
@@ -322,83 +337,100 @@ export default function GestaoOperacional() {
 
   // ── tarefa: abrir dialog (carrega sprints do aluno selecionado) ──────────
   async function abrirDialogTarefa(alunoIdPreSelecionado?: string) {
-    const alunoId = alunoIdPreSelecionado ?? "__todos__";
+    const alunoId = alunoIdPreSelecionado ?? "";
     setNovaTarefa(p => ({ ...p, aluno_id: alunoId, sprint_id: "" }));
-    if (alunoId !== "__todos__") {
+    if (alunoId) {
       const data = await fetchSprintsForAluno(alunoId);
       setSprintsParaTarefa(data || []);
     } else {
-      setSprintsParaTarefa(sprints);
+      setSprintsParaTarefa([]);
     }
     setOpenCriarTarefa(true);
   }
 
   async function handleAlterarAlunoTarefa(alunoId: string) {
     setNovaTarefa(p => ({ ...p, aluno_id: alunoId, sprint_id: "" }));
-    if (alunoId !== "__todos__") {
-      const data = await fetchSprintsForAluno(alunoId);
-      setSprintsParaTarefa(data || []);
-    } else {
-      setSprintsParaTarefa(sprints);
-    }
+    const data = alunoId ? await fetchSprintsForAluno(alunoId) : [];
+    setSprintsParaTarefa(data || []);
   }
 
   // ── sprints ───────────────────────────────────────────────────────────────
   async function handleCriarSprint(e: React.FormEvent) {
     e.preventDefault();
-    if (!novoSprint.titulo) return;
+    if (!novoSprint.titulo || !novoSprint.aluno_id) {
+      toast({ title: "Selecione um aluno para o sprint.", variant: "destructive" });
+      return;
+    }
     setSavingSprint(true);
     try {
-      const ordem = sprints.length + 1;
-      const newS = await createSprint(novoSprint.titulo, novoSprint.descricao || undefined, ordem, novoSprint.aluno_id);
-      if (!novoSprint.aluno_id) setSprints(prev => [...prev, newS]);
-      toast({ title: novoSprint.aluno_id ? "Sprint exclusivo criado!" : "Sprint criado!" });
+      const existentes = await fetchSprintsForAluno(novoSprint.aluno_id);
+      const ordem = existentes.length + 1;
+      const novo = await createSprint(novoSprint.titulo, novoSprint.descricao || undefined, ordem, novoSprint.aluno_id);
+      if (alunoDetalhes?.id === novoSprint.aluno_id) {
+        setSprintsAluno(prev => [...prev, novo]);
+      }
+      toast({ title: "Sprint criado!" });
       setOpenCriarSprint(false);
       setNovoSprint({ titulo: "", descricao: "", aluno_id: null });
     } catch { toast({ title: "Erro ao criar sprint.", variant: "destructive" }); }
     finally { setSavingSprint(false); }
   }
 
-  async function handleImportarTemplate() {
-    setImportandoTemplate(true);
+  async function handleImportarTemplate(aluno_id: string) {
+    setImportandoParaAluno(aluno_id);
     try {
+      const existentes = await fetchSprintsForAluno(aluno_id);
       let created = 0;
       for (const s of TEMPLATE_SPRINTS) {
-        const exists = sprints.some(x => x.titulo === s.titulo);
-        if (!exists) { await createSprint(s.titulo, s.descricao, s.ordem); created++; }
+        const exists = existentes.some((x: any) => x.titulo === s.titulo);
+        if (!exists) { await createSprint(s.titulo, s.descricao, s.ordem, aluno_id); created++; }
       }
-      const fresh = await fetchSprints();
-      setSprints(fresh || []);
+      if (alunoDetalhes?.id === aluno_id) {
+        const fresh = await fetchSprintsForAluno(aluno_id);
+        setSprintsAluno(fresh || []);
+      }
       toast({ title: `${created} sprint(s) importados!`, description: created === 0 ? "Todos já existiam." : undefined });
     } catch { toast({ title: "Erro ao importar.", variant: "destructive" }); }
-    finally { setImportandoTemplate(false); }
+    finally { setImportandoParaAluno(null); }
   }
 
   async function handleCriarTarefa(e: React.FormEvent) {
     e.preventDefault();
-    if (!novaTarefa.sprint_id || !novaTarefa.titulo) return;
+    if (!novaTarefa.sprint_id || !novaTarefa.titulo || !novaTarefa.aluno_id) return;
     setSavingTarefa(true);
     try {
-      const targets = novaTarefa.aluno_id === "__todos__" ? alunos : alunos.filter(a => a.id === novaTarefa.aluno_id);
-      for (const aluno of targets) {
-        await createSprintTarefa({
-          sprint_id: novaTarefa.sprint_id,
-          aluno_id: aluno.id,
-          titulo: novaTarefa.titulo,
-          xp_recompensa: novaTarefa.xp_recompensa,
-          prazo: novaTarefa.prazo || undefined,
-        });
-      }
-      toast({ title: `Tarefa criada para ${targets.length} aluno(s)!` });
+      await createSprintTarefa({
+        sprint_id: novaTarefa.sprint_id,
+        aluno_id: novaTarefa.aluno_id,
+        titulo: novaTarefa.titulo,
+        xp_recompensa: novaTarefa.xp_recompensa,
+        prazo: novaTarefa.prazo || undefined,
+      });
+      toast({ title: "Tarefa criada!" });
       setOpenCriarTarefa(false);
-      setNovaTarefa({ sprint_id: "", aluno_id: "__todos__", titulo: "", xp_recompensa: 50, prazo: "" });
+      setNovaTarefa({ sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "" });
     } catch { toast({ title: "Erro ao criar tarefa.", variant: "destructive" }); }
     finally { setSavingTarefa(false); }
   }
 
   async function handleDeletarSprint(id: string) {
-    try { await deleteSprint(id); setSprints(prev => prev.filter(s => s.id !== id)); toast({ title: "Sprint removido." }); }
+    try {
+      await deleteSprint(id);
+      setSprintsAluno(prev => prev.filter(s => s.id !== id));
+      toast({ title: "Sprint removido." });
+    }
     catch { toast({ title: "Erro ao remover.", variant: "destructive" }); }
+  }
+
+  function handleCriarPastaLocal() {
+    const nome = novaPastaInput.trim();
+    if (!nome) return;
+    if (!pastasLocais.includes(nome)) setPastasLocais(prev => [...prev, nome]);
+    setNovoMaterial(p => ({ ...p, pasta: nome }));
+    setNovaPasta(nome);
+    setOpenNovaPastaDialog(false);
+    setNovaPastaInput("");
+    setOpenAddMaterial(true);
   }
 
   // ── eventos ───────────────────────────────────────────────────────────────
@@ -473,7 +505,7 @@ export default function GestaoOperacional() {
   }
 
   // ── helpers para sheet ────────────────────────────────────────────────────
-  const sprintsComTarefas = sprints.map(s => ({
+  const sprintsComTarefas = sprintsAluno.map(s => ({
     ...s, tarefas: tarefasDetalhe.filter(t => t.sprint_id === s.id),
   })).filter(s => s.tarefas.length > 0);
   const pendentesAprovacao = tarefasDetalhe.filter(t => t.concluida && !t.aprovada_por_equipe);
@@ -502,9 +534,6 @@ export default function GestaoOperacional() {
                 {leadsFechados.length} aguardando matrícula
               </span>
             )}
-            <Button size="sm" onClick={() => { setOpenCriarSprint(true); setActiveTab("sprints"); }} variant="outline" className="gap-1.5 border-border">
-              <Zap size={13} /> Novo Sprint
-            </Button>
             <Button size="sm" onClick={() => { setOpenCriarEvento(true); setActiveTab("eventos"); }} variant="outline" className="gap-1.5 border-border">
               <Calendar size={13} /> Novo Evento
             </Button>
@@ -598,56 +627,53 @@ export default function GestaoOperacional() {
                 </div>
               )}
 
-              {/* ══ SPRINTS ═══════════════════════════════════════════════════ */}
+              {/* ══ SPRINTS POR ALUNO ════════════════════════════════════════ */}
               {activeTab === "sprints" && (
                 <div className="space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-lg font-bold text-foreground">Sprints & Tarefas</h2>
-                      <p className="text-sm text-muted-foreground mt-0.5">Crie os módulos da mentoria e atribua tarefas aos alunos.</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" onClick={handleImportarTemplate} disabled={importandoTemplate} className="gap-1.5 border-border">
-                        {importandoTemplate ? <Loader2 size={13} className="animate-spin" /> : <LayoutTemplate size={13} />}
-                        Importar Template 1 Ano
-                      </Button>
-                      <Button size="sm" onClick={() => abrirDialogTarefa()} variant="outline" className="gap-1.5 border-border">
-                        <Star size={13} /> Nova Tarefa
-                      </Button>
-                      <Button size="sm" onClick={() => setOpenCriarSprint(true)} className="gap-1.5">
-                        <PlusCircle size={13} /> Novo Sprint
-                      </Button>
+                      <h2 className="text-lg font-bold text-foreground">Sprints por Aluno</h2>
+                      <p className="text-sm text-muted-foreground mt-0.5">Cada aluno tem seus próprios sprints. Gerencie dentro de cada perfil.</p>
                     </div>
                   </div>
 
-                  {sprints.length === 0 ? (
-                    <div className="bg-zinc-900/30 rounded-2xl border border-dashed border-border/40 p-12 text-center">
-                      <Layers size={32} className="text-muted-foreground/20 mx-auto mb-3" />
-                      <h3 className="text-lg font-bold text-white mb-1">Nenhum Sprint criado</h3>
-                      <p className="text-muted-foreground text-sm mb-4">Crie manualmente ou importe o template de 12 meses.</p>
-                      <Button onClick={handleImportarTemplate} disabled={importandoTemplate} className="gap-2">
-                        {importandoTemplate ? <Loader2 size={14} className="animate-spin" /> : <LayoutTemplate size={14} />}
-                        Importar Template 1 Ano (12 Sprints)
-                      </Button>
+                  {alunos.length === 0 ? (
+                    <div className="bg-secondary/30 rounded-2xl border border-dashed border-border p-12 text-center">
+                      <Users size={32} className="text-muted-foreground/40 mx-auto mb-3" />
+                      <p className="text-muted-foreground text-sm">Nenhum aluno matriculado. Matricule primeiro para gerenciar sprints.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {sprints.map((sprint, idx) => (
-                        <div key={sprint.id} className="bg-zinc-900/50 border border-border/30 rounded-xl p-4 hover:border-border/60 transition-colors">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                                {String(idx + 1).padStart(2, "0")}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-foreground">{sprint.titulo}</p>
-                                {sprint.descricao && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{sprint.descricao}</p>}
-                              </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {alunos.map(aluno => (
+                        <div key={aluno.id} className="bg-card border border-border rounded-xl p-5 flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-primary shrink-0">
+                              {getInitials(aluno.profiles?.nome || aluno.leads?.nome_completo || "?")}
                             </div>
-                            <button onClick={() => handleDeletarSprint(sprint.id)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded shrink-0">
-                              <Trash2 size={13} />
-                            </button>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-foreground truncate">{aluno.profiles?.nome || aluno.leads?.nome_completo}</h3>
+                              <p className="text-xs text-muted-foreground">{aluno.fase_atual}</p>
+                            </div>
                           </div>
+                          <div className="flex flex-col gap-2">
+                            <Button size="sm" variant="outline" className="gap-2 w-full border-primary/30 text-primary hover:bg-primary/10"
+                              onClick={() => abrirDialogTarefa(aluno.id)}>
+                              <Star size={13} /> Nova Tarefa
+                            </Button>
+                            <Button size="sm" variant="outline" className="gap-2 w-full border-border"
+                              onClick={() => { setNovoSprint(p => ({ ...p, aluno_id: aluno.id })); setOpenCriarSprint(true); }}>
+                              <Zap size={13} /> Criar Sprint
+                            </Button>
+                            <Button size="sm" variant="outline" className="gap-2 w-full border-border text-muted-foreground hover:text-foreground"
+                              disabled={importandoParaAluno === aluno.id}
+                              onClick={() => handleImportarTemplate(aluno.id)}>
+                              {importandoParaAluno === aluno.id ? <Loader2 size={13} className="animate-spin" /> : <LayoutTemplate size={13} />}
+                              Importar Template 12 Sprints
+                            </Button>
+                          </div>
+                          <button onClick={() => abrirDetalhe(aluno)} className="text-xs text-primary/70 hover:text-primary flex items-center gap-1 justify-end transition-colors">
+                            Ver detalhes completos <ChevronRight size={12} />
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -717,7 +743,12 @@ export default function GestaoOperacional() {
                       <h2 className="text-lg font-bold text-foreground">Biblioteca de Conteúdo</h2>
                       <p className="text-sm text-muted-foreground mt-0.5">Materiais globais visíveis para todos. Individuais apenas para o aluno selecionado.</p>
                     </div>
-                    <Button size="sm" onClick={() => setOpenAddMaterial(true)} className="gap-1.5"><PlusCircle size={13} /> Adicionar</Button>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setOpenNovaPastaDialog(true)} className="gap-1.5 border-border">
+                        <PlusCircle size={13} /> Nova Pasta
+                      </Button>
+                      <Button size="sm" onClick={() => setOpenAddMaterial(true)} className="gap-1.5"><PlusCircle size={13} /> Adicionar</Button>
+                    </div>
                   </div>
                   {materiais.length === 0 ? (
                     <div className="bg-secondary/30 rounded-2xl border border-dashed border-border p-12 text-center">
@@ -727,11 +758,28 @@ export default function GestaoOperacional() {
                   ) : (
                     <div className="space-y-6">
                       {(() => {
-                        const pastas = Array.from(new Set(materiais.map(m => (m as any).pasta || null)));
-                        const grupos: (string | null)[] = [null, ...pastas.filter(Boolean) as string[]];
+                        const pastasDosMateriais = Array.from(new Set(materiais.map(m => (m as any).pasta).filter(Boolean))) as string[];
+                        const todasPastas = Array.from(new Set([...pastasDosMateriais, ...pastasLocais]));
+                        const grupos: (string | null)[] = [null, ...todasPastas];
                         return grupos.map(pasta => {
                           const grupo = materiais.filter(m => ((m as any).pasta || null) === pasta);
-                          if (grupo.length === 0) return null;
+                          if (grupo.length === 0 && pasta === null) return null;
+                          if (grupo.length === 0 && pasta !== null) return (
+                            <div key={pasta}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">📁 {pasta}</span>
+                                <div className="flex-1 h-px bg-border" />
+                                <span className="text-[10px] text-muted-foreground">0</span>
+                              </div>
+                              <div className="border border-dashed border-border rounded-xl p-4 text-center">
+                                <p className="text-xs text-muted-foreground mb-2">Pasta vazia</p>
+                                <Button size="sm" variant="outline" className="gap-1.5 text-xs border-primary/30 text-primary"
+                                  onClick={() => { setNovoMaterial(p => ({ ...p, pasta })); setOpenAddMaterial(true); }}>
+                                  <PlusCircle size={11} /> Adicionar material
+                                </Button>
+                              </div>
+                            </div>
+                          );
                           return (
                             <div key={pasta ?? "__sem__"}>
                               <div className="flex items-center gap-2 mb-3">
@@ -860,7 +908,12 @@ export default function GestaoOperacional() {
                     ) : (
                       sprintsComTarefas.map(sprint => (
                         <div key={sprint.id}>
-                          <h4 className="text-xs uppercase tracking-widest text-muted-foreground/60 font-bold mb-3">{sprint.titulo}</h4>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs uppercase tracking-widest text-muted-foreground/60 font-bold">{sprint.titulo}</h4>
+                            <button onClick={() => handleDeletarSprint(sprint.id)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded" title="Remover sprint">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                           <div className="space-y-2">
                             {sprint.tarefas.map((tarefa: any) => (
                               <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
@@ -1069,29 +1122,26 @@ export default function GestaoOperacional() {
       <Dialog open={openCriarSprint} onOpenChange={open => { if (!open) { setNovoSprint({ titulo: "", descricao: "", aluno_id: null }); } setOpenCriarSprint(open); }}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" size={18} />
-              {novoSprint.aluno_id ? "Criar Sprint Exclusivo" : "Criar Sprint"}
-            </DialogTitle>
-            <DialogDescription>
-              {novoSprint.aluno_id
-                ? `Este sprint ficará visível apenas para ${alunos.find(a => a.id === novoSprint.aluno_id)?.profiles?.nome || "este aluno"}.`
-                : "Módulo de execução da mentoria (visível para todos os alunos)."}
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Layers className="text-primary" size={18} /> Criar Sprint</DialogTitle>
+            <DialogDescription>O sprint ficará vinculado ao aluno selecionado.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCriarSprint} className="space-y-4">
-            {novoSprint.aluno_id && (
-              <div className="px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-xs text-primary font-medium">
-                Sprint exclusivo — não aparece para outros alunos
-              </div>
-            )}
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Aluno *</Label>
+              <Select value={novoSprint.aluno_id ?? ""} onValueChange={v => setNovoSprint(p => ({ ...p, aluno_id: v || null }))}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o aluno" /></SelectTrigger>
+                <SelectContent>
+                  {alunos.map(a => <SelectItem key={a.id} value={a.id}>{a.profiles?.nome || a.leads?.nome_completo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título *</Label>
               <Input value={novoSprint.titulo} onChange={e => setNovoSprint(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Sprint 1 — Diagnóstico & Base" required />
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
               <Textarea value={novoSprint.descricao} onChange={e => setNovoSprint(p => ({ ...p, descricao: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} />
             </div>
-            <Button type="submit" disabled={savingSprint} className="w-full h-11 font-bold">
-              {savingSprint ? <Loader2 size={16} className="animate-spin" /> : novoSprint.aluno_id ? "Criar Sprint Exclusivo" : "Criar Sprint"}
+            <Button type="submit" disabled={savingSprint || !novoSprint.aluno_id} className="w-full h-11 font-bold">
+              {savingSprint ? <Loader2 size={16} className="animate-spin" /> : "Criar Sprint"}
             </Button>
           </form>
         </DialogContent>
@@ -1101,27 +1151,24 @@ export default function GestaoOperacional() {
       <Dialog open={openCriarTarefa} onOpenChange={setOpenCriarTarefa}>
         <DialogContent className="bg-card border-border sm:max-w-lg">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Star className="text-primary" size={18} /> Atribuir Tarefa</DialogTitle>
-            <DialogDescription>Cria uma meta em um Sprint para um ou todos os alunos.</DialogDescription>
+            <DialogDescription>Cria uma tarefa dentro de um Sprint para o aluno selecionado.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCriarTarefa} className="space-y-4">
-            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Aluno</Label>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Aluno *</Label>
               <Select value={novaTarefa.aluno_id} onValueChange={handleAlterarAlunoTarefa}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o aluno" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__todos__">Todos os Alunos</SelectItem>
                   {alunos.map(a => <SelectItem key={a.id} value={a.id}>{a.profiles?.nome || a.leads?.nome_completo}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Sprint *</Label>
-              <Select value={novaTarefa.sprint_id} onValueChange={v => setNovaTarefa(p => ({ ...p, sprint_id: v }))}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Selecione o sprint" /></SelectTrigger>
+              <Select value={novaTarefa.sprint_id} onValueChange={v => setNovaTarefa(p => ({ ...p, sprint_id: v }))} disabled={!novaTarefa.aluno_id}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder={novaTarefa.aluno_id ? "Selecione o sprint" : "Selecione um aluno primeiro"} /></SelectTrigger>
                 <SelectContent>
-                  {sprintsParaTarefa.length === 0 && <SelectItem value="__none__" disabled>Nenhum sprint disponível</SelectItem>}
+                  {sprintsParaTarefa.length === 0 && <SelectItem value="__none__" disabled>Nenhum sprint encontrado — crie um primeiro</SelectItem>}
                   {sprintsParaTarefa.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.titulo}{s.aluno_id ? " ★" : ""}
-                    </SelectItem>
+                    <SelectItem key={s.id} value={s.id}>{s.titulo}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1137,7 +1184,7 @@ export default function GestaoOperacional() {
                 <Input type="date" value={novaTarefa.prazo} onChange={e => setNovaTarefa(p => ({ ...p, prazo: e.target.value }))} className="bg-secondary border-border" />
               </div>
             </div>
-            <Button type="submit" disabled={savingTarefa || !novaTarefa.sprint_id} className="w-full h-11 font-bold">
+            <Button type="submit" disabled={savingTarefa || !novaTarefa.sprint_id || !novaTarefa.aluno_id} className="w-full h-11 font-bold">
               {savingTarefa ? <Loader2 size={16} className="animate-spin" /> : "Criar Tarefa"}
             </Button>
           </form>
@@ -1296,6 +1343,31 @@ export default function GestaoOperacional() {
               {savingMaterial ? <Loader2 size={16} className="animate-spin" /> : "Salvar Material"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══ DIALOG: Nova Pasta ════════════════════════════════════════════════ */}
+      <Dialog open={openNovaPastaDialog} onOpenChange={v => { setOpenNovaPastaDialog(v); if (!v) setNovaPastaInput(""); }}>
+        <DialogContent className="bg-card border-border sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><BookOpen className="text-primary" size={18} /> Nova Pasta</DialogTitle>
+            <DialogDescription>Crie uma pasta para organizar os materiais da biblioteca.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Nome da Pasta *</Label>
+              <Input
+                value={novaPastaInput}
+                onChange={e => setNovaPastaInput(e.target.value)}
+                className="bg-secondary border-border"
+                placeholder="Ex: Sprint 1, Aulas, Planilhas..."
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleCriarPastaLocal(); } }}
+                autoFocus
+              />
+            </div>
+            <Button onClick={handleCriarPastaLocal} disabled={!novaPastaInput.trim()} className="w-full h-11 font-bold">
+              Criar Pasta e Adicionar Material
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </AppLayout>

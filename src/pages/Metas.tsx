@@ -21,7 +21,7 @@ const TIPOS = [
   { value: 'leads',       label: 'Novos Leads',         icon: Users },
 ];
 
-function calcValorAtual(tipo: string, leads: any[], dataInicio?: string, dataFim?: string, metaId?: string): number {
+function calcValorAtual(tipo: string, leads: any[], dataInicio?: string, dataFim?: string): number {
   const ini = dataInicio ? new Date(dataInicio) : null;
   const fim = dataFim ? new Date(dataFim + 'T23:59:59') : null;
 
@@ -35,10 +35,10 @@ function calcValorAtual(tipo: string, leads: any[], dataInicio?: string, dataFim
   switch (tipo) {
     case 'receita':
       return leads
-        .filter(l => ['fechado', 'vendido'].includes(l.status_pipeline) && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId))
+        .filter(l => ['fechado', 'vendido'].includes(l.status_pipeline) && inPeriod(l.updated_at || l.created_at))
         .reduce((s, l) => s + ((l as any).valor_acordado || l.faturamento_anual || 0), 0);
     case 'fechamentos':
-      return leads.filter(l => ['fechado', 'vendido'].includes(l.status_pipeline) && inPeriod(l.created_at) && (!metaId || l.meta_id === metaId)).length;
+      return leads.filter(l => ['fechado', 'vendido'].includes(l.status_pipeline) && inPeriod(l.updated_at || l.created_at)).length;
     case 'reunioes':
       return leads.filter(l => ['reuniao_agendada', 'reuniao_realizada'].includes(l.status_pipeline) && inPeriod(l.created_at)).length;
     case 'leads':
@@ -139,15 +139,22 @@ export default function Metas() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {metas.map((meta: any) => {
-            const atual = calcValorAtual(meta.tipo, leads, meta.data_inicio, meta.data_fim, meta.id);
+            const atual = calcValorAtual(meta.tipo, leads, meta.data_inicio, meta.data_fim);
             const pct = meta.valor_meta > 0 ? Math.min((atual / meta.valor_meta) * 100, 100) : 0;
             const tipoConfig = TIPOS.find(t => t.value === meta.tipo);
             const TipoIcon = tipoConfig?.icon ?? Target;
             const isReceita = meta.tipo === 'receita';
             const formatVal = (v: number) => isReceita ? formatCurrency(v) : String(Math.round(v));
 
-            // Always compute both linked stats regardless of meta type
-            const leadsVinculados = (leads as any[]).filter(l => l.meta_id === meta.id && ['fechado', 'vendido'].includes(l.status_pipeline));
+            const ini = meta.data_inicio ? new Date(meta.data_inicio) : null;
+            const fim = meta.data_fim ? new Date(meta.data_fim + 'T23:59:59') : null;
+            const leadsVinculados = (leads as any[]).filter(l => {
+              if (!['fechado', 'vendido'].includes(l.status_pipeline)) return false;
+              const d = new Date(l.updated_at || l.created_at);
+              if (ini && d < ini) return false;
+              if (fim && d > fim) return false;
+              return true;
+            });
             const statsFechamentos = leadsVinculados.length;
             const statsReceita = leadsVinculados.reduce((sum: number, l: any) => sum + (l.valor_acordado || 0), 0);
 

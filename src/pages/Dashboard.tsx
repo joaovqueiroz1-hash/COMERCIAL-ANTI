@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -7,16 +7,20 @@ import { formatCurrency, isLeadQuente, STATUS_LABELS, PipelineStatus, PIPELINE_C
 import {
   TrendingUp, AlertTriangle, Clock, CalendarCheck, Flame, Users,
   Target, Phone, MessageSquare, DollarSign, Star, Crown,
-  Activity, ChevronRight, Zap, Award,
+  Activity, ChevronRight, Zap, Award, Filter,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const now = new Date();
+
+  const [filtroMes, setFiltroMes] = useState<string>('');
+  const [filtroResponsavel, setFiltroResponsavel] = useState<string>('');
 
   const { data: leads = [], isLoading: leadsLoading } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
@@ -39,39 +43,63 @@ export default function Dashboard() {
 
   // --- Metrics ---
   const isVendido = (s: string) => s === 'fechado' || s === 'vendido';
-  const leadsNovos = leads.filter((l) => l.status_pipeline === 'entrada_lead' || l.status_pipeline === 'novo_lead').length;
-  const emContato = leads.filter((l) => ['tentativa_contato', 'em_atendimento', 'contato_instagram', 'contato_whatsapp', 'contato_realizado'].includes(l.status_pipeline)).length;
-  const reunioesAgendadas = leads.filter((l) => l.status_pipeline === 'reuniao_agendada').length;
-  const fechados = leads.filter((l) => isVendido(l.status_pipeline));
-  const receitaFechada = fechados.reduce((sum, l) => sum + (l.faturamento_anual || 0), 0);
-  const valorAcordadoTotal = leads
-    .filter((l) => (isVendido(l.status_pipeline) || l.status_pipeline === 'negociacao') && (l as any).valor_acordado)
-    .reduce((sum, l) => sum + ((l as any).valor_acordado || 0), 0);
-  const totalAtivos = leads.filter((l) => l.status_pipeline !== 'perdido').length;
+
+  // Filtros
+  const leadsBase = leads.filter(l => {
+    if (filtroResponsavel && l.vendedor_id !== filtroResponsavel && l.gestor_id !== filtroResponsavel) return false;
+    return true;
+  });
+  const leadsFiltradosMes = !filtroMes ? leadsBase : leadsBase.filter(l => l.created_at.startsWith(filtroMes));
+  const fechadosNoMes = !filtroMes
+    ? leadsBase.filter(l => isVendido(l.status_pipeline))
+    : leadsBase.filter(l => isVendido(l.status_pipeline) && (l.updated_at || l.created_at).startsWith(filtroMes));
+
+  const leadsNovos = leadsFiltradosMes.filter((l) => l.status_pipeline === 'entrada_lead' || l.status_pipeline === 'novo_lead').length;
+  const emContato = leadsFiltradosMes.filter((l) => ['tentativa_contato', 'em_atendimento', 'contato_instagram', 'contato_whatsapp', 'contato_realizado'].includes(l.status_pipeline)).length;
+  const reunioesAgendadas = leadsFiltradosMes.filter((l) => l.status_pipeline === 'reuniao_agendada').length;
+  const fechados = fechadosNoMes;
+  const valorAcordadoTotal = fechados.reduce((sum, l) => sum + ((l as any).valor_acordado || l.faturamento_anual || 0), 0);
+  const totalAtivos = leadsFiltradosMes.filter((l) => l.status_pipeline !== 'perdido').length;
   const taxaConversao = totalAtivos > 0 ? ((fechados.length / totalAtivos) * 100).toFixed(1) : '0';
-  const potencialTotal = leads
+  const potencialTotal = leadsBase
     .filter((l) => !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido')
     .reduce((s, l) => s + (l.faturamento_anual || 0), 0);
 
-  const followupPendente = leads.filter(
+  // Últimos 6 meses de fechamentos
+  const ultimos6Meses = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - (5 - i));
+    return d.toISOString().slice(0, 7);
+  });
+  const fechadosPorMes = ultimos6Meses.map(m => {
+    const fl = filtroResponsavel
+      ? leads.filter(l => l.vendedor_id === filtroResponsavel || l.gestor_id === filtroResponsavel)
+      : leads;
+    const f = fl.filter(l => isVendido(l.status_pipeline) && (l.updated_at || l.created_at).startsWith(m));
+    const label = new Date(m + '-02').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+    return { mes: label, fechamentos: f.length, valor: f.reduce((s, l) => s + ((l as any).valor_acordado || 0), 0) };
+  });
+
+  const followupPendente = leadsBase.filter(
     (l) => l.proximo_followup && new Date(l.proximo_followup) < now && !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido'
   ).length;
 
-  const reunioesRealizadas = leads.filter((l) => l.status_pipeline === 'reuniao_realizada').length;
-  const emNegociacao = leads.filter((l) => l.status_pipeline === 'negociacao').length;
-  const perdidos = leads.filter((l) => l.status_pipeline === 'perdido').length;
+  const reunioesRealizadas = leadsFiltradosMes.filter((l) => l.status_pipeline === 'reuniao_realizada').length;
+  const emNegociacao = leadsBase.filter((l) => l.status_pipeline === 'negociacao').length;
+  const perdidos = leadsBase.filter((l) => l.status_pipeline === 'perdido').length;
 
-  const leadsSemContato48h = leads.filter((l) => {
+  const leadsSemContato48h = leadsBase.filter((l) => {
     if (isVendido(l.status_pipeline) || l.status_pipeline === 'perdido' || l.status_pipeline === 'entrada_lead' || l.status_pipeline === 'novo_lead') return false;
     if (!l.ultimo_contato) return true;
     return (now.getTime() - new Date(l.ultimo_contato).getTime()) > 48 * 60 * 60 * 1000;
   });
 
-  const followupsVencidos = leads.filter(
+  const followupsVencidos = leadsBase.filter(
     (l) => l.proximo_followup && new Date(l.proximo_followup) < now && !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido'
   );
 
-  const leadsQuentesList = leads.filter(
+  const leadsQuentesList = leadsBase.filter(
     (l) => isLeadQuente(l as any) && !isVendido(l.status_pipeline) && l.status_pipeline !== 'reuniao_agendada'
   );
 
@@ -80,16 +108,16 @@ export default function Dashboard() {
     return d.toDateString() === now.toDateString() && a.tipo === 'reuniao' && !a.concluida;
   });
 
-  const topFit = [...leads].sort((a, b) => (b.fit_mentoria || 0) - (a.fit_mentoria || 0)).slice(0, 6);
+  const topFit = [...leadsBase].sort((a, b) => (b.fit_mentoria || 0) - (a.fit_mentoria || 0)).slice(0, 6);
 
   // --- Team Performance ---
   const vendedores = profiles.filter((u) => u.ativo);
   const teamData = vendedores.map((u) => {
-    const myLeads = leads.filter((l) => l.vendedor_id === u.id || l.gestor_id === u.id);
+    const myLeads = leadsBase.filter((l) => l.vendedor_id === u.id || l.gestor_id === u.id);
     const closed = myLeads.filter((l) => isVendido(l.status_pipeline)).length;
     const inPipe = myLeads.filter((l) => !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido').length;
     const taxa = myLeads.length > 0 ? Math.round((closed / myLeads.length) * 100) : 0;
-    const receita = myLeads.filter((l) => isVendido(l.status_pipeline)).reduce((s, l) => s + (l.faturamento_anual || 0), 0);
+    const receita = myLeads.filter((l) => isVendido(l.status_pipeline)).reduce((s, l) => s + ((l as any).valor_acordado || 0), 0);
     return { id: u.id, nome: u.nome.split(' ')[0], nomeCompleto: u.nome, perfil: u.perfil, total: myLeads.length, closed, inPipe, taxa, receita };
   });
 
@@ -114,7 +142,7 @@ export default function Dashboard() {
     color: col.color,
   })).filter((d) => d.value > 0);
 
-  const leadsPrioritarios = [...leads]
+  const leadsPrioritarios = [...leadsBase]
     .filter((l) => !isVendido(l.status_pipeline) && l.status_pipeline !== 'perdido')
     .sort((a, b) => (b.faturamento_anual || 0) - (a.faturamento_anual || 0))
     .slice(0, 7);
@@ -152,6 +180,13 @@ export default function Dashboard() {
   const getInitialsFn = (name: string) =>
     name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
 
+  const mesesDisponiveis = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    return { value: d.toISOString().slice(0, 7), label: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) };
+  });
+
   return (
     <AppLayout
       title="Dashboard"
@@ -165,6 +200,36 @@ export default function Dashboard() {
         </Button>
       }
     >
+      {/* ── Filtros ── */}
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+          <Filter size={13} /> Filtrar por:
+        </div>
+        <Select value={filtroMes || '__todos__'} onValueChange={v => setFiltroMes(v === '__todos__' ? '' : v)}>
+          <SelectTrigger className="h-8 text-xs w-44 bg-card border-border">
+            <SelectValue placeholder="Todos os meses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__todos__">Todos os meses</SelectItem>
+            {mesesDisponiveis.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filtroResponsavel || '__todos__'} onValueChange={v => setFiltroResponsavel(v === '__todos__' ? '' : v)}>
+          <SelectTrigger className="h-8 text-xs w-44 bg-card border-border">
+            <SelectValue placeholder="Todos os responsáveis" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__todos__">Todos os responsáveis</SelectItem>
+            {vendedores.map(v => <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {(filtroMes || filtroResponsavel) && (
+          <button onClick={() => { setFiltroMes(''); setFiltroResponsavel(''); }} className="text-xs text-muted-foreground hover:text-foreground underline">
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
       {/* ── Hero KPIs ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 animate-fade-in">
         <KpiCard
@@ -372,6 +437,25 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">Nenhum lead cadastrado</p>
           )}
         </div>
+      </div>
+
+      {/* ── Fechamentos por Mês ── */}
+      <div className="card-premium p-4 sm:p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-foreground">Fechamentos por Mês</h3>
+          <span className="text-[10px] text-muted-foreground">Últimos 6 meses</span>
+        </div>
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={fechadosPorMes} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+            <XAxis dataKey="mes" tick={{ fill: '#B3B2AC', fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis hide allowDecimals={false} />
+            <Tooltip
+              contentStyle={{ background: '#FFFFFF', border: '1px solid #E8E5DF', borderRadius: 8, color: '#2E2E2E', fontSize: 12 }}
+              formatter={(v: any, name: string) => [name === 'fechamentos' ? `${v} fechados` : formatCurrency(v), name === 'fechamentos' ? 'Fechamentos' : 'Valor']}
+            />
+            <Bar dataKey="fechamentos" radius={[6, 6, 0, 0]} fill="hsl(31,31%,44%)" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* ── Charts row ── */}
