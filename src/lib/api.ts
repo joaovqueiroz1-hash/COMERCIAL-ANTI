@@ -242,7 +242,9 @@ export async function arquivarLeadsNaoFechados(): Promise<number> {
   const { data: targets, error: fetchErr } = await db
     .from('leads')
     .select('id')
-    .not('status_pipeline', 'in', '("fechado","vendido","arquivado")');
+    .neq('status_pipeline', 'fechado')
+    .neq('status_pipeline', 'vendido')
+    .neq('status_pipeline', 'arquivado');
   if (fetchErr) throw fetchErr;
   if (!targets || targets.length === 0) return 0;
   const ids = (targets as any[]).map(l => l.id);
