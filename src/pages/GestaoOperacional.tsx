@@ -615,20 +615,20 @@ export default function GestaoOperacional() {
                     return (
                       <section>
                         <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                          <Clock className="text-amber-400" size={20} /> Tarefas em Aberto
-                          <span className="text-xs bg-amber-400/10 text-amber-400 border border-amber-400/20 px-2 py-0.5 rounded-full">{tarefasAbertas.length}</span>
+                          <Clock className="text-primary" size={20} /> Tarefas em Aberto
+                          <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-bold">{tarefasAbertas.length}</span>
                         </h2>
-                        <div className="bg-card border border-border rounded-xl overflow-hidden">
+                        <div className="bg-card border border-primary/15 rounded-xl overflow-hidden shadow-sm">
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                               <thead>
-                                <tr className="border-b border-border bg-secondary/40">
-                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Aluno</th>
-                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Tarefa</th>
-                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sprint</th>
-                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Responsável</th>
-                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Prazo</th>
-                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                                <tr className="border-b border-primary/10 bg-primary/5">
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Aluno</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Tarefa</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Sprint</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Responsável</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Prazo</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Status</th>
                                   <th className="px-4 py-3" />
                                 </tr>
                               </thead>
@@ -640,8 +640,8 @@ export default function GestaoOperacional() {
                                   const responsavelNome = t.responsavel?.nome ?? null;
                                   const linkEntrega = (t as any).link_entrega;
                                   return (
-                                    <tr key={t.id} className="hover:bg-secondary/30 transition-colors">
-                                      <td className="px-4 py-3 text-xs font-medium text-foreground whitespace-nowrap">{alunoNome}</td>
+                                    <tr key={t.id} className="hover:bg-primary/5 transition-colors">
+                                      <td className="px-4 py-3 text-xs font-semibold text-foreground whitespace-nowrap">{alunoNome}</td>
                                       <td className="px-4 py-3 max-w-[200px]">
                                         <p className="text-xs text-foreground truncate">{t.titulo}</p>
                                         {linkEntrega && (
@@ -653,7 +653,7 @@ export default function GestaoOperacional() {
                                       <td className="px-4 py-3 text-[11px] text-muted-foreground max-w-[150px] truncate">{sprintTitulo}</td>
                                       <td className="px-4 py-3 whitespace-nowrap">
                                         {responsavelNome ? (
-                                          <span className="text-[11px] font-medium text-foreground bg-secondary px-2 py-0.5 rounded-full">{responsavelNome.split(" ")[0]}</span>
+                                          <span className="text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">{responsavelNome.split(" ")[0]}</span>
                                         ) : (
                                           <span className="text-[11px] text-muted-foreground/40">—</span>
                                         )}
@@ -680,7 +680,7 @@ export default function GestaoOperacional() {
                                         )}
                                         {!t.concluida && (
                                           <button onClick={() => handleConcluirAdmin(t.id, t.aluno_id, t.xp_recompensa)} disabled={aprovando === t.id}
-                                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 disabled:opacity-50">
+                                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50">
                                             {aprovando === t.id ? <Loader2 size={10} className="animate-spin inline" /> : "Concluir"}
                                           </button>
                                         )}
@@ -720,7 +720,7 @@ export default function GestaoOperacional() {
                             <div className="flex justify-between items-center bg-secondary/60 p-3 rounded-lg mb-3">
                               <div>
                                 <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5">Fase</p>
-                                <p className="text-sm font-medium gold-gradient bg-clip-text text-transparent">{aluno.fase_atual}</p>
+                                <p className="text-sm font-semibold gold-gradient-text">{aluno.fase_atual}</p>
                               </div>
                               <div className="text-right">
                                 <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5 flex items-center gap-1 justify-end"><Award size={9} /> XP</p>
@@ -1072,7 +1072,7 @@ export default function GestaoOperacional() {
                                         )}
                                         {!tarefa.concluida && (
                                           <button onClick={() => handleConcluirAdmin(tarefa.id, alunoDetalhes.id, tarefa.xp_recompensa)} disabled={aprovando === tarefa.id}
-                                            className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 disabled:opacity-50 shrink-0">
+                                            className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 shrink-0">
                                             {aprovando === tarefa.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />} Concluir
                                           </button>
                                         )}
