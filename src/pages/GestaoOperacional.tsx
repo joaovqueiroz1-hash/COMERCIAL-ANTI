@@ -7,8 +7,10 @@ import {
   fetchTodosEventos, createEvento, deleteEvento,
   createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
   resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
+  fetchTodasSprintTarefas, fetchProfiles,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 import {
   Users, Award, PlusCircle, GraduationCap, Loader2,
   CheckCircle2, XCircle, Clock, BookOpen, Video,
@@ -81,6 +83,8 @@ export default function GestaoOperacional() {
   const [materiais,    setMateriais]    = useState<Material[]>([]);
   const [sprints,      setSprints]      = useState<any[]>([]);
   const [eventos,      setEventos]      = useState<Evento[]>([]);
+  const [todasTarefas, setTodasTarefas] = useState<any[]>([]);
+  const [profiles,     setProfiles]     = useState<any[]>([]);
   const [loading,      setLoading]      = useState(true);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("alunos");
@@ -114,11 +118,10 @@ export default function GestaoOperacional() {
   const [openCriarTarefa,  setOpenCriarTarefa]  = useState(false);
   const [savingSprint,     setSavingSprint]     = useState(false);
   const [savingTarefa,     setSavingTarefa]     = useState(false);
-  const [importandoTemplate, setImportandoTemplate] = useState(false);
   const [importandoParaAluno, setImportandoParaAluno] = useState<string | null>(null);
   const [novoSprint, setNovoSprint] = useState({ titulo: "", descricao: "", aluno_id: null as string | null });
   const [novaTarefa, setNovaTarefa] = useState({
-    sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "",
+    sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "", responsavel_id: "",
   });
   const [sprintsParaTarefa, setSprintsParaTarefa] = useState<any[]>([]);
 
@@ -144,14 +147,15 @@ export default function GestaoOperacional() {
   const [novaPasta, setNovaPasta] = useState("");
   const [savingMaterial,   setSavingMaterial]   = useState(false);
   const [deletingMaterial, setDeletingMaterial] = useState<string | null>(null);
+  const [deletingEvento,   setDeletingEvento]   = useState<string | null>(null);
   const [materialMode,     setMaterialMode]     = useState<"link" | "upload">("link");
   const [materialFile,     setMaterialFile]     = useState<File | null>(null);
 
   // ── carga ─────────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     // Promise.allSettled garante que leads/alunos carregam mesmo se tabelas novas ainda não existirem
-    const [alunosRes, leadsRes, materiaisRes, sprintsRes, eventosRes] = await Promise.allSettled([
-      fetchAlunos(), fetchLeads(), fetchTodosMateriais(), fetchSprints(), fetchTodosEventos(),
+    const [alunosRes, leadsRes, materiaisRes, sprintsRes, eventosRes, tarefasRes, profilesRes] = await Promise.allSettled([
+      fetchAlunos(), fetchLeads(), fetchTodosMateriais(), fetchSprints(), fetchTodosEventos(), fetchTodasSprintTarefas(), fetchProfiles(),
     ]);
     const listaAlunos = alunosRes.status === "fulfilled" ? (alunosRes.value || []) : [];
     const listaLeads  = leadsRes.status  === "fulfilled" ? (leadsRes.value  || []) : [];
@@ -162,6 +166,8 @@ export default function GestaoOperacional() {
     if (materiaisRes.status === "fulfilled") setMateriais((materiaisRes.value || []) as Material[]);
     if (sprintsRes.status  === "fulfilled") setSprints(sprintsRes.value || []);
     if (eventosRes.status  === "fulfilled") setEventos((eventosRes.value || []) as Evento[]);
+    if (tarefasRes.status  === "fulfilled") setTodasTarefas(tarefasRes.value || []);
+    if (profilesRes.status === "fulfilled") setProfiles((profilesRes.value || []).filter((p: any) => p.perfil !== 'aluno'));
     setLoading(false);
   }, []);
 
@@ -215,9 +221,22 @@ export default function GestaoOperacional() {
     try {
       await aprovarTarefa(tarefaId, alunoId, xp);
       setTarefasDetalhe(prev => prev.map(t => t.id === tarefaId ? { ...t, aprovada_por_equipe: true, concluida: true } : t));
+      setTodasTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, aprovada_por_equipe: true, concluida: true } : t));
       setAlunos(prev => prev.map(a => a.id === alunoId ? { ...a, pontuacao_total: (a.pontuacao_total || 0) + xp } : a));
       toast({ title: `+${xp} XP concedidos!` });
     } catch { toast({ title: "Erro ao aprovar.", variant: "destructive" }); }
+    finally { setAprovando(null); }
+  }
+
+  async function handleConcluirAdmin(tarefaId: string, alunoId: string, xp: number) {
+    setAprovando(tarefaId);
+    try {
+      await aprovarTarefa(tarefaId, alunoId, xp);
+      setTarefasDetalhe(prev => prev.map(t => t.id === tarefaId ? { ...t, aprovada_por_equipe: true, concluida: true } : t));
+      setTodasTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, aprovada_por_equipe: true, concluida: true } : t));
+      setAlunos(prev => prev.map(a => a.id === alunoId ? { ...a, pontuacao_total: (a.pontuacao_total || 0) + xp } : a));
+      toast({ title: `Tarefa concluída e +${xp} XP concedidos!` });
+    } catch { toast({ title: "Erro ao concluir.", variant: "destructive" }); }
     finally { setAprovando(null); }
   }
 
@@ -409,10 +428,11 @@ export default function GestaoOperacional() {
         titulo: novaTarefa.titulo,
         xp_recompensa: novaTarefa.xp_recompensa,
         prazo: novaTarefa.prazo || undefined,
+        responsavel_id: novaTarefa.responsavel_id || null,
       });
       toast({ title: "Tarefa criada!" });
       setOpenCriarTarefa(false);
-      setNovaTarefa({ sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "" });
+      setNovaTarefa({ sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "", responsavel_id: "" });
     } catch { toast({ title: "Erro ao criar tarefa.", variant: "destructive" }); }
     finally { setSavingTarefa(false); }
   }
@@ -460,8 +480,10 @@ export default function GestaoOperacional() {
   }
 
   async function handleDeletarEvento(id: string) {
+    setDeletingEvento(id);
     try { await deleteEvento(id); setEventos(prev => prev.filter(e => e.id !== id)); toast({ title: "Evento removido." }); }
     catch { toast({ title: "Erro.", variant: "destructive" }); }
+    finally { setDeletingEvento(null); }
   }
 
   // ── materiais ─────────────────────────────────────────────────────────────
@@ -509,9 +531,6 @@ export default function GestaoOperacional() {
   }
 
   // ── helpers para sheet ────────────────────────────────────────────────────
-  const sprintsComTarefas = sprintsAluno.map(s => ({
-    ...s, tarefas: tarefasDetalhe.filter(t => t.sprint_id === s.id),
-  })).filter(s => s.tarefas.length > 0);
   const pendentesAprovacao = tarefasDetalhe.filter(t => t.concluida && !t.aprovada_por_equipe);
 
   const TABS: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -589,6 +608,94 @@ export default function GestaoOperacional() {
                       </div>
                     </section>
                   )}
+                  {/* ── Painel de Tarefas em Aberto ─────────────────────── */}
+                  {(() => {
+                    const tarefasAbertas = todasTarefas.filter(t => !t.aprovada_por_equipe);
+                    if (tarefasAbertas.length === 0) return null;
+                    return (
+                      <section>
+                        <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                          <Clock className="text-amber-400" size={20} /> Tarefas em Aberto
+                          <span className="text-xs bg-amber-400/10 text-amber-400 border border-amber-400/20 px-2 py-0.5 rounded-full">{tarefasAbertas.length}</span>
+                        </h2>
+                        <div className="bg-card border border-border rounded-xl overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-border bg-secondary/40">
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Aluno</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Tarefa</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sprint</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Responsável</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Prazo</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                                  <th className="px-4 py-3" />
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/50">
+                                {tarefasAbertas.map(t => {
+                                  const isOverdue = t.prazo && new Date(t.prazo) < new Date();
+                                  const alunoNome = t.alunos?.profiles?.nome ?? "—";
+                                  const sprintTitulo = t.sprints?.titulo ?? "—";
+                                  const responsavelNome = t.responsavel?.nome ?? null;
+                                  const linkEntrega = (t as any).link_entrega;
+                                  return (
+                                    <tr key={t.id} className="hover:bg-secondary/30 transition-colors">
+                                      <td className="px-4 py-3 text-xs font-medium text-foreground whitespace-nowrap">{alunoNome}</td>
+                                      <td className="px-4 py-3 max-w-[200px]">
+                                        <p className="text-xs text-foreground truncate">{t.titulo}</p>
+                                        {linkEntrega && (
+                                          <a href={linkEntrega} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-0.5 truncate">
+                                            <Link2 size={9} /> Ver entrega
+                                          </a>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-[11px] text-muted-foreground max-w-[150px] truncate">{sprintTitulo}</td>
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        {responsavelNome ? (
+                                          <span className="text-[11px] font-medium text-foreground bg-secondary px-2 py-0.5 rounded-full">{responsavelNome.split(" ")[0]}</span>
+                                        ) : (
+                                          <span className="text-[11px] text-muted-foreground/40">—</span>
+                                        )}
+                                      </td>
+                                      <td className={cn("px-4 py-3 text-xs whitespace-nowrap font-medium", isOverdue ? "text-red-400" : t.prazo ? "text-foreground" : "text-muted-foreground/50")}>
+                                        {t.prazo ? new Date(t.prazo).toLocaleDateString("pt-BR") : "—"}
+                                        {isOverdue && <span className="ml-1 text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1 rounded">Atrasado</span>}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {t.aprovada_por_equipe ? (
+                                          <Badge className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Aprovado</Badge>
+                                        ) : t.concluida ? (
+                                          <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">Em revisão</Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="text-[10px] text-muted-foreground">Pendente</Badge>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                                        {t.concluida && !t.aprovada_por_equipe && (
+                                          <button onClick={() => handleAprovar(t.id, t.aluno_id, t.xp_recompensa)} disabled={aprovando === t.id}
+                                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-50 mr-1">
+                                            {aprovando === t.id ? <Loader2 size={10} className="animate-spin inline" /> : "Aprovar"}
+                                          </button>
+                                        )}
+                                        {!t.concluida && (
+                                          <button onClick={() => handleConcluirAdmin(t.id, t.aluno_id, t.xp_recompensa)} disabled={aprovando === t.id}
+                                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 disabled:opacity-50">
+                                            {aprovando === t.id ? <Loader2 size={10} className="animate-spin inline" /> : "Concluir"}
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </section>
+                    );
+                  })()}
+
                   <section>
                     <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><UserCheck className="text-primary" size={20} /> Alunos Ativos</h2>
                     {alunos.length === 0 ? (
@@ -937,10 +1044,18 @@ export default function GestaoOperacional() {
                                           : <div className="w-4 h-4 rounded-full border-2 border-border mt-0.5 shrink-0" />}
                                           <div className="min-w-0">
                                             <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
-                                            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                                            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
                                               <Star size={9} className="text-emerald-400" /> {tarefa.xp_recompensa} XP
                                               {tarefa.prazo && <span className="ml-1">• {new Date(tarefa.prazo).toLocaleDateString("pt-BR")}</span>}
+                                              {(tarefa as any).responsavel?.nome && (
+                                                <span className="ml-1 text-primary/70">• {(tarefa as any).responsavel.nome.split(" ")[0]}</span>
+                                              )}
                                             </p>
+                                            {(tarefa as any).link_entrega && (
+                                              <a href={(tarefa as any).link_entrega} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1">
+                                                <ExternalLink size={9} /> Ver entrega
+                                              </a>
+                                            )}
                                           </div>
                                         </div>
                                         {tarefa.concluida && !tarefa.aprovada_por_equipe && (
@@ -954,6 +1069,12 @@ export default function GestaoOperacional() {
                                               <XCircle size={11} /> Devolver
                                             </button>
                                           </div>
+                                        )}
+                                        {!tarefa.concluida && (
+                                          <button onClick={() => handleConcluirAdmin(tarefa.id, alunoDetalhes.id, tarefa.xp_recompensa)} disabled={aprovando === tarefa.id}
+                                            className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 disabled:opacity-50 shrink-0">
+                                            {aprovando === tarefa.id ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />} Concluir
+                                          </button>
                                         )}
                                         {tarefa.aprovada_por_equipe && <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide shrink-0">Aprovado</span>}
                                       </div>
@@ -995,7 +1116,7 @@ export default function GestaoOperacional() {
                                   <Calendar size={12} /> {new Date(ev.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                                 </p>
                               </div>
-                              <button onClick={() => handleDeleteEvento(ev.id)} disabled={deletingEvento === ev.id} className="text-muted-foreground hover:text-destructive shrink-0">
+                              <button onClick={() => handleDeletarEvento(ev.id)} disabled={deletingEvento === ev.id} className="text-muted-foreground hover:text-destructive shrink-0">
                                 {deletingEvento === ev.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                               </button>
                             </div>
@@ -1240,6 +1361,15 @@ export default function GestaoOperacional() {
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título da Tarefa *</Label>
               <Input value={novaTarefa.titulo} onChange={e => setNovaTarefa(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Criar calendário editorial do mês" required />
+            </div>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Responsável da Equipe (opcional)</Label>
+              <Select value={novaTarefa.responsavel_id || "__none__"} onValueChange={v => setNovaTarefa(p => ({ ...p, responsavel_id: v === "__none__" ? "" : v }))}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem responsável específico" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem responsável</SelectItem>
+                  {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">XP de Recompensa</Label>

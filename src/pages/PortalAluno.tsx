@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -15,6 +15,10 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 // ── tipos locais ──────────────────────────────────────────────────────────────
 
@@ -88,6 +92,8 @@ export default function PortalAluno() {
   const [loading, setLoading] = useState(true);
   const [filtroMaterial, setFiltroMaterial] = useState<TipoFiltro>('todos');
   const [concluindo, setConcluindo] = useState<string | null>(null);
+  const [linkModal, setLinkModal] = useState<string | null>(null);
+  const [linkEntrega, setLinkEntrega] = useState("");
 
   const isAdminOrGestor = profile && ['admin', 'gestor', 'equipe'].includes(profile.perfil);
 
@@ -123,11 +129,13 @@ export default function PortalAluno() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  async function handleMarcarConcluida(tarefaId: string) {
+  async function handleMarcarConcluida(tarefaId: string, link?: string) {
     setConcluindo(tarefaId);
+    setLinkModal(null);
+    setLinkEntrega("");
     try {
-      await marcarTarefaConcluida(tarefaId);
-      setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, concluida: true } : t));
+      await marcarTarefaConcluida(tarefaId, link || null);
+      setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, concluida: true, link_entrega: link || null } : t));
       toast({ title: 'Entrega enviada!', description: 'Aguardando validação da equipe para ganhar os XP.' });
     } catch {
       toast({ title: 'Erro ao registrar entrega.', variant: 'destructive' });
@@ -485,7 +493,7 @@ export default function PortalAluno() {
                                   </div>
                                   {!tarefa.concluida && (
                                     <button
-                                      onClick={() => handleMarcarConcluida(tarefa.id)}
+                                      onClick={() => { setLinkModal(tarefa.id); setLinkEntrega(""); }}
                                       disabled={concluindo === tarefa.id}
                                       className="text-[10px] font-bold px-2 py-1 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors disabled:opacity-50 whitespace-nowrap"
                                     >
@@ -613,6 +621,46 @@ export default function PortalAluno() {
 
         </main>
       </div>
+
+      {/* ── Modal: Entregar Tarefa ─────────────────────────────────────────── */}
+      <Dialog open={!!linkModal} onOpenChange={open => { if (!open) { setLinkModal(null); setLinkEntrega(""); } }}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="text-primary" size={18} /> Entregar Tarefa
+            </DialogTitle>
+            <DialogDescription>
+              Cole um link do Google Docs, Notion, Drive ou qualquer URL com sua entrega. O link é opcional — você pode entregar sem ele.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Link da Entrega (opcional)</Label>
+              <Input
+                type="url"
+                value={linkEntrega}
+                onChange={e => setLinkEntrega(e.target.value)}
+                className="bg-secondary border-border"
+                placeholder="https://docs.google.com/..."
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 h-11 font-bold"
+                disabled={concluindo === linkModal}
+                onClick={() => linkModal && handleMarcarConcluida(linkModal, linkEntrega)}
+              >
+                {concluindo === linkModal
+                  ? <Loader2 size={16} className="animate-spin" />
+                  : linkEntrega ? 'Entregar com Link' : 'Entregar sem Link'}
+              </Button>
+              <Button variant="outline" className="border-border" onClick={() => { setLinkModal(null); setLinkEntrega(""); }}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
