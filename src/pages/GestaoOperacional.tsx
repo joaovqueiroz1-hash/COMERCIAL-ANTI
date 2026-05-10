@@ -7,7 +7,7 @@ import {
   fetchTodosEventos, createEvento, deleteEvento,
   createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
   resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
-  fetchTodasSprintTarefas, fetchProfiles,
+  fetchTodasSprintTarefas, fetchProfiles, renamePasta, deletePasta,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import {
   CheckCircle2, XCircle, Clock, BookOpen, Video,
   FileText, Link2, Trash2, Globe, UserCheck, ChevronRight,
   Star, Calendar, Zap, Layers, LayoutTemplate,
-  MapPin, KeyRound, UserMinus, ExternalLink,
+  MapPin, KeyRound, UserMinus, ExternalLink, Pencil,
 } from "lucide-react";
 import { getInitials } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -129,6 +129,9 @@ export default function GestaoOperacional() {
   const [openNovaPastaDialog, setOpenNovaPastaDialog] = useState(false);
   const [novaPastaInput, setNovaPastaInput] = useState("");
   const [pastasLocais, setPastasLocais] = useState<string[]>([]);
+  const [pastaEditando, setPastaEditando] = useState<string | null>(null);
+  const [pastaNovoNome, setPastaNovoNome] = useState("");
+  const [pastaDeletando, setPastaDeletando] = useState<string | null>(null);
 
   // ── eventos ───────────────────────────────────────────────────────────────
   const [openCriarEvento, setOpenCriarEvento] = useState(false);
@@ -455,6 +458,33 @@ export default function GestaoOperacional() {
     setOpenNovaPastaDialog(false);
     setNovaPastaInput("");
     setOpenAddMaterial(true);
+  }
+
+  async function handleRenomearPasta(oldName: string, newName: string) {
+    const trimmed = newName.trim();
+    setPastaEditando(null);
+    if (!trimmed || trimmed === oldName) return;
+    try {
+      await renamePasta(oldName, trimmed);
+      setMateriais(prev => prev.map(m => (m as any).pasta === oldName ? { ...m, pasta: trimmed } as any : m));
+      setPastasLocais(prev => prev.map(p => p === oldName ? trimmed : p));
+      toast({ title: `Pasta renomeada para "${trimmed}"` });
+    } catch {
+      toast({ title: "Erro ao renomear pasta.", variant: "destructive" });
+    }
+  }
+
+  async function handleDeletarPasta(name: string) {
+    if (pastaDeletando !== name) { setPastaDeletando(name); return; }
+    setPastaDeletando(null);
+    try {
+      await deletePasta(name);
+      setMateriais(prev => prev.map(m => (m as any).pasta === name ? { ...m, pasta: null } as any : m));
+      setPastasLocais(prev => prev.filter(p => p !== name));
+      toast({ title: `Pasta "${name}" removida. Materiais movidos para Sem pasta.` });
+    } catch {
+      toast({ title: "Erro ao remover pasta.", variant: "destructive" });
+    }
   }
 
   // ── eventos ───────────────────────────────────────────────────────────────
@@ -881,9 +911,22 @@ export default function GestaoOperacional() {
                           if (grupo.length === 0 && pasta !== null) return (
                             <div key={pasta}>
                               <div className="flex items-center gap-2 mb-3">
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">📁 {pasta}</span>
+                                {pastaEditando === pasta ? (
+                                  <input
+                                    value={pastaNovoNome}
+                                    onChange={e => setPastaNovoNome(e.target.value)}
+                                    onBlur={() => handleRenomearPasta(pasta, pastaNovoNome)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleRenomearPasta(pasta, pastaNovoNome); if (e.key === 'Escape') setPastaEditando(null); }}
+                                    autoFocus
+                                    className="text-xs font-bold bg-secondary border border-primary/30 rounded px-2 py-0.5 outline-none text-foreground uppercase tracking-widest"
+                                  />
+                                ) : (
+                                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">📁 {pasta}</span>
+                                )}
                                 <div className="flex-1 h-px bg-border" />
                                 <span className="text-[10px] text-muted-foreground">0</span>
+                                <button onClick={() => { setPastaEditando(pasta); setPastaNovoNome(pasta); setPastaDeletando(null); }} className="text-muted-foreground/40 hover:text-primary transition-colors p-0.5 rounded" title="Renomear pasta"><Pencil size={11} /></button>
+                                <button onClick={() => handleDeletarPasta(pasta)} className={cn("transition-colors p-0.5 rounded", pastaDeletando === pasta ? "text-destructive" : "text-muted-foreground/40 hover:text-destructive")} title={pastaDeletando === pasta ? "Clique para confirmar exclusão" : "Excluir pasta"}><Trash2 size={11} /></button>
                               </div>
                               <div className="border border-dashed border-border rounded-xl p-4 text-center">
                                 <p className="text-xs text-muted-foreground mb-2">Pasta vazia</p>
@@ -897,11 +940,28 @@ export default function GestaoOperacional() {
                           return (
                             <div key={pasta ?? "__sem__"}>
                               <div className="flex items-center gap-2 mb-3">
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                                  {pasta ? `📁 ${pasta}` : "Sem pasta"}
-                                </span>
+                                {pastaEditando === pasta && pasta ? (
+                                  <input
+                                    value={pastaNovoNome}
+                                    onChange={e => setPastaNovoNome(e.target.value)}
+                                    onBlur={() => handleRenomearPasta(pasta, pastaNovoNome)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleRenomearPasta(pasta, pastaNovoNome); if (e.key === 'Escape') setPastaEditando(null); }}
+                                    autoFocus
+                                    className="text-xs font-bold bg-secondary border border-primary/30 rounded px-2 py-0.5 outline-none text-foreground uppercase tracking-widest"
+                                  />
+                                ) : (
+                                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                                    {pasta ? `📁 ${pasta}` : "Sem pasta"}
+                                  </span>
+                                )}
                                 <div className="flex-1 h-px bg-border" />
                                 <span className="text-[10px] text-muted-foreground">{grupo.length}</span>
+                                {pasta && (
+                                  <>
+                                    <button onClick={() => { setPastaEditando(pasta); setPastaNovoNome(pasta); setPastaDeletando(null); }} className="text-muted-foreground/40 hover:text-primary transition-colors p-0.5 rounded" title="Renomear pasta"><Pencil size={11} /></button>
+                                    <button onClick={() => handleDeletarPasta(pasta)} className={cn("transition-colors p-0.5 rounded", pastaDeletando === pasta ? "text-destructive" : "text-muted-foreground/40 hover:text-destructive")} title={pastaDeletando === pasta ? "Clique para confirmar exclusão" : "Excluir pasta"}><Trash2 size={11} /></button>
+                                  </>
+                                )}
                               </div>
                               <div className="space-y-2">
                                 {grupo.map(m => {

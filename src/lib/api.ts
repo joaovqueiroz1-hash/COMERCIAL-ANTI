@@ -58,7 +58,7 @@ export async function createLead(lead: LeadInsert) {
 }
 
 export async function createLeadsBatch(leads: LeadInsert[]) {
-  const { data, error } = await supabase.from('leads').insert(leads).select();
+  const { data, error } = await db.from('leads').insert(leads).select();
   if (error) throw error;
   return data;
 }
@@ -512,6 +512,16 @@ export async function updateMaterial(id: string, updates: MaterialUpdate) {
 
 export async function deleteMaterial(id: string) {
   const { error } = await supabase.from('materiais').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function renamePasta(oldName: string, newName: string) {
+  const { error } = await db.from('materiais').update({ pasta: newName }).eq('pasta', oldName);
+  if (error) throw error;
+}
+
+export async function deletePasta(name: string) {
+  const { error } = await db.from('materiais').update({ pasta: null }).eq('pasta', name);
   if (error) throw error;
 }
 
