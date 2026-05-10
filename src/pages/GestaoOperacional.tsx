@@ -501,7 +501,9 @@ export default function GestaoOperacional() {
         finalUrl = await uploadMaterialFile(materialFile);
       }
 
-      const pastaFinal = (novoMaterial.pasta.trim() || novaPasta.trim()) || null;
+      const pastaFinal = novoMaterial.pasta === "__nova__"
+        ? novaPasta.trim() || null
+        : (novoMaterial.pasta && novoMaterial.pasta !== "__sem__" ? novoMaterial.pasta.trim() : null);
       await createMaterial({
         titulo: novoMaterial.titulo, descricao: novoMaterial.descricao || null,
         tipo: novoMaterial.tipo, url: finalUrl,
@@ -510,6 +512,7 @@ export default function GestaoOperacional() {
         criado_por: profile?.id ?? null,
         pasta: pastaFinal,
       } as any);
+      if (pastaFinal) setPastasLocais(prev => [...new Set([...prev, pastaFinal])]);
       toast({ title: "Material adicionado!" });
       setOpenAddMaterial(false);
       setNovoMaterial({ titulo: "", descricao: "", tipo: "link", url: "", aluno_id: "__global__", sprint_id: "__none__", pasta: "" });
@@ -869,7 +872,7 @@ export default function GestaoOperacional() {
                   ) : (
                     <div className="space-y-6">
                       {(() => {
-                        const pastasDosMateriais = Array.from(new Set(materiais.map(m => (m as any).pasta).filter(Boolean))) as string[];
+                        const pastasDosMateriais = Array.from(new Set(materiais.map(m => (m as any).pasta).filter((p: any) => p && p !== "__nova__" && p !== "__sem__"))) as string[];
                         const todasPastas = Array.from(new Set([...pastasDosMateriais, ...pastasLocais]));
                         const grupos: (string | null)[] = [null, ...todasPastas];
                         return grupos.map(pasta => {
@@ -1498,24 +1501,32 @@ export default function GestaoOperacional() {
             <div>
               <Label className="text-xs text-muted-foreground uppercase mb-2 block">Pasta</Label>
               {(() => {
-                const pastasExistentes = Array.from(new Set(
-                  materiais.map(m => (m as any).pasta).filter(Boolean)
-                )) as string[];
+                const pastasDosBanco = materiais
+                  .map(m => (m as any).pasta)
+                  .filter((p: any) => p && p !== "__nova__" && p !== "__sem__");
+                const todasPastas = Array.from(new Set([...pastasDosBanco, ...pastasLocais])) as string[];
                 return (
                   <>
                     <Select
                       value={novoMaterial.pasta || "__sem__"}
                       onValueChange={v => {
-                        if (v === "__nova__") { setNovoMaterial(p => ({ ...p, pasta: "__nova__" })); }
+                        if (v === "__nova__") { setNovoMaterial(p => ({ ...p, pasta: "__nova__" })); setNovaPasta(""); }
                         else if (v === "__sem__") { setNovoMaterial(p => ({ ...p, pasta: "" })); setNovaPasta(""); }
                         else { setNovoMaterial(p => ({ ...p, pasta: v })); setNovaPasta(""); }
                       }}
                     >
                       <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem pasta" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__sem__">Sem pasta</SelectItem>
-                        {pastasExistentes.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                        <SelectItem value="__nova__">+ Criar nova pasta...</SelectItem>
+                        <SelectItem value="__sem__">📄 Sem pasta</SelectItem>
+                        {todasPastas.map(p => {
+                          const qtd = materiais.filter(m => (m as any).pasta === p).length;
+                          return (
+                            <SelectItem key={p} value={p}>
+                              📁 {p}{qtd > 0 ? ` (${qtd} material${qtd !== 1 ? 'is' : ''})` : ''}
+                            </SelectItem>
+                          );
+                        })}
+                        <SelectItem value="__nova__">✦ Criar nova pasta...</SelectItem>
                       </SelectContent>
                     </Select>
                     {novoMaterial.pasta === "__nova__" && (
@@ -1524,8 +1535,14 @@ export default function GestaoOperacional() {
                         placeholder="Nome da nova pasta"
                         value={novaPasta}
                         onChange={e => setNovaPasta(e.target.value)}
+                        autoFocus
                         required
                       />
+                    )}
+                    {novoMaterial.pasta && novoMaterial.pasta !== "__sem__" && novoMaterial.pasta !== "__nova__" && (
+                      <p className="text-[11px] text-primary/70 mt-1.5 flex items-center gap-1">
+                        ✓ Este material será adicionado à pasta <strong>"{novoMaterial.pasta}"</strong>
+                      </p>
                     )}
                   </>
                 );
