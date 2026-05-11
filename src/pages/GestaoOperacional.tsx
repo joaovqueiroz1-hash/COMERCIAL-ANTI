@@ -774,10 +774,14 @@ export default function GestaoOperacional() {
                                 {editandoFase === aluno.id ? (
                                   <input
                                     value={novaFaseTexto}
-                                    onChange={e => setNovaFaseTexto(e.target.value)}
+                                    onChange={e => { e.stopPropagation(); setNovaFaseTexto(e.target.value); }}
                                     onBlur={() => handleSalvarFase(aluno.id, novaFaseTexto)}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleSalvarFase(aluno.id, novaFaseTexto); if (e.key === 'Escape') setEditandoFase(null); }}
+                                    onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') handleSalvarFase(aluno.id, novaFaseTexto); if (e.key === 'Escape') setEditandoFase(null); }}
+                                    onKeyUp={e => e.stopPropagation()}
+                                    onKeyPress={e => e.stopPropagation()}
                                     onClick={e => e.stopPropagation()}
+                                    onMouseDown={e => e.stopPropagation()}
+                                    onFocus={e => e.stopPropagation()}
                                     autoFocus
                                     className="text-sm bg-card border border-primary/30 rounded px-1.5 py-0.5 outline-none text-foreground w-full"
                                   />
