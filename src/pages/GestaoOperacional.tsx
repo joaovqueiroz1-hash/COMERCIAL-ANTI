@@ -757,56 +757,59 @@ export default function GestaoOperacional() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {alunos.map(aluno => (
-                          <button key={aluno.id} onClick={() => abrirDetalhe(aluno)}
-                            className="bg-card border border-border p-5 rounded-xl hover:border-primary/50 hover:shadow-sm text-left group w-full transition-all">
-                            <div className="flex items-center gap-4 mb-4">
-                              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center font-bold text-lg text-primary shrink-0">
-                                {getInitials(aluno.profiles?.nome || aluno.leads?.nome_completo || "?")}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-foreground truncate">{aluno.profiles?.nome || aluno.leads?.nome_completo}</h3>
-                                <p className="text-xs text-muted-foreground truncate">{aluno.leads?.whatsapp || aluno.profiles?.email}</p>
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center bg-secondary/60 p-3 rounded-lg mb-3">
-                              <div className="flex-1 min-w-0 mr-3">
-                                <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5">Fase</p>
-                                {editandoFase === aluno.id ? (
-                                  <input
-                                    value={novaFaseTexto}
-                                    onChange={e => { e.stopPropagation(); setNovaFaseTexto(e.target.value); }}
-                                    onBlur={() => handleSalvarFase(aluno.id, novaFaseTexto)}
-                                    onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') handleSalvarFase(aluno.id, novaFaseTexto); if (e.key === 'Escape') setEditandoFase(null); }}
-                                    onKeyUp={e => e.stopPropagation()}
-                                    onKeyPress={e => e.stopPropagation()}
-                                    onClick={e => e.stopPropagation()}
-                                    onMouseDown={e => e.stopPropagation()}
-                                    onFocus={e => e.stopPropagation()}
-                                    autoFocus
-                                    className="text-sm bg-card border border-primary/30 rounded px-1.5 py-0.5 outline-none text-foreground w-full"
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-semibold text-foreground truncate">{aluno.fase_atual}</span>
-                                    <button
-                                      onClick={e => { e.stopPropagation(); setEditandoFase(aluno.id); setNovaFaseTexto(aluno.fase_atual); }}
-                                      className="text-muted-foreground/50 hover:text-primary transition-colors shrink-0"
-                                      title="Editar fase"
-                                    >
-                                      <Pencil size={10} />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5 flex items-center gap-1 justify-end"><Award size={9} /> XP</p>
-                                <p className="text-sm font-bold text-emerald-600">{aluno.pontuacao_total} pts</p>
+                          <div key={aluno.id} className="bg-card border border-border rounded-xl hover:border-primary/50 hover:shadow-sm transition-all group flex flex-col">
+                            {/* topo clicável — abre sheet */}
+                            <div className="p-5 pb-3 cursor-pointer" onClick={() => abrirDetalhe(aluno)}>
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center font-bold text-lg text-primary shrink-0">
+                                  {getInitials(aluno.profiles?.nome || aluno.leads?.nome_completo || "?")}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-bold text-foreground truncate">{aluno.profiles?.nome || aluno.leads?.nome_completo}</h3>
+                                  <p className="text-xs text-muted-foreground truncate">{aluno.leads?.whatsapp || aluno.profiles?.email}</p>
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                              <span>Ver entregas e validar</span><ChevronRight size={14} />
+                            {/* fase + XP — área isolada, não abre sheet */}
+                            <div className="px-5 pb-3">
+                              <div className="flex justify-between items-center bg-secondary/60 p-3 rounded-lg">
+                                <div className="flex-1 min-w-0 mr-3">
+                                  <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5">Fase</p>
+                                  {editandoFase === aluno.id ? (
+                                    <input
+                                      value={novaFaseTexto}
+                                      onChange={e => setNovaFaseTexto(e.target.value)}
+                                      onBlur={() => handleSalvarFase(aluno.id, novaFaseTexto)}
+                                      onKeyDown={e => { if (e.key === 'Enter') handleSalvarFase(aluno.id, novaFaseTexto); if (e.key === 'Escape') setEditandoFase(null); }}
+                                      autoFocus
+                                      className="text-sm bg-card border border-primary/30 rounded px-1.5 py-0.5 outline-none text-foreground w-full"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-sm font-semibold text-foreground truncate">{aluno.fase_atual}</span>
+                                      <button
+                                        onClick={() => { setEditandoFase(aluno.id); setNovaFaseTexto(aluno.fase_atual); }}
+                                        className="text-muted-foreground/50 hover:text-primary transition-colors shrink-0"
+                                        title="Editar fase"
+                                      >
+                                        <Pencil size={10} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5 flex items-center gap-1 justify-end"><Award size={9} /> XP</p>
+                                  <p className="text-sm font-bold text-emerald-600">{aluno.pontuacao_total} pts</p>
+                                </div>
+                              </div>
                             </div>
-                          </button>
+                            {/* rodapé clicável — abre sheet */}
+                            <div className="px-5 pb-5 cursor-pointer" onClick={() => abrirDetalhe(aluno)}>
+                              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                                <span>Ver entregas e validar</span><ChevronRight size={14} />
+                              </div>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     )}
