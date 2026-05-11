@@ -518,7 +518,7 @@ export default function PortalAluno() {
                 <div className="space-y-4">
                   <div>
                     <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">Fase Atual da Mentoria</p>
-                    <p className="text-sm font-medium gold-gradient bg-clip-text text-transparent">{aluno.fase_atual}</p>
+                    <p className="text-sm font-semibold text-foreground">{aluno.fase_atual}</p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-1">Evolução Geral</p>

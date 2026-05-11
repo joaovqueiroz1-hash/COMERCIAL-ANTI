@@ -830,7 +830,7 @@ export default function GestaoOperacional() {
                                   title="Clique para editar a fase"
                                 >
                                   {aluno.fase_atual}
-                                  <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+                                  <Pencil size={9} className="opacity-40 group-hover:opacity-80 transition-opacity" />
                                 </button>
                               )}
                             </div>
