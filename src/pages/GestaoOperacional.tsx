@@ -769,11 +769,32 @@ export default function GestaoOperacional() {
                               </div>
                             </div>
                             <div className="flex justify-between items-center bg-secondary/60 p-3 rounded-lg mb-3">
-                              <div>
+                              <div className="flex-1 min-w-0 mr-3">
                                 <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5">Fase</p>
-                                <p className="text-sm font-semibold gold-gradient-text">{aluno.fase_atual}</p>
+                                {editandoFase === aluno.id ? (
+                                  <input
+                                    value={novaFaseTexto}
+                                    onChange={e => setNovaFaseTexto(e.target.value)}
+                                    onBlur={() => handleSalvarFase(aluno.id, novaFaseTexto)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleSalvarFase(aluno.id, novaFaseTexto); if (e.key === 'Escape') setEditandoFase(null); }}
+                                    onClick={e => e.stopPropagation()}
+                                    autoFocus
+                                    className="text-sm bg-card border border-primary/30 rounded px-1.5 py-0.5 outline-none text-foreground w-full"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-semibold text-foreground truncate">{aluno.fase_atual}</span>
+                                    <button
+                                      onClick={e => { e.stopPropagation(); setEditandoFase(aluno.id); setNovaFaseTexto(aluno.fase_atual); }}
+                                      className="text-muted-foreground/50 hover:text-primary transition-colors shrink-0"
+                                      title="Editar fase"
+                                    >
+                                      <Pencil size={10} />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-right">
+                              <div className="text-right shrink-0">
                                 <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider mb-0.5 flex items-center gap-1 justify-end"><Award size={9} /> XP</p>
                                 <p className="text-sm font-bold text-emerald-600">{aluno.pontuacao_total} pts</p>
                               </div>
