@@ -152,6 +152,10 @@ export default function GestaoOperacional() {
   const [deletingMaterial, setDeletingMaterial] = useState<string | null>(null);
   const [deletingEvento,   setDeletingEvento]   = useState<string | null>(null);
   const [materialMode,     setMaterialMode]     = useState<"link" | "upload">("link");
+
+  // ── fase inline edit ──────────────────────────────────────────────────────
+  const [editandoFase,  setEditandoFase]  = useState<string | null>(null);
+  const [novaFaseTexto, setNovaFaseTexto] = useState("");
   const [materialFile,     setMaterialFile]     = useState<File | null>(null);
 
   // ── carga ─────────────────────────────────────────────────────────────────
@@ -487,6 +491,20 @@ export default function GestaoOperacional() {
     }
   }
 
+  // ── fase ─────────────────────────────────────────────────────────────────
+  async function handleSalvarFase(alunoId: string, fase: string) {
+    const trimmed = fase.trim();
+    setEditandoFase(null);
+    if (!trimmed) return;
+    const prev = alunos.find(a => a.id === alunoId)?.fase_atual;
+    if (trimmed === prev) return;
+    try {
+      await updateAluno(alunoId, { fase_atual: trimmed });
+      setAlunos(p => p.map(a => a.id === alunoId ? { ...a, fase_atual: trimmed } : a));
+      if (alunoDetalhes?.id === alunoId) setAlunoDetalhes((p: any) => p ? { ...p, fase_atual: trimmed } : p);
+    } catch { toast({ title: "Erro ao salvar fase.", variant: "destructive" }); }
+  }
+
   // ── eventos ───────────────────────────────────────────────────────────────
   async function handleCriarEvento(e: React.FormEvent) {
     e.preventDefault();
@@ -796,7 +814,25 @@ export default function GestaoOperacional() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-foreground truncate">{aluno.profiles?.nome || aluno.leads?.nome_completo}</h3>
-                              <p className="text-xs text-muted-foreground">{aluno.fase_atual}</p>
+                              {editandoFase === aluno.id ? (
+                                <input
+                                  value={novaFaseTexto}
+                                  onChange={e => setNovaFaseTexto(e.target.value)}
+                                  onBlur={() => handleSalvarFase(aluno.id, novaFaseTexto)}
+                                  onKeyDown={e => { if (e.key === 'Enter') handleSalvarFase(aluno.id, novaFaseTexto); if (e.key === 'Escape') setEditandoFase(null); }}
+                                  autoFocus
+                                  className="text-xs bg-secondary border border-primary/30 rounded px-1.5 py-0.5 outline-none text-foreground w-full mt-0.5"
+                                />
+                              ) : (
+                                <button
+                                  onClick={() => { setEditandoFase(aluno.id); setNovaFaseTexto(aluno.fase_atual); }}
+                                  className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 group transition-colors mt-0.5"
+                                  title="Clique para editar a fase"
+                                >
+                                  {aluno.fase_atual}
+                                  <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+                                </button>
+                              )}
                             </div>
                           </div>
                           <div className="flex flex-col gap-2">
@@ -1425,11 +1461,17 @@ export default function GestaoOperacional() {
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título da Tarefa *</Label>
               <Input value={novaTarefa.titulo} onChange={e => setNovaTarefa(p => ({ ...p, titulo: e.target.value }))} className="bg-secondary border-border" placeholder="Ex: Criar calendário editorial do mês" required />
             </div>
-            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Responsável da Equipe (opcional)</Label>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Responsável (opcional)</Label>
               <Select value={novaTarefa.responsavel_id || "__none__"} onValueChange={v => setNovaTarefa(p => ({ ...p, responsavel_id: v === "__none__" ? "" : v }))}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem responsável específico" /></SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem responsável" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Sem responsável</SelectItem>
+                  {(() => {
+                    const alunoSel = alunos.find(a => a.id === novaTarefa.aluno_id);
+                    if (!alunoSel?.profile_id) return null;
+                    const nomeAluno = alunoSel.profiles?.nome || alunoSel.leads?.nome_completo || "Aluno";
+                    return <SelectItem key={alunoSel.profile_id} value={alunoSel.profile_id}>👤 {nomeAluno} (aluno)</SelectItem>;
+                  })()}
                   {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
                 </SelectContent>
               </Select>

@@ -8,7 +8,7 @@ import {
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
 import {
-  CheckCircle2, Lock, Plane, Star, Trophy,
+  CheckCircle2, Lock, Star, Trophy,
   FileText, Video, Link2, BookOpen, ExternalLink,
   Clock, Loader2, CalendarClock, AlertTriangle, Zap,
 } from "lucide-react";
@@ -334,57 +334,53 @@ export default function PortalAluno() {
           )}
 
           {/* ── Widget Grande Prêmio ───────────────────────────────────── */}
-          <div className="bg-gradient-to-br from-zinc-900 to-black rounded-2xl border border-primary/20 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row items-center gap-8">
+          <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-primary/6 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+            <div className="relative z-10 p-5 md:p-6 flex flex-col md:flex-row items-center gap-6">
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
-                    <Plane size={20} />
-                  </div>
-                  <h2 className="text-xl font-bold text-white uppercase tracking-widest">O Grande Prêmio</h2>
+                <div className="flex items-center gap-2 mb-2">
+                  <Lock size={13} className="text-primary/50" />
+                  <h2 className="text-xs font-bold text-white/60 uppercase tracking-widest">O Prêmio</h2>
                 </div>
-                <p className="text-sm text-muted-foreground mb-6">
+                <p className="text-sm text-zinc-400 mb-5">
                   {premioDescricao ? (
                     premioDescricao
                   ) : (
                     <>
                       Acumule{" "}
-                      <span className="text-white font-semibold">{xpMeta} XP</span>{" "}
+                      <span className="text-white/90 font-semibold">{xpMeta} XP</span>{" "}
                       cumprindo todos os Sprints para conquistar:{" "}
-                      <strong className="text-white">{premioTitulo}</strong>.
+                      <strong className="text-white/90">{premioTitulo}</strong>.
                     </>
                   )}
                 </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider">
                     <span className="text-emerald-400">{xpAtual} XP</span>
-                    <span className="text-muted-foreground">{xpMeta} XP</span>
+                    <span className="text-zinc-500">{xpMeta} XP</span>
                   </div>
-                  <div className="h-4 w-full bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-primary/50 to-primary transition-all duration-1000 ease-out relative"
+                      className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-1000 ease-out"
                       style={{ width: `${progressViagem}%` }}
-                    >
-                      <div className="absolute top-0 right-0 bottom-0 w-4 bg-white/20 blur-[2px]" />
-                    </div>
+                    />
                   </div>
-                  <p className="text-[10px] text-right text-muted-foreground font-medium">
+                  <p className="text-[10px] text-right text-zinc-600 font-medium">
                     {progressViagem}% Destravado
                   </p>
                 </div>
               </div>
 
-              <div className="w-40 h-40 shrink-0 relative flex items-center justify-center">
+              <div className="w-28 h-28 shrink-0 flex items-center justify-center">
                 {progressViagem >= 100 ? (
-                  <div className="w-32 h-32 bg-primary/20 rounded-full flex flex-col items-center justify-center border-4 border-primary text-primary animate-pulse shadow-[0_0_50px_rgba(212,175,55,0.5)]">
-                    <Trophy size={48} className="mb-2" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Desbloqueado!</span>
+                  <div className="w-24 h-24 bg-primary/20 rounded-full flex flex-col items-center justify-center border-2 border-primary text-primary animate-pulse shadow-[0_0_30px_hsl(29_16%_33%_/_0.3)]">
+                    <Trophy size={36} className="mb-1" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">Desbloqueado!</span>
                   </div>
                 ) : (
-                  <div className="w-32 h-32 bg-zinc-900 border-2 border-dashed border-border rounded-full flex flex-col items-center justify-center text-white/50 relative overflow-hidden">
-                    <Lock size={32} className="mb-2 relative z-10" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest relative z-10">Mystery Trip</span>
+                  <div className="w-24 h-24 bg-zinc-950 border border-dashed border-zinc-700 rounded-full flex flex-col items-center justify-center text-zinc-500 relative overflow-hidden">
+                    <Lock size={22} className="mb-1 relative z-10" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest relative z-10 text-center leading-tight px-2">O Prêmio</span>
                     <div
                       className="absolute inset-0 bg-primary/10 transition-all duration-1000"
                       style={{ transform: `translateY(${100 - progressViagem}%)` }}
