@@ -16,7 +16,7 @@ import {
   CheckCircle2, XCircle, Clock, BookOpen, Video,
   FileText, Link2, Trash2, Globe, UserCheck, ChevronRight,
   Star, Calendar, Zap, Layers, LayoutTemplate,
-  MapPin, KeyRound, UserMinus, ExternalLink, Pencil,
+  MapPin, KeyRound, UserMinus, ExternalLink, Pencil, Upload, XCircle,
 } from "lucide-react";
 import { getInitials } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -122,8 +122,18 @@ export default function GestaoOperacional() {
   const [novoSprint, setNovoSprint] = useState({ titulo: "", descricao: "", aluno_id: null as string | null });
   const [novaTarefa, setNovaTarefa] = useState({
     sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "", responsavel_id: "",
+    descricao_equipe: "", arquivo_url: "", arquivo_nome: "",
   });
+  const [novaTarefaFile, setNovaTarefaFile] = useState<File | null>(null);
   const [sprintsParaTarefa, setSprintsParaTarefa] = useState<any[]>([]);
+
+  // ── edição de tarefa existente ─────────────────────────────────────────────
+  const [editandoTarefa,      setEditandoTarefa]      = useState<any | null>(null);
+  const [editTarefaDescricao, setEditTarefaDescricao] = useState("");
+  const [editTarefaArqFile,   setEditTarefaArqFile]   = useState<File | null>(null);
+  const [editTarefaArqUrl,    setEditTarefaArqUrl]    = useState("");
+  const [editTarefaArqNome,   setEditTarefaArqNome]   = useState("");
+  const [savingEditTarefa,    setSavingEditTarefa]    = useState(false);
 
   // ── biblioteca: pastas ────────────────────────────────────────────────────
   const [openNovaPastaDialog, setOpenNovaPastaDialog] = useState(false);
@@ -429,6 +439,12 @@ export default function GestaoOperacional() {
     if (!novaTarefa.sprint_id || !novaTarefa.titulo || !novaTarefa.aluno_id) return;
     setSavingTarefa(true);
     try {
+      let arquivoUrl = novaTarefa.arquivo_url;
+      let arquivoNome = novaTarefa.arquivo_nome;
+      if (novaTarefaFile) {
+        arquivoUrl = await uploadMaterialFile(novaTarefaFile);
+        arquivoNome = novaTarefaFile.name;
+      }
       await createSprintTarefa({
         sprint_id: novaTarefa.sprint_id,
         aluno_id: novaTarefa.aluno_id,
@@ -436,10 +452,14 @@ export default function GestaoOperacional() {
         xp_recompensa: novaTarefa.xp_recompensa,
         prazo: novaTarefa.prazo || undefined,
         responsavel_id: novaTarefa.responsavel_id || null,
+        descricao_equipe: novaTarefa.descricao_equipe.trim() || null,
+        arquivo_url: arquivoUrl || null,
+        arquivo_nome: arquivoNome || null,
       });
       toast({ title: "Tarefa criada!" });
       setOpenCriarTarefa(false);
-      setNovaTarefa({ sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "", responsavel_id: "" });
+      setNovaTarefa({ sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "", responsavel_id: "", descricao_equipe: "", arquivo_url: "", arquivo_nome: "" });
+      setNovaTarefaFile(null);
     } catch { toast({ title: "Erro ao criar tarefa.", variant: "destructive" }); }
     finally { setSavingTarefa(false); }
   }
@@ -489,6 +509,31 @@ export default function GestaoOperacional() {
     } catch {
       toast({ title: "Erro ao remover pasta.", variant: "destructive" });
     }
+  }
+
+  // ── edição de tarefa ─────────────────────────────────────────────────────
+  async function handleSalvarEditTarefa() {
+    if (!editandoTarefa) return;
+    setSavingEditTarefa(true);
+    try {
+      let arquivoUrl = editTarefaArqUrl;
+      let arquivoNome = editTarefaArqNome;
+      if (editTarefaArqFile) {
+        arquivoUrl = await uploadMaterialFile(editTarefaArqFile);
+        arquivoNome = editTarefaArqFile.name;
+      }
+      await updateSprintTarefa(editandoTarefa.id, {
+        descricao_equipe: editTarefaDescricao.trim() || null,
+        arquivo_url: arquivoUrl || null,
+        arquivo_nome: arquivoNome || null,
+      });
+      setTarefasDetalhe(prev => prev.map(t => t.id === editandoTarefa.id
+        ? { ...t, descricao_equipe: editTarefaDescricao.trim() || null, arquivo_url: arquivoUrl || null, arquivo_nome: arquivoNome || null }
+        : t));
+      toast({ title: "Tarefa atualizada!" });
+      setEditandoTarefa(null);
+    } catch { toast({ title: "Erro ao salvar tarefa.", variant: "destructive" }); }
+    finally { setSavingEditTarefa(false); }
   }
 
   // ── fase ─────────────────────────────────────────────────────────────────
@@ -1169,8 +1214,13 @@ export default function GestaoOperacional() {
                                           {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
                                           : tarefa.concluida ? <Clock size={16} className="text-primary mt-0.5 shrink-0" />
                                           : <div className="w-4 h-4 rounded-full border-2 border-border mt-0.5 shrink-0" />}
-                                          <div className="min-w-0">
-                                            <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
+                                              {!tarefa.aprovada_por_equipe && (
+                                                <button onClick={() => { setEditandoTarefa(tarefa); setEditTarefaDescricao((tarefa as any).descricao_equipe || ""); setEditTarefaArqUrl((tarefa as any).arquivo_url || ""); setEditTarefaArqNome((tarefa as any).arquivo_nome || ""); setEditTarefaArqFile(null); }} className="text-muted-foreground/40 hover:text-primary transition-colors shrink-0 mt-0.5" title="Editar tarefa"><Pencil size={11} /></button>
+                                              )}
+                                            </div>
                                             <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
                                               <Star size={9} className="text-emerald-400" /> {tarefa.xp_recompensa} XP
                                               {tarefa.prazo && <span className="ml-1">• {new Date(tarefa.prazo).toLocaleDateString("pt-BR")}</span>}
@@ -1178,9 +1228,17 @@ export default function GestaoOperacional() {
                                                 <span className="ml-1 text-primary/70">• {(tarefa as any).responsavel.nome.split(" ")[0]}</span>
                                               )}
                                             </p>
+                                            {(tarefa as any).descricao_equipe && (
+                                              <p className="text-[11px] text-muted-foreground mt-1.5 bg-secondary/60 rounded px-2 py-1 border-l-2 border-primary/30">{(tarefa as any).descricao_equipe}</p>
+                                            )}
+                                            {(tarefa as any).arquivo_url && (
+                                              <a href={(tarefa as any).arquivo_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1">
+                                                <FileText size={9} /> {(tarefa as any).arquivo_nome || "Ver arquivo"}
+                                              </a>
+                                            )}
                                             {(tarefa as any).link_entrega && (
                                               <a href={(tarefa as any).link_entrega} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1">
-                                                <ExternalLink size={9} /> Ver entrega
+                                                <ExternalLink size={9} /> Ver entrega do aluno
                                               </a>
                                             )}
                                           </div>
@@ -1512,10 +1570,70 @@ export default function GestaoOperacional() {
                 <Input type="date" value={novaTarefa.prazo} onChange={e => setNovaTarefa(p => ({ ...p, prazo: e.target.value }))} className="bg-secondary border-border" />
               </div>
             </div>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Instruções para o Aluno (opcional)</Label>
+              <Textarea value={novaTarefa.descricao_equipe} onChange={e => setNovaTarefa(p => ({ ...p, descricao_equipe: e.target.value }))} className="bg-secondary border-border resize-none text-sm" rows={3} placeholder="Descreva o que o aluno precisa fazer nessa tarefa..." />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Arquivo de Referência (opcional)</Label>
+              {novaTarefaFile ? (
+                <div className="flex items-center gap-2 bg-secondary/60 border border-border rounded-lg px-3 py-2">
+                  <FileText size={14} className="text-primary shrink-0" />
+                  <span className="text-sm truncate flex-1">{novaTarefaFile.name}</span>
+                  <button type="button" onClick={() => setNovaTarefaFile(null)} className="text-muted-foreground hover:text-destructive transition-colors"><XCircle size={14} /></button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-border rounded-lg px-3 py-2 hover:border-primary/40 transition-colors">
+                  <Upload size={14} className="text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Selecionar arquivo</span>
+                  <input type="file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setNovaTarefaFile(f); e.target.value = ''; }} />
+                </label>
+              )}
+            </div>
             <Button type="submit" disabled={savingTarefa || !novaTarefa.sprint_id || !novaTarefa.aluno_id} className="w-full h-11 font-bold">
               {savingTarefa ? <Loader2 size={16} className="animate-spin" /> : "Criar Tarefa"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══ DIALOG: Editar Tarefa ═══════════════════════════════════════════════ */}
+      <Dialog open={!!editandoTarefa} onOpenChange={open => { if (!open) { setEditandoTarefa(null); setEditTarefaArqFile(null); } }}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="text-primary" size={16} /> Editar Tarefa</DialogTitle>
+            <DialogDescription className="truncate">{editandoTarefa?.titulo}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Instruções para o Aluno</Label>
+              <Textarea value={editTarefaDescricao} onChange={e => setEditTarefaDescricao(e.target.value)} className="bg-secondary border-border resize-none text-sm" rows={4} placeholder="Descreva o que o aluno precisa fazer..." />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Arquivo de Referência</Label>
+              {(editTarefaArqFile || editTarefaArqUrl) ? (
+                <div className="flex items-center gap-2 bg-secondary/60 border border-border rounded-lg px-3 py-2">
+                  <FileText size={14} className="text-primary shrink-0" />
+                  <span className="text-sm truncate flex-1">{editTarefaArqFile ? editTarefaArqFile.name : editTarefaArqNome || "Arquivo"}</span>
+                  {editTarefaArqUrl && !editTarefaArqFile && (
+                    <a href={editTarefaArqUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/70 transition-colors"><ExternalLink size={12} /></a>
+                  )}
+                  <button type="button" onClick={() => { setEditTarefaArqFile(null); setEditTarefaArqUrl(""); setEditTarefaArqNome(""); }} className="text-muted-foreground hover:text-destructive transition-colors"><XCircle size={14} /></button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-border rounded-lg px-3 py-2 hover:border-primary/40 transition-colors">
+                  <Upload size={14} className="text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Selecionar arquivo</span>
+                  <input type="file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setEditTarefaArqFile(f); e.target.value = ''; }} />
+                </label>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setEditandoTarefa(null); setEditTarefaArqFile(null); }}>Cancelar</Button>
+              <Button className="flex-1 gold-gradient text-primary-foreground font-bold" onClick={handleSalvarEditTarefa} disabled={savingEditTarefa}>
+                {savingEditTarefa ? <Loader2 size={14} className="animate-spin" /> : "Salvar"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

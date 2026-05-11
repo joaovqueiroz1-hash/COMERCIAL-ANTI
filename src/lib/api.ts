@@ -230,7 +230,7 @@ export async function updateLeadExtra(id: string, fields: Record<string, any>): 
   if (error) console.warn('[updateLeadExtra]', error.message);
 }
 
-export async function updateSprintTarefa(id: string, updates: { xp_recompensa?: number; titulo?: string; prazo?: string | null; link_entrega?: string | null }) {
+export async function updateSprintTarefa(id: string, updates: { xp_recompensa?: number; titulo?: string; prazo?: string | null; link_entrega?: string | null; descricao_equipe?: string | null; arquivo_url?: string | null; arquivo_nome?: string | null }) {
   const { data, error } = await db.from('sprint_tarefas').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
@@ -403,6 +403,9 @@ export async function createSprintTarefa(tarefa: {
   xp_recompensa?: number;
   prazo?: string;
   responsavel_id?: string | null;
+  descricao_equipe?: string | null;
+  arquivo_url?: string | null;
+  arquivo_nome?: string | null;
 }) {
   const { data, error } = await db.from('sprint_tarefas').insert(tarefa).select().single();
   if (error) throw error;

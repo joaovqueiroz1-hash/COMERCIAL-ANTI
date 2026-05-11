@@ -480,6 +480,14 @@ export default function PortalAluno() {
                                         Prazo: {new Date(tarefa.prazo).toLocaleDateString('pt-BR')}
                                       </p>
                                     )}
+                                    {(tarefa as any).descricao_equipe && (
+                                      <p className="text-[11px] text-white/60 mt-1.5 bg-white/5 rounded px-2 py-1 border-l-2 border-primary/40">{(tarefa as any).descricao_equipe}</p>
+                                    )}
+                                    {(tarefa as any).arquivo_url && (
+                                      <a href={(tarefa as any).arquivo_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/80 hover:text-primary flex items-center gap-1 mt-1 transition-colors">
+                                        <FileText size={9} /> {(tarefa as any).arquivo_nome || "Ver arquivo da equipe"}
+                                      </a>
+                                    )}
                                   </div>
                                 </div>
 

@@ -52,6 +52,7 @@ const headerPatterns: [RegExp, string][] = [
   [/capacidade.*invest|investimento/i, 'capacidade_investimento'],
   [/observa|^obs$|notes/i, 'observacoes'],
   [/carimbo|data.*hora|timestamp/i, 'timestamp'],
+  [/^tags?$/i, 'tags'],
 ];
 
 function normalizeHeaders(row: Record<string, any>): Record<string, any> {
@@ -89,6 +90,7 @@ function mapRowToLead(row: Record<string, any>): LeadInsert | null {
     faturamento_anual: parseNumber(row['faturamento'] || 0),
     capacidade_investimento: row['capacidade_investimento'] != null ? parseBool(row['capacidade_investimento']) : false,
     observacoes_iniciais: row['observacoes'] ? String(row['observacoes']).trim() : null,
+    tags: row['tags'] ? String(row['tags']).split(',').map((t: string) => t.trim()).filter(Boolean) : null,
     status_pipeline: 'entrada_lead',
     prioridade: 'media',
   };
@@ -270,15 +272,43 @@ export default function Configuracoes() {
 
       // Insert in batches of 50 directly via Supabase client
       const BATCH_SIZE = 50;
+      const insertedLeadsWithTags: { id: string; tags: string[] }[] = [];
       for (let i = 0; i < validLeads.length; i += BATCH_SIZE) {
         const batch = validLeads.slice(i, i + BATCH_SIZE);
         try {
-          const { error } = await supabase.from('leads').insert(batch);
+          const { data: inserted, error } = await supabase.from('leads').insert(batch).select('id, nome_completo, tags');
           if (error) throw new Error(error.message);
           success += batch.length;
+          // Collect leads that have tags for post-processing
+          if (inserted) {
+            for (const row of inserted) {
+              if (row.tags && row.tags.length > 0) {
+                insertedLeadsWithTags.push({ id: row.id, tags: row.tags });
+              }
+            }
+          }
         } catch (err: any) {
           errors += batch.length;
           errorRows.push(`Lote ${Math.floor(i / BATCH_SIZE) + 1}: ${err.message || 'Erro desconhecido'}`);
+        }
+      }
+
+      // Upsert tags into tags_sistema and create lead_tags entries
+      if (insertedLeadsWithTags.length > 0) {
+        const allTagNames = [...new Set(insertedLeadsWithTags.flatMap(l => l.tags))];
+        // Upsert all unique tags (ignore conflicts on nome)
+        const { data: tagRows } = await supabase
+          .from('tags_sistema')
+          .upsert(allTagNames.map(nome => ({ nome, cor: '#7c3aed', tipo: 'importado' })), { onConflict: 'nome', ignoreDuplicates: false })
+          .select('id, nome');
+        if (tagRows && tagRows.length > 0) {
+          const tagMap = new Map<string, string>(tagRows.map((t: any) => [t.nome, t.id]));
+          const leadTagInserts = insertedLeadsWithTags.flatMap(l =>
+            l.tags.map(tagName => ({ lead_id: l.id, tag_id: tagMap.get(tagName) })).filter(lt => lt.tag_id)
+          );
+          if (leadTagInserts.length > 0) {
+            await supabase.from('lead_tags').upsert(leadTagInserts as any[], { onConflict: 'lead_id,tag_id', ignoreDuplicates: true });
+          }
         }
       }
 
@@ -457,7 +487,7 @@ export default function Configuracoes() {
           <div className="mt-4">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Campos aceitos no CSV:</p>
             <div className="flex flex-wrap gap-1">
-              {['nome_completo', 'whatsapp', 'email', 'cidade', 'estado', 'empresario', 'nome_empresa', 'instagram', 'funcionarios', 'maior_dor', 'faturamento_anual', 'capacidade_investimento', 'observacoes'].map((field) => (
+              {['nome_completo', 'whatsapp', 'email', 'cidade', 'estado', 'empresario', 'nome_empresa', 'instagram', 'funcionarios', 'maior_dor', 'faturamento_anual', 'capacidade_investimento', 'observacoes', 'tags'].map((field) => (
                 <span key={field} className="text-[10px] px-2 py-1 rounded bg-secondary text-muted-foreground font-mono">
                   {field}
                 </span>

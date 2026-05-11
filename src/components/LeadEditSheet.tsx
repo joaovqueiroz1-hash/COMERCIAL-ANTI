@@ -466,7 +466,7 @@ export function LeadEditSheet({ lead, profiles, open, onOpenChange, readOnly = f
                       </div>
                     ) : <p className="text-sm text-foreground">{form.capacidade_investimento ? 'Sim' : 'Não'}</p>}
                   </FieldBlock>
-                  <FieldBlock label="Faturamento Anual" editing={editing}>
+                  <FieldBlock label="Faturamento Mensal" editing={editing}>
                     {editing
                       ? <FaturamentoInput key={`fat-${lead?.id}`} value={form.faturamento_anual || 0} onChange={v => setField('faturamento_anual', v)} />
                       : <p className="text-sm text-primary font-medium">{formatCurrency(form.faturamento_anual || 0)}</p>}
