@@ -230,7 +230,7 @@ export async function updateLeadExtra(id: string, fields: Record<string, any>): 
   if (error) console.warn('[updateLeadExtra]', error.message);
 }
 
-export async function updateSprintTarefa(id: string, updates: { xp_recompensa?: number; titulo?: string; prazo?: string | null; link_entrega?: string | null; descricao_equipe?: string | null; arquivo_url?: string | null; arquivo_nome?: string | null }) {
+export async function updateSprintTarefa(id: string, updates: { xp_recompensa?: number; titulo?: string; prazo?: string | null; link_entrega?: string | null; descricao_equipe?: string | null; arquivo_url?: string | null; arquivo_nome?: string | null; link_externo?: string | null; responsavel_id?: string | null }) {
   const { data, error } = await db.from('sprint_tarefas').update(updates).eq('id', id).select().single();
   if (error) throw error;
   return data;
@@ -406,6 +406,7 @@ export async function createSprintTarefa(tarefa: {
   descricao_equipe?: string | null;
   arquivo_url?: string | null;
   arquivo_nome?: string | null;
+  link_externo?: string | null;
 }) {
   const { data, error } = await db.from('sprint_tarefas').insert(tarefa).select().single();
   if (error) throw error;
@@ -556,7 +557,14 @@ export async function fetchEventosAluno(alunoId: string) {
     .gte('data_hora', new Date().toISOString())
     .order('data_hora', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as Evento[];
+  // Client-side filter: if evento has participantes, only show to included alunos
+  const all = (data ?? []) as any[];
+  return all.filter(e => {
+    if (e.aluno_id !== null) return true; // specific individual event
+    const parts: string[] = e.participantes ?? [];
+    if (parts.length === 0) return true; // global (aluno_id null + empty participantes)
+    return parts.includes(alunoId); // targeted multi-aluno event
+  }) as Evento[];
 }
 
 export async function fetchTodosEventos() {

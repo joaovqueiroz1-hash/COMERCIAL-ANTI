@@ -488,6 +488,11 @@ export default function PortalAluno() {
                                         <FileText size={9} /> {(tarefa as any).arquivo_nome || "Ver arquivo da equipe"}
                                       </a>
                                     )}
+                                    {(tarefa as any).link_externo && (
+                                      <a href={(tarefa as any).link_externo} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/80 hover:text-primary flex items-center gap-1 mt-1 transition-colors">
+                                        <Link2 size={9} /> Link externo
+                                      </a>
+                                    )}
                                   </div>
                                 </div>
 

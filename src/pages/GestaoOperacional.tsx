@@ -8,6 +8,7 @@ import {
   createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
   resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
   fetchTodasSprintTarefas, fetchProfiles, renamePasta, deletePasta,
+  deleteSprintTarefa,
 } from "@/lib/api";
 import type { Material, Evento } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -128,12 +129,23 @@ export default function GestaoOperacional() {
   const [sprintsParaTarefa, setSprintsParaTarefa] = useState<any[]>([]);
 
   // ── edição de tarefa existente ─────────────────────────────────────────────
-  const [editandoTarefa,      setEditandoTarefa]      = useState<any | null>(null);
-  const [editTarefaDescricao, setEditTarefaDescricao] = useState("");
-  const [editTarefaArqFile,   setEditTarefaArqFile]   = useState<File | null>(null);
-  const [editTarefaArqUrl,    setEditTarefaArqUrl]    = useState("");
-  const [editTarefaArqNome,   setEditTarefaArqNome]   = useState("");
-  const [savingEditTarefa,    setSavingEditTarefa]    = useState(false);
+  const [editandoTarefa,        setEditandoTarefa]        = useState<any | null>(null);
+  const [editTarefaTitulo,      setEditTarefaTitulo]      = useState("");
+  const [editTarefaXP,          setEditTarefaXP]          = useState(50);
+  const [editTarefaPrazo,       setEditTarefaPrazo]       = useState("");
+  const [editTarefaResponsavel, setEditTarefaResponsavel] = useState("");
+  const [editTarefaDescricao,   setEditTarefaDescricao]   = useState("");
+  const [editTarefaArqFile,     setEditTarefaArqFile]     = useState<File | null>(null);
+  const [editTarefaArqUrl,      setEditTarefaArqUrl]      = useState("");
+  const [editTarefaArqNome,     setEditTarefaArqNome]     = useState("");
+  const [editTarefaLinkExterno, setEditTarefaLinkExterno] = useState("");
+  const [deletingTarefaId,      setDeletingTarefaId]      = useState<string | null>(null);
+  const [savingEditTarefa,      setSavingEditTarefa]      = useState(false);
+
+  // ── evento: multi-participante ────────────────────────────────────────────
+  const [eventoAlunos,  setEventoAlunos]  = useState<string[]>([]);
+  const [eventoEquipe,  setEventoEquipe]  = useState<string[]>([]);
+  const [novaTarefaLinkExterno, setNovaTarefaLinkExterno] = useState("");
 
   // ── biblioteca: pastas ────────────────────────────────────────────────────
   const [openNovaPastaDialog, setOpenNovaPastaDialog] = useState(false);
@@ -455,11 +467,13 @@ export default function GestaoOperacional() {
         descricao_equipe: novaTarefa.descricao_equipe.trim() || null,
         arquivo_url: arquivoUrl || null,
         arquivo_nome: arquivoNome || null,
+        link_externo: novaTarefaLinkExterno.trim() || null,
       });
       toast({ title: "Tarefa criada!" });
       setOpenCriarTarefa(false);
       setNovaTarefa({ sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "", responsavel_id: "", descricao_equipe: "", arquivo_url: "", arquivo_nome: "" });
       setNovaTarefaFile(null);
+      setNovaTarefaLinkExterno("");
     } catch { toast({ title: "Erro ao criar tarefa.", variant: "destructive" }); }
     finally { setSavingTarefa(false); }
   }
@@ -522,18 +536,34 @@ export default function GestaoOperacional() {
         arquivoUrl = await uploadMaterialFile(editTarefaArqFile);
         arquivoNome = editTarefaArqFile.name;
       }
-      await updateSprintTarefa(editandoTarefa.id, {
+      const updates = {
+        titulo: editTarefaTitulo.trim() || editandoTarefa.titulo,
+        xp_recompensa: editTarefaXP,
+        prazo: editTarefaPrazo || null,
+        responsavel_id: editTarefaResponsavel || null,
         descricao_equipe: editTarefaDescricao.trim() || null,
         arquivo_url: arquivoUrl || null,
         arquivo_nome: arquivoNome || null,
-      });
-      setTarefasDetalhe(prev => prev.map(t => t.id === editandoTarefa.id
-        ? { ...t, descricao_equipe: editTarefaDescricao.trim() || null, arquivo_url: arquivoUrl || null, arquivo_nome: arquivoNome || null }
-        : t));
+        link_externo: editTarefaLinkExterno.trim() || null,
+      };
+      await updateSprintTarefa(editandoTarefa.id, updates);
+      setTarefasDetalhe(prev => prev.map(t => t.id === editandoTarefa.id ? { ...t, ...updates } : t));
+      setTodasTarefas(prev => prev.map(t => t.id === editandoTarefa.id ? { ...t, ...updates } : t));
       toast({ title: "Tarefa atualizada!" });
       setEditandoTarefa(null);
     } catch { toast({ title: "Erro ao salvar tarefa.", variant: "destructive" }); }
     finally { setSavingEditTarefa(false); }
+  }
+
+  async function handleDeletarTarefa(tarefaId: string) {
+    if (deletingTarefaId !== tarefaId) { setDeletingTarefaId(tarefaId); return; }
+    setDeletingTarefaId(null);
+    try {
+      await deleteSprintTarefa(tarefaId);
+      setTarefasDetalhe(prev => prev.filter(t => t.id !== tarefaId));
+      setTodasTarefas(prev => prev.filter(t => t.id !== tarefaId));
+      toast({ title: "Tarefa excluída." });
+    } catch { toast({ title: "Erro ao excluir tarefa.", variant: "destructive" }); }
   }
 
   // ── fase ─────────────────────────────────────────────────────────────────
@@ -556,18 +586,28 @@ export default function GestaoOperacional() {
     if (!novoEvento.titulo || !novoEvento.data_hora) return;
     setSavingEvento(true);
     try {
+      // participantes = selected aluno IDs + selected team profile IDs
+      const participantes = [...eventoAlunos, ...eventoEquipe];
+      const alunoId = eventoAlunos.length === 0
+        ? null  // global (todos os alunos verão)
+        : eventoAlunos.length === 1
+          ? eventoAlunos[0]  // single aluno
+          : null; // multi-aluno → stored in participantes, aluno_id = null
       const ev = await createEvento({
         titulo: novoEvento.titulo, descricao: novoEvento.descricao || null,
         data_hora: new Date(novoEvento.data_hora).toISOString(),
         tipo: novoEvento.tipo,
-        aluno_id: novoEvento.aluno_id === "__todos__" ? null : novoEvento.aluno_id,
+        aluno_id: alunoId,
         sprint_id: novoEvento.sprint_id === "__none__" ? null : novoEvento.sprint_id,
         criado_por: profile?.id ?? null,
-      });
+        participantes: participantes.length > 0 ? participantes : null,
+      } as any);
       setEventos(prev => [...prev, ev].sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()));
       toast({ title: "Evento criado!" });
       setOpenCriarEvento(false);
       setNovoEvento({ titulo: "", descricao: "", data_hora: "", tipo: "reuniao", aluno_id: "__todos__", sprint_id: "__none__" });
+      setEventoAlunos([]);
+      setEventoEquipe([]);
     } catch { toast({ title: "Erro ao criar evento.", variant: "destructive" }); }
     finally { setSavingEvento(false); }
   }
@@ -1218,7 +1258,19 @@ export default function GestaoOperacional() {
                                             <div className="flex items-start justify-between gap-2">
                                               <p className="text-sm font-medium text-foreground">{tarefa.titulo}</p>
                                               {!tarefa.aprovada_por_equipe && (
-                                                <button onClick={() => { setEditandoTarefa(tarefa); setEditTarefaDescricao((tarefa as any).descricao_equipe || ""); setEditTarefaArqUrl((tarefa as any).arquivo_url || ""); setEditTarefaArqNome((tarefa as any).arquivo_nome || ""); setEditTarefaArqFile(null); }} className="text-muted-foreground/40 hover:text-primary transition-colors shrink-0 mt-0.5" title="Editar tarefa"><Pencil size={11} /></button>
+                                                <button onClick={() => {
+                                                  setEditandoTarefa(tarefa);
+                                                  setEditTarefaTitulo(tarefa.titulo);
+                                                  setEditTarefaXP(tarefa.xp_recompensa);
+                                                  setEditTarefaPrazo(tarefa.prazo ? tarefa.prazo.split('T')[0] : "");
+                                                  setEditTarefaResponsavel((tarefa as any).responsavel_id || "");
+                                                  setEditTarefaDescricao((tarefa as any).descricao_equipe || "");
+                                                  setEditTarefaArqUrl((tarefa as any).arquivo_url || "");
+                                                  setEditTarefaArqNome((tarefa as any).arquivo_nome || "");
+                                                  setEditTarefaLinkExterno((tarefa as any).link_externo || "");
+                                                  setEditTarefaArqFile(null);
+                                                  setDeletingTarefaId(null);
+                                                }} className="text-muted-foreground/40 hover:text-primary transition-colors shrink-0 mt-0.5" title="Editar tarefa"><Pencil size={11} /></button>
                                               )}
                                             </div>
                                             <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
@@ -1234,6 +1286,11 @@ export default function GestaoOperacional() {
                                             {(tarefa as any).arquivo_url && (
                                               <a href={(tarefa as any).arquivo_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1">
                                                 <FileText size={9} /> {(tarefa as any).arquivo_nome || "Ver arquivo"}
+                                              </a>
+                                            )}
+                                            {(tarefa as any).link_externo && (
+                                              <a href={(tarefa as any).link_externo} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1">
+                                                <Link2 size={9} /> Link externo
                                               </a>
                                             )}
                                             {(tarefa as any).link_entrega && (
@@ -1589,6 +1646,9 @@ export default function GestaoOperacional() {
                 </label>
               )}
             </div>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Link Externo (opcional)</Label>
+              <Input type="url" value={novaTarefaLinkExterno} onChange={e => setNovaTarefaLinkExterno(e.target.value)} className="bg-secondary border-border" placeholder="https://drive.google.com/..." />
+            </div>
             <Button type="submit" disabled={savingTarefa || !novaTarefa.sprint_id || !novaTarefa.aluno_id} className="w-full h-11 font-bold">
               {savingTarefa ? <Loader2 size={16} className="animate-spin" /> : "Criar Tarefa"}
             </Button>
@@ -1597,16 +1657,39 @@ export default function GestaoOperacional() {
       </Dialog>
 
       {/* ══ DIALOG: Editar Tarefa ═══════════════════════════════════════════════ */}
-      <Dialog open={!!editandoTarefa} onOpenChange={open => { if (!open) { setEditandoTarefa(null); setEditTarefaArqFile(null); } }}>
-        <DialogContent className="bg-card border-border sm:max-w-md">
+      <Dialog open={!!editandoTarefa} onOpenChange={open => { if (!open) { setEditandoTarefa(null); setEditTarefaArqFile(null); setDeletingTarefaId(null); } }}>
+        <DialogContent className="bg-card border-border sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="text-primary" size={16} /> Editar Tarefa</DialogTitle>
-            <DialogDescription className="truncate">{editandoTarefa?.titulo}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Instruções para o Aluno</Label>
-              <Textarea value={editTarefaDescricao} onChange={e => setEditTarefaDescricao(e.target.value)} className="bg-secondary border-border resize-none text-sm" rows={4} placeholder="Descreva o que o aluno precisa fazer..." />
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título *</Label>
+              <Input value={editTarefaTitulo} onChange={e => setEditTarefaTitulo(e.target.value)} className="bg-secondary border-border" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">XP de Recompensa</Label>
+                <Input type="number" min={1} max={500} value={editTarefaXP} onChange={e => setEditTarefaXP(Number(e.target.value))} className="bg-secondary border-border" />
+              </div>
+              <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Prazo</Label>
+                <Input type="date" value={editTarefaPrazo} onChange={e => setEditTarefaPrazo(e.target.value)} className="bg-secondary border-border" />
+              </div>
+            </div>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Responsável (opcional)</Label>
+              <Select value={editTarefaResponsavel || "__none__"} onValueChange={v => setEditTarefaResponsavel(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Sem responsável" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem responsável</SelectItem>
+                  {editandoTarefa && (() => {
+                    const al = alunos.find(a => a.id === editandoTarefa.aluno_id);
+                    if (!al?.profile_id) return null;
+                    return <SelectItem key={al.profile_id} value={al.profile_id}>👤 {al.profiles?.nome || al.leads?.nome_completo} (aluno)</SelectItem>;
+                  })()}
+                  {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Instruções para o Aluno</Label>
+              <Textarea value={editTarefaDescricao} onChange={e => setEditTarefaDescricao(e.target.value)} className="bg-secondary border-border resize-none text-sm" rows={3} placeholder="Descreva o que o aluno precisa fazer..." />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase mb-2 block">Arquivo de Referência</Label>
@@ -1627,9 +1710,20 @@ export default function GestaoOperacional() {
                 </label>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => { setEditandoTarefa(null); setEditTarefaArqFile(null); }}>Cancelar</Button>
-              <Button className="flex-1 gold-gradient text-primary-foreground font-bold" onClick={handleSalvarEditTarefa} disabled={savingEditTarefa}>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Link Externo</Label>
+              <Input type="url" value={editTarefaLinkExterno} onChange={e => setEditTarefaLinkExterno(e.target.value)} className="bg-secondary border-border" placeholder="https://drive.google.com/..." />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => editandoTarefa && handleDeletarTarefa(editandoTarefa.id)}
+                className={cn("flex items-center gap-1 text-xs px-3 py-2 rounded-lg border transition-colors", deletingTarefaId === editandoTarefa?.id ? "border-destructive text-destructive bg-destructive/10" : "border-border text-muted-foreground hover:border-destructive hover:text-destructive")}
+              >
+                <Trash2 size={13} /> {deletingTarefaId === editandoTarefa?.id ? "Confirmar exclusão" : "Excluir tarefa"}
+              </button>
+              <div className="flex-1" />
+              <Button variant="outline" onClick={() => { setEditandoTarefa(null); setEditTarefaArqFile(null); setDeletingTarefaId(null); }}>Cancelar</Button>
+              <Button className="gold-gradient text-primary-foreground font-bold" onClick={handleSalvarEditTarefa} disabled={savingEditTarefa}>
                 {savingEditTarefa ? <Loader2 size={14} className="animate-spin" /> : "Salvar"}
               </Button>
             </div>
@@ -1664,14 +1758,36 @@ export default function GestaoOperacional() {
                 <Input type="datetime-local" value={novoEvento.data_hora} onChange={e => setNovoEvento(p => ({ ...p, data_hora: e.target.value }))} className="bg-secondary border-border" required />
               </div>
             </div>
-            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Visibilidade</Label>
-              <Select value={novoEvento.aluno_id} onValueChange={v => setNovoEvento(p => ({ ...p, aluno_id: v }))}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__todos__">Todos os Alunos</SelectItem>
-                  {alunos.map(a => <SelectItem key={a.id} value={a.id}>{a.profiles?.nome || a.leads?.nome_completo}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Alunos Participantes</Label>
+              <div className="border border-border rounded-lg bg-secondary/40 divide-y divide-border/50 max-h-40 overflow-y-auto">
+                {alunos.map(a => {
+                  const nome = a.profiles?.nome || a.leads?.nome_completo || "?";
+                  const checked = eventoAlunos.includes(a.id);
+                  return (
+                    <label key={a.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-secondary/60 transition-colors">
+                      <input type="checkbox" checked={checked} onChange={() => setEventoAlunos(prev => checked ? prev.filter(id => id !== a.id) : [...prev, a.id])} className="accent-primary" />
+                      <span className="text-sm text-foreground">{nome}</span>
+                    </label>
+                  );
+                })}
+                {alunos.length === 0 && <p className="text-xs text-muted-foreground px-3 py-2 italic">Nenhum aluno cadastrado</p>}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">{eventoAlunos.length === 0 ? "Nenhum selecionado → visível para todos os alunos" : `${eventoAlunos.length} aluno(s) selecionado(s)`}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Equipe Participante (opcional)</Label>
+              <div className="border border-border rounded-lg bg-secondary/40 divide-y divide-border/50 max-h-32 overflow-y-auto">
+                {profiles.map(p => {
+                  const checked = eventoEquipe.includes(p.id);
+                  return (
+                    <label key={p.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-secondary/60 transition-colors">
+                      <input type="checkbox" checked={checked} onChange={() => setEventoEquipe(prev => checked ? prev.filter(id => id !== p.id) : [...prev, p.id])} className="accent-primary" />
+                      <span className="text-sm text-foreground">{p.nome}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
             <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição / Link (opcional)</Label>
               <Textarea value={novoEvento.descricao} onChange={e => setNovoEvento(p => ({ ...p, descricao: e.target.value }))} className="bg-secondary border-border resize-none" rows={2} placeholder="Link da reunião, instruções..." />
