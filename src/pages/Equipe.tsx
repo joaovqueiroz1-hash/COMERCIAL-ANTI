@@ -76,27 +76,25 @@ export default function Equipe() {
     }
     setCreating(true);
     try {
-      // Usa cliente separado (persistSession:false) para não deslogar o admin atual
-      const { data: signUpData, error: signUpError } = await adminAuthClient.auth.signUp({
+      // 1. Cria o usuário no Auth (persistSession:false evita deslogar o admin)
+      const { error: signUpError } = await adminAuthClient.auth.signUp({
         email,
         password,
         options: { data: { nome, perfil } },
       });
+      // Ignora erro "already registered" — a função abaixo resolve o profile mesmo assim
+      if (signUpError && !signUpError.message.toLowerCase().includes('already registered')) {
+        throw new Error(signUpError.message);
+      }
 
-      if (signUpError) throw new Error(signUpError.message);
-      if (!signUpData.user) throw new Error('Usuário não foi criado. Verifique se o e-mail já existe.');
-
-      const uid = signUpData.user.id;
-
-      // Confirma e-mail automaticamente
-      await (supabase as any).rpc('confirm_user_signup', { user_id: uid });
-
-      // Garante profile correto (o trigger pode ter criado com perfil errado)
-      const { error: profErr } = await (supabase as any).from('profiles').upsert(
-        { id: uid, nome, email, perfil, ativo: true },
-        { onConflict: 'id' },
-      );
-      if (profErr) throw new Error(`Perfil não criado: ${profErr.message}`);
+      // 2. Função SECURITY DEFINER: busca ID real, confirma e-mail e cria/corrige profile
+      const { data: result, error: fnError } = await (supabase as any).rpc('create_team_member', {
+        p_nome: nome,
+        p_email: email,
+        p_perfil: perfil,
+      });
+      if (fnError) throw new Error(fnError.message);
+      if (result?.error) throw new Error(result.error);
 
       toast({ title: 'Usuário criado com sucesso!' });
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
