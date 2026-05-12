@@ -76,47 +76,32 @@ export default function Equipe() {
     }
     setCreating(true);
     try {
-      // Try Edge Function first (admin API — requires function deployed in Supabase)
-      const res = await supabase.functions.invoke('create-user', {
-        body: { email, password, nome, perfil },
+      // Usa cliente separado (persistSession:false) para não deslogar o admin atual
+      const { data: signUpData, error: signUpError } = await adminAuthClient.auth.signUp({
+        email,
+        password,
+        options: { data: { nome, perfil } },
       });
 
-      const fnError = res.error || res.data?.error;
+      if (signUpError) throw new Error(signUpError.message);
+      if (!signUpData.user) throw new Error('Usuário não foi criado. Verifique se o e-mail já existe.');
 
-      if (!fnError) {
-        // Edge Function succeeded
-        toast({ title: 'Usuário criado com sucesso!' });
-        queryClient.invalidateQueries({ queryKey: ['profiles'] });
-        setOpen(false);
-        setNome(''); setEmail(''); setPassword(''); setPerfil('vendedor');
-      } else {
-        // Fallback: usa cliente sem persistSession para não deslogar o admin atual
-        const { data: signUpData, error: signUpError } = await adminAuthClient.auth.signUp({
-          email,
-          password,
-          options: { data: { nome, perfil } },
-        });
+      const uid = signUpData.user.id;
 
-        if (signUpError) throw new Error(signUpError.message);
+      // Confirma e-mail automaticamente
+      await (supabase as any).rpc('confirm_user_signup', { user_id: uid });
 
-        if (signUpData.user) {
-          const uid = signUpData.user.id;
+      // Garante profile correto (o trigger pode ter criado com perfil errado)
+      const { error: profErr } = await (supabase as any).from('profiles').upsert(
+        { id: uid, nome, email, perfil, ativo: true },
+        { onConflict: 'id' },
+      );
+      if (profErr) throw new Error(`Perfil não criado: ${profErr.message}`);
 
-          // Confirma e-mail automaticamente via RPC
-          await (supabase as any).rpc('confirm_user_signup', { user_id: uid });
-
-          // Garante que o profile existe com perfil correto
-          await (supabase as any).from('profiles').upsert(
-            { id: uid, nome, email, perfil, ativo: true },
-            { onConflict: 'id' },
-          );
-        }
-
-        toast({ title: 'Usuário criado com sucesso!' });
-        queryClient.invalidateQueries({ queryKey: ['profiles'] });
-        setOpen(false);
-        setNome(''); setEmail(''); setPassword(''); setPerfil('vendedor');
-      }
+      toast({ title: 'Usuário criado com sucesso!' });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setOpen(false);
+      setNome(''); setEmail(''); setPassword(''); setPerfil('vendedor');
     } catch (err: any) {
       toast({ title: 'Erro ao criar usuário', description: err.message, variant: 'destructive' });
     }
