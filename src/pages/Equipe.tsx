@@ -8,25 +8,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { UserPlus, ToggleLeft, ToggleRight, Loader2, Trash2 } from 'lucide-react';
+import { UserPlus, ToggleLeft, ToggleRight, Loader2, Trash2, KeyRound } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
-
-// Cliente separado sem persistência de sessão — evita deslogar o admin ao criar usuário
-const adminAuthClient = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-  { auth: { persistSession: false } },
-);
 
 export default function Equipe() {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const { data: profiles = [], isLoading } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
   const { data: leads = [] } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
+
+  const isAdmin = profile?.perfil === 'admin';
+
+  // ── criar usuário ──────────────────────────────────────────────────────────
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -34,8 +30,17 @@ export default function Equipe() {
   const [perfil, setPerfil] = useState<'vendedor' | 'gestor' | 'admin'>('vendedor');
   const [creating, setCreating] = useState(false);
 
-  const isAdmin = profile?.perfil === 'admin';
+  // ── trocar senha ───────────────────────────────────────────────────────────
+  const [openSenha, setOpenSenha] = useState(false);
+  const [senhaTarget, setSenhaTarget] = useState<{ id: string; nome: string } | null>(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
+
+  // ── excluir ────────────────────────────────────────────────────────────────
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const perfilLabels: Record<string, string> = { admin: 'Admin Master', gestor: 'Gestora Comercial', vendedor: 'Vendedor(a)' };
+  const perfilColors: Record<string, string> = { admin: 'bg-primary/20 text-primary', gestor: 'bg-info/20 text-info', vendedor: 'bg-success/20 text-success' };
 
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -52,17 +57,12 @@ export default function Equipe() {
     },
   });
 
-  const perfilLabels: Record<string, string> = { admin: 'Admin Master', gestor: 'Gestora Comercial', vendedor: 'Vendedor(a)' };
-  const perfilColors: Record<string, string> = { admin: 'bg-primary/20 text-primary', gestor: 'bg-info/20 text-info', vendedor: 'bg-success/20 text-success' };
-
   const toggleAtivoMutation = useMutation({
     mutationFn: async ({ id, ativo }: { id: string; ativo: boolean }) => {
       const { error } = await supabase.from('profiles').update({ ativo }).eq('id', id);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profiles'] }),
     onError: (err: Error) => {
       toast({ title: 'Erro ao atualizar status', description: err.message, variant: 'destructive' });
     },
@@ -76,7 +76,6 @@ export default function Equipe() {
     }
     setCreating(true);
     try {
-      // Função SECURITY DEFINER cria auth user + confirma e-mail + upsert profile
       const { data: result, error: fnError } = await (supabase as any).rpc('create_team_member', {
         p_nome: nome,
         p_email: email,
@@ -96,6 +95,32 @@ export default function Equipe() {
     setCreating(false);
   };
 
+  const handleTrocarSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senhaTarget) return;
+    if (novaSenha.length < 6) {
+      toast({ title: 'Senha muito curta', description: 'Mínimo de 6 caracteres.', variant: 'destructive' });
+      return;
+    }
+    setTrocandoSenha(true);
+    try {
+      const { data: result, error: fnError } = await (supabase as any).rpc('update_team_member_password', {
+        p_user_id: senhaTarget.id,
+        p_new_password: novaSenha,
+      });
+      if (fnError) throw new Error(fnError.message);
+      if (result?.error) throw new Error(result.error);
+
+      toast({ title: 'Senha alterada com sucesso!' });
+      setOpenSenha(false);
+      setNovaSenha('');
+      setSenhaTarget(null);
+    } catch (err: any) {
+      toast({ title: 'Erro ao trocar senha', description: err.message, variant: 'destructive' });
+    }
+    setTrocandoSenha(false);
+  };
+
   if (isLoading) return (
     <AppLayout title="Equipe">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -103,6 +128,8 @@ export default function Equipe() {
       </div>
     </AppLayout>
   );
+
+  const teamProfiles = profiles.filter((u) => (u as any).perfil !== 'aluno');
 
   return (
     <AppLayout
@@ -115,7 +142,7 @@ export default function Equipe() {
       ) : undefined}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {profiles.filter((u) => (u as any).perfil !== 'aluno').map((user) => {
+        {teamProfiles.map((user) => {
           const leadsCount = leads.filter((l) => l.vendedor_id === user.id || l.gestor_id === user.id).length;
           const fechados = leads.filter((l) => l.vendedor_id === user.id && ['fechado', 'vendido'].includes(l.status_pipeline)).length;
           const isToggling = toggleAtivoMutation.isPending && toggleAtivoMutation.variables?.id === user.id;
@@ -135,6 +162,13 @@ export default function Equipe() {
                 </div>
                 {isAdmin && (
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { setSenhaTarget({ id: user.id, nome: user.nome }); setOpenSenha(true); }}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      title="Trocar senha"
+                    >
+                      <KeyRound size={15} />
+                    </button>
                     <button
                       onClick={() => toggleAtivoMutation.mutate({ id: user.id, ativo: !user.ativo })}
                       disabled={isToggling}
@@ -189,13 +223,14 @@ export default function Equipe() {
             </div>
           );
         })}
-        {profiles.filter((u) => (u as any).perfil !== 'aluno').length === 0 && (
+        {teamProfiles.length === 0 && (
           <div className="card-premium p-8 text-center md:col-span-3">
             <p className="text-sm text-muted-foreground">Nenhum membro na equipe. Crie uma conta para começar.</p>
           </div>
         )}
       </div>
 
+      {/* ── Dialog: Novo Usuário ── */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -205,36 +240,15 @@ export default function Equipe() {
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nome completo</Label>
-              <Input
-                value={nome}
-                onChange={e => setNome(e.target.value)}
-                placeholder="Nome do usuário"
-                className="bg-bg-tertiary border-border mt-1"
-                required
-              />
+              <Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do usuário" className="bg-bg-tertiary border-border mt-1" required />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">E-mail</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="email@exemplo.com"
-                className="bg-bg-tertiary border-border mt-1"
-                required
-              />
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com" className="bg-bg-tertiary border-border mt-1" required />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Senha</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                className="bg-bg-tertiary border-border mt-1"
-                minLength={6}
-                required
-              />
+              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="bg-bg-tertiary border-border mt-1" minLength={6} required />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-3 block">Perfil de acesso</Label>
@@ -255,6 +269,34 @@ export default function Equipe() {
             </div>
             <Button type="submit" disabled={creating} className="w-full gold-gradient text-primary-foreground font-semibold">
               {creating ? <><Loader2 size={14} className="animate-spin mr-2" /> Criando...</> : 'Criar Usuário'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Trocar Senha ── */}
+      <Dialog open={openSenha} onOpenChange={(v) => { setOpenSenha(v); if (!v) { setNovaSenha(''); setSenhaTarget(null); } }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Trocar Senha</DialogTitle>
+            <DialogDescription>{senhaTarget?.nome}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleTrocarSenha} className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nova senha</Label>
+              <Input
+                type="password"
+                value={novaSenha}
+                onChange={e => setNovaSenha(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="bg-bg-tertiary border-border mt-1"
+                minLength={6}
+                required
+                autoFocus
+              />
+            </div>
+            <Button type="submit" disabled={trocandoSenha} className="w-full gold-gradient text-primary-foreground font-semibold">
+              {trocandoSenha ? <><Loader2 size={14} className="animate-spin mr-2" /> Salvando...</> : 'Salvar nova senha'}
             </Button>
           </form>
         </DialogContent>
