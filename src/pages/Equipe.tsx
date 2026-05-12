@@ -76,14 +76,21 @@ export default function Equipe() {
     }
     setCreating(true);
     try {
+      // Passo 1: cria auth user + identidade + profile via SQL
       const { data: result, error: fnError } = await (supabase as any).rpc('create_team_member', {
-        p_nome: nome,
-        p_email: email,
-        p_perfil: perfil,
-        p_password: password,
+        p_nome: nome, p_email: email, p_perfil: perfil, p_password: password,
       });
       if (fnError) throw new Error(fnError.message);
       if (result?.error) throw new Error(result.error);
+
+      // Passo 2: busca o ID real e aplica a senha pela função que JÁ funciona para alunos
+      const { data: prof } = await (supabase as any).from('profiles').select('id').eq('email', email).single();
+      if (prof?.id) {
+        await (supabase as any).rpc('admin_update_user_password', {
+          p_user_id: prof.id,
+          p_new_password: password,
+        });
+      }
 
       toast({ title: 'Usuário criado com sucesso!' });
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
@@ -104,12 +111,12 @@ export default function Equipe() {
     }
     setTrocandoSenha(true);
     try {
-      const { data: result, error: fnError } = await (supabase as any).rpc('update_team_member_password', {
+      // Usa a mesma função que já funciona para alunos
+      const { error } = await (supabase as any).rpc('admin_update_user_password', {
         p_user_id: senhaTarget.id,
         p_new_password: novaSenha,
       });
-      if (fnError) throw new Error(fnError.message);
-      if (result?.error) throw new Error(result.error);
+      if (error) throw new Error(error.message);
 
       toast({ title: 'Senha alterada com sucesso!' });
       setOpenSenha(false);
