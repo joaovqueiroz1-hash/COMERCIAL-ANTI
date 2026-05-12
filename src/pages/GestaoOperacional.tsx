@@ -293,10 +293,15 @@ export default function GestaoOperacional() {
       // que ocorre quando tentamos criar o mesmo e-mail múltiplas vezes.
       const { data: existingProfile, error: checkErr } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, perfil")
         .eq("email", emailTrimmed)
         .maybeSingle();
       if (checkErr) throw new Error(`Erro ao verificar perfil: ${checkErr.message}`);
+
+      // Block if email belongs to a team member (not an aluno)
+      if (existingProfile && (existingProfile as any).perfil !== "aluno") {
+        throw new Error(`Este e-mail já pertence a um membro da equipe (${(existingProfile as any).perfil}). Use outro e-mail para o aluno.`);
+      }
 
       let pid: string | undefined = existingProfile?.id;
 
