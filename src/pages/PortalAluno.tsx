@@ -11,6 +11,7 @@ import {
   CheckCircle2, Lock, Star, Trophy,
   FileText, Video, Link2, BookOpen, ExternalLink,
   Clock, Loader2, CalendarClock, AlertTriangle, Zap,
+  User, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -461,74 +462,129 @@ export default function PortalAluno() {
 
                         {isUnlocked && minhasTarefas.length > 0 && (
                           <div className="space-y-2 mt-2">
-                            {minhasTarefas.map(tarefa => (
+                            {minhasTarefas.map(tarefa => {
+                              const t = tarefa as any;
+                              const responsavelNome: string | null = t.responsavel?.nome ?? null;
+                              const prazoFormatado = tarefa.prazo
+                                ? (() => { const [y,m,d] = tarefa.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })()
+                                : null;
+                              const diasPrazo = tarefa.prazo ? calendarDiff(tarefa.prazo) : null;
+                              const prazoUrgente = diasPrazo !== null && diasPrazo <= 2 && !tarefa.aprovada_por_equipe;
+
+                              return (
                               <div
                                 key={tarefa.id}
-                                className="flex items-center justify-between bg-secondary p-3 rounded-lg border border-border gap-3"
+                                className={cn(
+                                  "bg-secondary rounded-xl border overflow-hidden transition-all",
+                                  tarefa.aprovada_por_equipe ? "border-emerald-500/20 opacity-70" : "border-border",
+                                )}
                               >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  {tarefa.concluida ? (
-                                    <CheckCircle2
-                                      size={16}
-                                      className={cn(
-                                        "shrink-0",
-                                        tarefa.aprovada_por_equipe ? "text-emerald-500" : "text-amber-400",
+                                {/* ── Cabeçalho da tarefa ── */}
+                                <div className="flex items-start gap-3 p-3">
+                                  <div className="mt-0.5 shrink-0">
+                                    {tarefa.concluida ? (
+                                      <CheckCircle2
+                                        size={16}
+                                        className={tarefa.aprovada_por_equipe ? "text-emerald-500" : "text-amber-400"}
+                                      />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/40" />
+                                    )}
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    {/* Título + XP */}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <span className={cn(
+                                        "text-sm font-semibold leading-snug",
+                                        tarefa.aprovada_por_equipe ? "text-muted-foreground line-through" : "text-foreground",
+                                      )}>
+                                        {tarefa.titulo}
+                                      </span>
+                                      <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded text-[10px] text-primary font-bold shrink-0">
+                                        <Star size={9} /> +{tarefa.xp_recompensa} XP
+                                      </div>
+                                    </div>
+
+                                    {/* Metadados: prazo, responsável, status */}
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                                      {prazoFormatado && !tarefa.aprovada_por_equipe && (
+                                        <span className={cn(
+                                          "flex items-center gap-1 text-[10px] font-medium",
+                                          prazoUrgente ? "text-red-500" : "text-muted-foreground",
+                                        )}>
+                                          <Clock size={9} />
+                                          {diasPrazo! < 0 ? 'Atrasado · ' : diasPrazo === 0 ? 'Hoje · ' : diasPrazo === 1 ? 'Amanhã · ' : `${diasPrazo}d · `}
+                                          {prazoFormatado}
+                                        </span>
                                       )}
-                                    />
-                                  ) : (
-                                    <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/40 shrink-0" />
-                                  )}
-                                  <div className="min-w-0">
-                                    <span className={cn(
-                                      "text-sm block truncate",
-                                      tarefa.aprovada_por_equipe ? "text-muted-foreground line-through" : "text-foreground",
-                                    )}>
-                                      {tarefa.titulo}
-                                    </span>
-                                    {tarefa.concluida && !tarefa.aprovada_por_equipe && (
-                                      <p className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1">
-                                        <Clock size={9} /> Aguardando validação
+                                      {responsavelNome && (
+                                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                          <User size={9} /> {responsavelNome.split(' ')[0]}
+                                        </span>
+                                      )}
+                                      {tarefa.concluida && !tarefa.aprovada_por_equipe && (
+                                        <span className="flex items-center gap-1 text-[10px] text-amber-500 font-medium">
+                                          <Clock size={9} /> Aguardando validação
+                                        </span>
+                                      )}
+                                      {tarefa.aprovada_por_equipe && (
+                                        <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
+                                          <CheckCircle2 size={9} /> Aprovado pela equipe
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Descrição da equipe */}
+                                    {t.descricao_equipe && (
+                                      <p className="text-[11px] text-muted-foreground mt-2 bg-muted/50 rounded px-2 py-1.5 border-l-2 border-primary/40 leading-relaxed">
+                                        {t.descricao_equipe}
                                       </p>
                                     )}
-                                    {tarefa.prazo && !tarefa.aprovada_por_equipe && (
-                                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                                        Prazo: {(() => { const [y,m,d] = tarefa.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })()}
-                                      </p>
-                                    )}
-                                    {(tarefa as any).descricao_equipe && (
-                                      <p className="text-[11px] text-muted-foreground mt-1.5 bg-muted/50 rounded px-2 py-1 border-l-2 border-primary/40">{(tarefa as any).descricao_equipe}</p>
-                                    )}
-                                    {(tarefa as any).arquivo_url && (
-                                      <a href={(tarefa as any).arquivo_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/80 hover:text-primary flex items-center gap-1 mt-1 transition-colors">
-                                        <FileText size={9} /> {(tarefa as any).arquivo_nome || "Ver arquivo da equipe"}
-                                      </a>
-                                    )}
-                                    {(tarefa as any).link_externo && (
-                                      <a href={(tarefa as any).link_externo} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/80 hover:text-primary flex items-center gap-1 mt-1 transition-colors">
-                                        <Link2 size={9} /> Link externo
-                                      </a>
+
+                                    {/* Links e anexos */}
+                                    {(t.arquivo_url || t.link_externo || t.link_entrega) && (
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        {t.arquivo_url && (
+                                          <a href={t.arquivo_url} target="_blank" rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-[10px] text-primary/80 hover:text-primary bg-primary/8 hover:bg-primary/15 px-2 py-0.5 rounded transition-colors">
+                                            <FileText size={9} /> {t.arquivo_nome || "Arquivo da equipe"}
+                                          </a>
+                                        )}
+                                        {t.link_externo && (
+                                          <a href={t.link_externo} target="_blank" rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-[10px] text-primary/80 hover:text-primary bg-primary/8 hover:bg-primary/15 px-2 py-0.5 rounded transition-colors">
+                                            <Link2 size={9} /> Link externo
+                                          </a>
+                                        )}
+                                        {t.link_entrega && (
+                                          <a href={t.link_entrega} target="_blank" rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors">
+                                            <Send size={9} /> Sua entrega
+                                          </a>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <div className="flex items-center gap-1 bg-primary/10 px-2 py-1 rounded text-[10px] text-primary font-bold">
-                                    <Star size={10} /> +{tarefa.xp_recompensa} XP
-                                  </div>
-                                  {!tarefa.concluida && (
+                                {/* ── Botão Entregar ── */}
+                                {!tarefa.concluida && (
+                                  <div className="px-3 pb-3">
                                     <button
                                       onClick={() => { setLinkModal(tarefa.id); setLinkEntrega(""); }}
                                       disabled={concluindo === tarefa.id}
-                                      className="text-[10px] font-bold px-2 py-1 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                      className="w-full text-[11px] font-bold py-1.5 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                                     >
                                       {concluindo === tarefa.id
-                                        ? <Loader2 size={10} className="animate-spin" />
-                                        : 'Entregar'}
+                                        ? <Loader2 size={11} className="animate-spin" />
+                                        : <><Send size={10} /> Entregar tarefa</>}
                                     </button>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
