@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -84,6 +84,10 @@ function MaterialCard({ material }: { material: Material & { sprints?: { titulo:
 export default function PortalAluno() {
   const { profile } = useAuth();
   const { aluno_id } = useParams();
+  const location = useLocation();
+  const activeView = location.pathname.endsWith('/tarefas') ? 'tarefas'
+    : location.pathname.endsWith('/biblioteca') ? 'biblioteca'
+    : 'home';
   const [aluno, setAluno] = useState<any>(null);
   const [sprints, setSprints] = useState<any[]>([]);
   const [tarefas, setTarefas] = useState<any[]>([]);
@@ -185,8 +189,24 @@ export default function PortalAluno() {
     entrega:    'Entrega',
   };
 
+  function calendarDiff(iso: string): number {
+    // Parses both "2025-05-14" (date-only) and "2025-05-12T20:00:00Z" (timestamp)
+    // correctly in any timezone, comparing calendar days only.
+    let target: Date;
+    if (iso.includes('T') || iso.includes('Z')) {
+      const d = new Date(iso);
+      target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    } else {
+      const [y, m, d] = iso.split('-').map(Number);
+      target = new Date(y, m - 1, d);
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
   function diasRestantes(iso: string) {
-    const diff = Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const diff = calendarDiff(iso);
     if (diff < 0) return 'Atrasado';
     if (diff === 0) return 'Hoje';
     if (diff === 1) return 'Amanhã';
@@ -240,7 +260,7 @@ export default function PortalAluno() {
         <main className="flex-1 p-6 overflow-y-auto space-y-8">
 
           {/* ── Cards de Destaque ─────────────────────────────────────── */}
-          {(proximoEvento || proximaTarefa) && (
+          {activeView === 'home' && (proximoEvento || proximaTarefa) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Próximo Evento */}
               {proximoEvento ? (
@@ -287,9 +307,7 @@ export default function PortalAluno() {
 
               {/* Próximo Prazo */}
               {proximaTarefa ? (() => {
-                const dias = proximaTarefa.prazo
-                  ? Math.ceil((new Date(proximaTarefa.prazo).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                  : null;
+                const dias = proximaTarefa.prazo ? calendarDiff(proximaTarefa.prazo) : null;
                 const urgente = dias !== null && dias <= 3;
                 const cor = urgente ? '#f43f5e' : '#f59e0b';
                 return (
@@ -314,9 +332,7 @@ export default function PortalAluno() {
                         {urgente ? '⚠ Urgente · ' : ''}{diasRestantes(proximaTarefa.prazo)}
                       </p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {new Date(proximaTarefa.prazo).toLocaleDateString('pt-BR', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                        })}
+                        {(() => { const [y,m,d] = proximaTarefa.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}); })()}
                       </p>
                     </div>
                     <div
@@ -334,7 +350,7 @@ export default function PortalAluno() {
           )}
 
           {/* ── Widget Grande Prêmio ───────────────────────────────────── */}
-          <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden relative">
+          {activeView === 'home' && <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden relative">
             <div className="absolute top-0 right-0 w-40 h-40 bg-primary/6 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
             <div className="relative z-10 p-5 md:p-6 flex flex-col md:flex-row items-center gap-6">
               <div className="flex-1">
@@ -389,12 +405,11 @@ export default function PortalAluno() {
                 )}
               </div>
             </div>
-          </div>
+          </div>}
 
-          {/* ── Grade Principal ────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            {/* ── Trilha de Sprints ──────────────────────────────────── */}
+          {/* ── Trilha de Sprints ──────────────────────────────────────── */}
+          {activeView !== 'biblioteca' && (
+          <div className={activeView === 'home' ? 'grid grid-cols-1 lg:grid-cols-2 gap-6' : ''}>
             <section className="bg-card rounded-2xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-foreground">Módulo de Execução</h3>
@@ -477,11 +492,11 @@ export default function PortalAluno() {
                                     )}
                                     {tarefa.prazo && !tarefa.aprovada_por_equipe && (
                                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                                        Prazo: {new Date(tarefa.prazo).toLocaleDateString('pt-BR')}
+                                        Prazo: {(() => { const [y,m,d] = tarefa.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })()}
                                       </p>
                                     )}
                                     {(tarefa as any).descricao_equipe && (
-                                      <p className="text-[11px] text-white/60 mt-1.5 bg-white/5 rounded px-2 py-1 border-l-2 border-primary/40">{(tarefa as any).descricao_equipe}</p>
+                                      <p className="text-[11px] text-muted-foreground mt-1.5 bg-muted/50 rounded px-2 py-1 border-l-2 border-primary/40">{(tarefa as any).descricao_equipe}</p>
                                     )}
                                     {(tarefa as any).arquivo_url && (
                                       <a href={(tarefa as any).arquivo_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/80 hover:text-primary flex items-center gap-1 mt-1 transition-colors">
@@ -497,7 +512,7 @@ export default function PortalAluno() {
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded text-[10px] text-emerald-400 font-bold">
+                                  <div className="flex items-center gap-1 bg-primary/10 px-2 py-1 rounded text-[10px] text-primary font-bold">
                                     <Star size={10} /> +{tarefa.xp_recompensa} XP
                                   </div>
                                   {!tarefa.concluida && (
@@ -523,7 +538,8 @@ export default function PortalAluno() {
               </div>
             </section>
 
-            {/* ── Coluna Direita ─────────────────────────────────────── */}
+            {/* ── Coluna Direita (only in home view) ────────────────────── */}
+            {activeView === 'home' && (
             <div className="space-y-6">
               {/* Status do Aluno */}
               <section className="bg-card rounded-2xl border border-border p-6">
@@ -552,10 +568,12 @@ export default function PortalAluno() {
                 </div>
               </section>
             </div>
+            )}
           </div>
+          )}
 
           {/* ── Biblioteca de Conteúdo ─────────────────────────────────────── */}
-          <section>
+          {activeView !== 'tarefas' && <section>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <h3 className="text-xl font-bold text-foreground">Biblioteca de Conteúdo</h3>
               <div className="flex items-center gap-1 flex-wrap">
@@ -626,7 +644,7 @@ export default function PortalAluno() {
                 ))}
               </div>
             )}
-          </section>
+          </section>}
 
         </main>
       </div>

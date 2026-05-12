@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchProximasAcoes, fetchLeads, fetchProfiles, updateProximaAcao } from '@/lib/api';
-import { Calendar, Clock, CheckCircle, Pencil } from 'lucide-react';
+import { fetchProximasAcoes, fetchLeads, fetchProfiles, updateProximaAcao, fetchAlunoLogado, fetchEventosAluno } from '@/lib/api';
+import { Calendar, Clock, CheckCircle, Pencil, CalendarClock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const tipoColors: Record<string, string> = {
-  reuniao: 'bg-white/10 text-white/65',
-  whatsapp: 'bg-white/10 text-white/65',
-  ligacao: 'bg-white/10 text-white/65',
-  email: 'bg-white/10 text-white/65',
+  reuniao: 'bg-primary/10 text-primary',
+  whatsapp: 'bg-primary/10 text-primary',
+  ligacao: 'bg-primary/10 text-primary',
+  email: 'bg-primary/10 text-primary',
 };
 const tipoLabel: Record<string, string> = {
   reuniao: 'Reunião',
@@ -23,12 +24,42 @@ const tipoLabel: Record<string, string> = {
   email: 'E-mail',
 };
 
+const TIPO_EVENTO_COLOR: Record<string, string> = {
+  reuniao:    '#6366f1',
+  evento:     '#f59e0b',
+  checkpoint: '#10b981',
+  aula:       '#3b82f6',
+  entrega:    '#f43f5e',
+};
+const TIPO_EVENTO_LABEL: Record<string, string> = {
+  reuniao:    'Reunião',
+  evento:     'Evento',
+  checkpoint: 'Checkpoint',
+  aula:       'Aula',
+  entrega:    'Entrega',
+};
+
 export default function Agenda() {
   const now = new Date();
   const queryClient = useQueryClient();
-  const { data: acoes = [], isLoading } = useQuery({ queryKey: ['proximas_acoes'], queryFn: () => fetchProximasAcoes() });
-  const { data: leads = [] } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
-  const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
+  const { profile } = useAuth();
+  const isAluno = profile?.perfil === 'aluno';
+
+  const { data: acoes = [], isLoading } = useQuery({ queryKey: ['proximas_acoes'], queryFn: () => fetchProximasAcoes(), enabled: !isAluno });
+  const { data: leads = [] } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads, enabled: !isAluno });
+  const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles, enabled: !isAluno });
+
+  const { data: alunoLogado } = useQuery({
+    queryKey: ['aluno-logado', profile?.id],
+    queryFn: () => fetchAlunoLogado(profile!.id),
+    enabled: isAluno && !!profile?.id,
+  });
+
+  const { data: eventosAluno = [], isLoading: loadingEventos } = useQuery({
+    queryKey: ['eventos-aluno', alunoLogado?.id],
+    queryFn: () => fetchEventosAluno(alunoLogado!.id),
+    enabled: isAluno && !!alunoLogado?.id,
+  });
 
   const [editAcao, setEditAcao] = useState<any | null>(null);
   const [editTitulo, setEditTitulo] = useState('');
@@ -79,7 +110,75 @@ export default function Agenda() {
 
   const pendentes = acoes.filter((a) => !a.concluida).sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime());
 
-  if (isLoading) return <AppLayout title="Agenda"><Skeleton className="h-40 card-premium" /></AppLayout>;
+  if (isAluno ? loadingEventos : isLoading) return <AppLayout title="Agenda"><Skeleton className="h-40 card-premium" /></AppLayout>;
+
+  // ── Visão do Aluno ──────────────────────────────────────────────────────────
+  if (isAluno) {
+    return (
+      <AppLayout title="Agenda" subtitle="Seus eventos e reuniões agendadas">
+        <div className="max-w-3xl mx-auto space-y-4">
+          <div className="card-premium p-4 border-l-2 border-l-primary">
+            <div className="flex items-center gap-3">
+              <Calendar size={18} className="text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">
+                Hoje — {now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </h2>
+            </div>
+          </div>
+
+          {eventosAluno.length > 0 ? eventosAluno.map((ev: any) => {
+            const date = new Date(ev.data_hora);
+            const isPast = date < now;
+            const cor = TIPO_EVENTO_COLOR[ev.tipo] || '#8b7355';
+            return (
+              <div
+                key={ev.id}
+                className={`card-premium p-4 ${isPast ? 'opacity-60' : ''}`}
+                style={{ borderLeft: `2px solid ${cor}40` }}
+              >
+                <div className="flex items-start gap-4">
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: cor + '20' }}
+                  >
+                    <CalendarClock size={18} style={{ color: cor }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="text-sm font-semibold text-foreground">{ev.titulo}</h3>
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                        style={{ backgroundColor: cor + '18', color: cor }}
+                      >
+                        {TIPO_EVENTO_LABEL[ev.tipo] || ev.tipo}
+                      </span>
+                      {isPast && <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Passado</span>}
+                    </div>
+                    {ev.descricao && <p className="text-xs text-muted-foreground mb-1">{ev.descricao}</p>}
+                    <p className="text-xs text-primary font-medium">
+                      {date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                      {' · '}
+                      {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    {ev.link_meeting && (
+                      <a href={ev.link_meeting} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary/80 hover:text-primary mt-1 inline-flex items-center gap-1 transition-colors">
+                        Entrar na reunião →
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="card-premium p-8 text-center">
+              <Clock size={32} className="mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">Nenhum evento agendado para você ainda.</p>
+            </div>
+          )}
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Agenda" subtitle="Próximas ações e reuniões">
@@ -109,7 +208,7 @@ export default function Agenda() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-sm font-medium text-foreground">{acao.titulo}</h3>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${tipoColors[acao.tipo || ''] || 'bg-white/10 text-white/65'}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${tipoColors[acao.tipo || ''] || 'bg-primary/10 text-primary'}`}>
                       {tipoLabel[acao.tipo || ''] || acao.tipo}
                     </span>
                     {isOverdue && <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/20 text-destructive">Atrasada</span>}

@@ -797,7 +797,12 @@ export default function GestaoOperacional() {
                               </thead>
                               <tbody className="divide-y divide-border/50">
                                 {tarefasAbertas.map(t => {
-                                  const isOverdue = t.prazo && new Date(t.prazo) < new Date();
+                                  const isOverdue = t.prazo && (() => {
+                                    const [y, m, d] = t.prazo.split('T')[0].split('-').map(Number);
+                                    const prazoLocal = new Date(y, m - 1, d);
+                                    const today = new Date(); today.setHours(0, 0, 0, 0);
+                                    return prazoLocal < today;
+                                  })();
                                   const alunoNome = t.alunos?.profiles?.nome ?? "—";
                                   const sprintTitulo = t.sprints?.titulo ?? "—";
                                   const responsavelNome = t.responsavel?.nome ?? null;
@@ -822,7 +827,7 @@ export default function GestaoOperacional() {
                                         )}
                                       </td>
                                       <td className={cn("px-4 py-3 text-xs whitespace-nowrap font-medium", isOverdue ? "text-red-400" : t.prazo ? "text-foreground" : "text-muted-foreground/50")}>
-                                        {t.prazo ? new Date(t.prazo).toLocaleDateString("pt-BR") : "—"}
+                                        {t.prazo ? (() => { const [y,m,d] = t.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })() : "—"}
                                         {isOverdue && <span className="ml-1 text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1 rounded">Atrasado</span>}
                                       </td>
                                       <td className="px-4 py-3">
@@ -1325,7 +1330,7 @@ export default function GestaoOperacional() {
                                             </div>
                                             <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
                                               <Star size={9} className="text-emerald-400" /> {tarefa.xp_recompensa} XP
-                                              {tarefa.prazo && <span className="ml-1">• {new Date(tarefa.prazo).toLocaleDateString("pt-BR")}</span>}
+                                              {tarefa.prazo && <span className="ml-1">• {(() => { const [y,m,d] = tarefa.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })()}</span>}
                                               {(tarefa as any).responsavel?.nome && (
                                                 <span className="ml-1 text-primary/70">• {(tarefa as any).responsavel.nome.split(" ")[0]}</span>
                                               )}

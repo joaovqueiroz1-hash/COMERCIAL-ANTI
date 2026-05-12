@@ -2,17 +2,20 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Kanban, Users, Calendar, BarChart3,
   UsersRound, Settings, X, LogOut, MessageSquare, Target, History,
+  CheckSquare, Library,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials } from '@/lib/types';
 import lvLogo from '@/assets/Logo-LV-Branco.png';
 
-const navItems = [
+const navItems: { to: string; label: string; icon: any; roles: string[]; badge?: string; exact?: boolean }[] = [
   { to: '/dashboard',          label: 'Dashboard',          icon: LayoutDashboard, roles: ['admin', 'gestor'] },
   { to: '/pipeline',           label: 'Pipeline',            icon: Kanban,          roles: ['admin', 'gestor', 'vendedor'] },
   { to: '/leads',              label: 'Leads',               icon: Users,           roles: ['admin', 'gestor', 'vendedor'] },
   { to: '/gestao-operacional', label: 'Gestão de Mentoria',  icon: UsersRound,      roles: ['admin', 'operacional'] },
-  { to: '/portal',             label: 'Meu Portal',          icon: LayoutDashboard, roles: ['aluno'] },
+  { to: '/portal',             label: 'Meu Portal',          icon: LayoutDashboard, roles: ['aluno'], exact: true },
+  { to: '/portal/tarefas',     label: 'Tarefas',             icon: CheckSquare,     roles: ['aluno'] },
+  { to: '/portal/biblioteca',  label: 'Biblioteca',          icon: Library,         roles: ['aluno'] },
   { to: '/suporte-interno',    label: 'Mensagens',           icon: MessageSquare,   roles: ['admin', 'operacional', 'aluno'], badge: 'CHAT' },
   { to: '/agenda',             label: 'Agenda',              icon: Calendar,        roles: ['admin', 'gestor', 'vendedor', 'operacional', 'aluno'] },
   { to: '/metas',              label: 'Metas',               icon: Target,          roles: ['admin', 'gestor', 'vendedor', 'operacional'] },
@@ -71,7 +74,9 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       {/* ── Navigation ── */}
       <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto pb-2">
         {navItems.filter(item => profile ? item.roles.includes(profile.perfil) : false).map((item) => {
-          const isActive = location.pathname.startsWith(item.to);
+          const isActive = item.exact
+            ? location.pathname === item.to
+            : location.pathname.startsWith(item.to);
           const cs = (item as any).comingSoon;
           return (
             <NavLink

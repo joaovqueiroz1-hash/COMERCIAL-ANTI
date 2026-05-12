@@ -106,21 +106,21 @@ export default function LeadDetail() {
   const tipoLabel: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'Ligação', reuniao: 'Reunião', email: 'E-mail' };
 
   const statusColor: Record<string, string> = {
-    novo_lead:          'bg-white/10 text-white/60',
-    contato_instagram:  'bg-white/10 text-white/60',
-    contato_whatsapp:   'bg-white/10 text-white/60',
-    tentativa_contato:  'bg-white/5 text-white/40',
-    contato_realizado:  'bg-white/10 text-white/50',
-    reuniao_agendada:   'bg-white/15 text-white/80',
-    reuniao_realizada:  'bg-white/15 text-white/80',
-    followup:           'bg-white/10 text-white/70',
-    negociacao:         'bg-white/20 text-white/90',
-    entrada_lead:       'bg-white/10 text-white/60',
-    em_atendimento:     'bg-white/10 text-white/60',
-    vendido:            'bg-white/25 text-white',
-    congelado:          'bg-white/5 text-white/40',
-    fechado:            'bg-white/25 text-white',
-    perdido:            'bg-white/5 text-white/30',
+    novo_lead:          'bg-secondary text-muted-foreground',
+    contato_instagram:  'bg-secondary text-muted-foreground',
+    contato_whatsapp:   'bg-secondary text-muted-foreground',
+    tentativa_contato:  'bg-muted text-muted-foreground',
+    contato_realizado:  'bg-secondary text-foreground',
+    reuniao_agendada:   'bg-primary/15 text-primary',
+    reuniao_realizada:  'bg-primary/15 text-primary',
+    followup:           'bg-primary/10 text-primary',
+    negociacao:         'bg-primary/20 text-primary',
+    entrada_lead:       'bg-secondary text-muted-foreground',
+    em_atendimento:     'bg-secondary text-foreground',
+    vendido:            'bg-emerald-500/15 text-emerald-700',
+    congelado:          'bg-muted text-muted-foreground',
+    fechado:            'bg-primary/20 text-primary',
+    perdido:            'bg-destructive/10 text-destructive',
   };
 
   const whatsappValidation = validateWhatsApp(lead.whatsapp);
@@ -293,7 +293,7 @@ export default function LeadDetail() {
                     <div className={`w-2 h-2 rounded-full shrink-0 ${a.concluida ? 'bg-muted-foreground' : 'bg-primary'}`} />
                     <span className="text-xs text-primary shrink-0">{new Date(a.data_hora).toLocaleDateString('pt-BR')}</span>
                     <span className={`text-xs flex-1 truncate ${a.concluida ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{a.titulo}</span>
-                    {a.tipo && <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/60">{tipoLabel[a.tipo] || a.tipo}</span>}
+                    {(a as any).tipo && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{tipoLabel[(a as any).tipo] || (a as any).tipo}</span>}
                   </div>
                 ))}
               </div>
