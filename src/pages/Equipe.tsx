@@ -12,7 +12,15 @@ import { UserPlus, ToggleLeft, ToggleRight, Loader2, Trash2 } from 'lucide-react
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Cliente separado sem persistência de sessão — evita deslogar o admin ao criar usuário
+const adminAuthClient = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  { auth: { persistSession: false } },
+);
 
 export default function Equipe() {
   const queryClient = useQueryClient();
@@ -82,8 +90,8 @@ export default function Equipe() {
         setOpen(false);
         setNome(''); setEmail(''); setPassword(''); setPerfil('vendedor');
       } else {
-        // Fallback: create via signUp (works without Edge Function)
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        // Fallback: usa cliente sem persistSession para não deslogar o admin atual
+        const { data: signUpData, error: signUpError } = await adminAuthClient.auth.signUp({
           email,
           password,
           options: { data: { nome, perfil } },
@@ -91,18 +99,20 @@ export default function Equipe() {
 
         if (signUpError) throw new Error(signUpError.message);
 
-        // Upsert profile manually in case trigger didn't fire
         if (signUpData.user) {
-          await supabase.from('profiles').upsert({
-            id: signUpData.user.id,
-            nome,
-            email,
-            perfil,
-            ativo: true,
-          });
+          const uid = signUpData.user.id;
+
+          // Confirma e-mail automaticamente via RPC
+          await (supabase as any).rpc('confirm_user_signup', { user_id: uid });
+
+          // Garante que o profile existe com perfil correto
+          await (supabase as any).from('profiles').upsert(
+            { id: uid, nome, email, perfil, ativo: true },
+            { onConflict: 'id' },
+          );
         }
 
-        toast({ title: 'Usuário criado com sucesso!', description: 'Peça ao usuário para confirmar o e-mail se necessário.' });
+        toast({ title: 'Usuário criado com sucesso!' });
         queryClient.invalidateQueries({ queryKey: ['profiles'] });
         setOpen(false);
         setNome(''); setEmail(''); setPassword(''); setPerfil('vendedor');
