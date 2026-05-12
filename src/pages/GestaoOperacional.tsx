@@ -142,6 +142,11 @@ export default function GestaoOperacional() {
   const [deletingTarefaId,      setDeletingTarefaId]      = useState<string | null>(null);
   const [savingEditTarefa,      setSavingEditTarefa]      = useState(false);
 
+  // ── aluno: editar e-mail ──────────────────────────────────────────────────
+  const [editandoEmail,   setEditandoEmail]   = useState<string | null>(null);
+  const [novoEmailTexto,  setNovoEmailTexto]  = useState("");
+  const [salvandoEmail,   setSalvandoEmail]   = useState(false);
+
   // ── evento: multi-participante ────────────────────────────────────────────
   const [eventoAlunos,  setEventoAlunos]  = useState<string[]>([]);
   const [eventoEquipe,  setEventoEquipe]  = useState<string[]>([]);
@@ -585,6 +590,23 @@ export default function GestaoOperacional() {
     } catch { toast({ title: "Erro ao salvar fase.", variant: "destructive" }); }
   }
 
+  async function handleSalvarEmail(alunoId: string, profileId: string, email: string) {
+    const trimmed = email.trim().toLowerCase();
+    setEditandoEmail(null);
+    if (!trimmed || !trimmed.includes('@')) { toast({ title: "E-mail inválido.", variant: "destructive" }); return; }
+    setSalvandoEmail(true);
+    try {
+      const { error } = await (supabase as any).from("profiles").update({ email: trimmed }).eq("id", profileId);
+      if (error) throw new Error(error.message);
+      setAlunos(p => p.map(a => a.id === alunoId ? { ...a, profiles: { ...a.profiles, email: trimmed } } : a));
+      toast({ title: "E-mail atualizado!", description: trimmed });
+    } catch (err: any) {
+      toast({ title: "Erro ao atualizar e-mail", description: err.message, variant: "destructive" });
+    } finally {
+      setSalvandoEmail(false);
+    }
+  }
+
   // ── eventos ───────────────────────────────────────────────────────────────
   async function handleCriarEvento(e: React.FormEvent) {
     e.preventDefault();
@@ -856,7 +878,30 @@ export default function GestaoOperacional() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-bold text-foreground truncate">{aluno.profiles?.nome || aluno.leads?.nome_completo}</h3>
-                                  <p className="text-xs text-muted-foreground truncate">{aluno.leads?.whatsapp || aluno.profiles?.email}</p>
+                                  {editandoEmail === aluno.id ? (
+                                    <input
+                                      type="email"
+                                      value={novoEmailTexto}
+                                      onChange={e => setNovoEmailTexto(e.target.value)}
+                                      onBlur={() => handleSalvarEmail(aluno.id, aluno.profile_id, novoEmailTexto)}
+                                      onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') handleSalvarEmail(aluno.id, aluno.profile_id, novoEmailTexto); if (e.key === 'Escape') setEditandoEmail(null); }}
+                                      onClick={e => e.stopPropagation()}
+                                      autoFocus
+                                      disabled={salvandoEmail}
+                                      className="text-xs bg-card border border-primary/30 rounded px-1.5 py-0.5 outline-none text-foreground w-full mt-0.5"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <p className="text-xs text-muted-foreground truncate">{aluno.profiles?.email || aluno.leads?.email || '—'}</p>
+                                      <button
+                                        onClick={e => { e.stopPropagation(); setEditandoEmail(aluno.id); setNovoEmailTexto(aluno.profiles?.email || aluno.leads?.email || ''); }}
+                                        className="text-muted-foreground/50 hover:text-primary transition-colors shrink-0"
+                                        title="Trocar e-mail"
+                                      >
+                                        <Pencil size={9} />
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
