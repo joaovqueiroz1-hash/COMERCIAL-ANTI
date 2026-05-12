@@ -76,22 +76,12 @@ export default function Equipe() {
     }
     setCreating(true);
     try {
-      // 1. Cria o usuário no Auth (persistSession:false evita deslogar o admin)
-      const { error: signUpError } = await adminAuthClient.auth.signUp({
-        email,
-        password,
-        options: { data: { nome, perfil } },
-      });
-      // Ignora erro "already registered" — a função abaixo resolve o profile mesmo assim
-      if (signUpError && !signUpError.message.toLowerCase().includes('already registered')) {
-        throw new Error(signUpError.message);
-      }
-
-      // 2. Função SECURITY DEFINER: busca ID real, confirma e-mail e cria/corrige profile
+      // Função SECURITY DEFINER cria auth user + confirma e-mail + upsert profile
       const { data: result, error: fnError } = await (supabase as any).rpc('create_team_member', {
         p_nome: nome,
         p_email: email,
         p_perfil: perfil,
+        p_password: password,
       });
       if (fnError) throw new Error(fnError.message);
       if (result?.error) throw new Error(result.error);
