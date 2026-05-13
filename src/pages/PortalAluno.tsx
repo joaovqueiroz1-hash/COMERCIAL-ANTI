@@ -191,16 +191,9 @@ export default function PortalAluno() {
   };
 
   function calendarDiff(iso: string): number {
-    // Parses both "2025-05-14" (date-only) and "2025-05-12T20:00:00Z" (timestamp)
-    // correctly in any timezone, comparing calendar days only.
-    let target: Date;
-    if (iso.includes('T') || iso.includes('Z')) {
-      const d = new Date(iso);
-      target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    } else {
-      const [y, m, d] = iso.split('-').map(Number);
-      target = new Date(y, m - 1, d);
-    }
+    // Sempre extrai "YYYY-MM-DD" dos primeiros 10 chars — evita desvio UTC (midnight UTC = dia anterior no fuso UTC-3)
+    const [y, m, d] = iso.substring(0, 10).split('-').map(Number);
+    const target = new Date(y, m - 1, d);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -333,7 +326,7 @@ export default function PortalAluno() {
                         {urgente ? '⚠ Urgente · ' : ''}{diasRestantes(proximaTarefa.prazo)}
                       </p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {(() => { const [y,m,d] = proximaTarefa.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}); })()}
+                        {(() => { const [y,m,d] = proximaTarefa.prazo.substring(0,10).split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}); })()}
                       </p>
                     </div>
                     <div
@@ -427,46 +420,41 @@ export default function PortalAluno() {
                   sprints.map((sprint, idx) => {
                     const minhasTarefas = tarefas.filter(t => t.sprint_id === sprint.id);
                     const sprintAnterior = idx > 0 ? sprints[idx - 1] : null;
-                    const isUnlocked = idx === 0 || tarefas.some(
+                    // Visual: "ativo" = primeiro sprint ou o anterior tem alguma aprovada
+                    const isAtivo = idx === 0 || tarefas.some(
                       t => t.sprint_id === sprintAnterior?.id && t.aprovada_por_equipe
                     );
 
                     return (
                       <div
                         key={sprint.id}
-                        className={cn("relative pl-6 border-l-2", isUnlocked ? "border-primary" : "border-border")}
+                        className={cn("relative pl-6 border-l-2", isAtivo ? "border-primary" : "border-border/60")}
                       >
                         <div className={cn(
                           "absolute left-0 top-0 -translate-x-1/2 w-4 h-4 rounded-full border-4 bg-background",
-                          isUnlocked ? "border-primary" : "border-border",
+                          isAtivo ? "border-primary" : "border-border/60",
                         )} />
 
-                        <h4 className={cn("font-bold mb-1", isUnlocked ? "text-foreground" : "text-muted-foreground")}>
+                        <h4 className={cn("font-bold mb-1", isAtivo ? "text-foreground" : "text-muted-foreground/70")}>
                           {sprint.titulo}
                         </h4>
                         {sprint.descricao && (
                           <p className="text-xs text-muted-foreground mb-3">{sprint.descricao}</p>
                         )}
 
-                        {!isUnlocked && (
-                          <div className="bg-secondary p-3 rounded-lg border border-border flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                            <Lock size={12} /> Conclua o Sprint anterior para desbloquear
-                          </div>
-                        )}
-
-                        {isUnlocked && minhasTarefas.length === 0 && (
+                        {minhasTarefas.length === 0 && (
                           <div className="bg-secondary p-3 rounded-lg border border-border text-xs text-muted-foreground text-center">
                             Nenhuma meta alocada neste Sprint ainda.
                           </div>
                         )}
 
-                        {isUnlocked && minhasTarefas.length > 0 && (
+                        {minhasTarefas.length > 0 && (
                           <div className="space-y-2 mt-2">
                             {minhasTarefas.map(tarefa => {
                               const t = tarefa as any;
                               const responsavelNome: string | null = t.responsavel?.nome ?? null;
                               const prazoFormatado = tarefa.prazo
-                                ? (() => { const [y,m,d] = tarefa.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })()
+                                ? (() => { const [y,m,d] = tarefa.prazo.substring(0,10).split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })()
                                 : null;
                               const diasPrazo = tarefa.prazo ? calendarDiff(tarefa.prazo) : null;
                               const prazoUrgente = diasPrazo !== null && diasPrazo <= 2 && !tarefa.aprovada_por_equipe;

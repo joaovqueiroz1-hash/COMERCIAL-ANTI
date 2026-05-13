@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   fetchAlunos, fetchLeads, fetchSprintTarefas, fetchSprints, fetchSprintsForAluno,
@@ -18,6 +18,7 @@ import {
   FileText, Link2, Trash2, Globe, UserCheck, ChevronRight,
   Star, Calendar, Zap, Layers, LayoutTemplate,
   MapPin, KeyRound, UserMinus, ExternalLink, Pencil, Upload, XCircle,
+  GripVertical,
 } from "lucide-react";
 import { getInitials } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -89,6 +90,52 @@ export default function GestaoOperacional() {
   const [loading,      setLoading]      = useState(true);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("alunos");
+
+  // ── drag-and-drop dos cards de alunos ────────────────────────────────────
+  const STORAGE_KEY = 'gestao-alunos-order';
+  const [alunoOrder, setAlunoOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  });
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragIdRef = useRef<string | null>(null);
+
+  const sortedAlunos = useMemo(() => {
+    if (alunoOrder.length === 0) return alunos;
+    return [...alunos].sort((a, b) => {
+      const ia = alunoOrder.indexOf(a.id);
+      const ib = alunoOrder.indexOf(b.id);
+      if (ia === -1 && ib === -1) return 0;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }, [alunos, alunoOrder]);
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    dragIdRef.current = id;
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIdRef.current !== id) setDragOverId(id);
+  };
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const fromId = dragIdRef.current;
+    if (!fromId || fromId === targetId) { setDragOverId(null); return; }
+    const ids = sortedAlunos.map(a => a.id);
+    const from = ids.indexOf(fromId);
+    const to = ids.indexOf(targetId);
+    const next = [...ids];
+    next.splice(from, 1);
+    next.splice(to, 0, fromId);
+    setAlunoOrder(next);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setDragOverId(null);
+    dragIdRef.current = null;
+  };
+  const handleDragEnd = () => { setDragOverId(null); dragIdRef.current = null; };
 
   // ── detalhe aluno ─────────────────────────────────────────────────────────
   const [alunoDetalhes,   setAlunoDetalhes]   = useState<any | null>(null);
@@ -873,10 +920,24 @@ export default function GestaoOperacional() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {alunos.map(aluno => (
-                          <div key={aluno.id} className="bg-card border border-border rounded-xl hover:border-primary/50 hover:shadow-sm transition-all group flex flex-col">
+                        {sortedAlunos.map(aluno => (
+                          <div
+                            key={aluno.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, aluno.id)}
+                            onDragOver={(e) => handleDragOver(e, aluno.id)}
+                            onDrop={(e) => handleDrop(e, aluno.id)}
+                            onDragEnd={handleDragEnd}
+                            className={cn(
+                              "bg-card border rounded-xl hover:border-primary/50 hover:shadow-sm transition-all group flex flex-col",
+                              dragOverId === aluno.id ? "border-primary ring-2 ring-primary/20 scale-[1.01]" : "border-border",
+                            )}
+                          >
                             {/* topo clicável — abre sheet */}
                             <div className="p-5 pb-3 cursor-pointer" onClick={() => abrirDetalhe(aluno)}>
+                              <div className="flex items-center justify-between mb-3">
+                                <GripVertical size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground/60 cursor-grab active:cursor-grabbing transition-colors" title="Arrastar para reordenar" />
+                              </div>
                               <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center font-bold text-lg text-primary shrink-0">
                                   {getInitials(aluno.profiles?.nome || aluno.leads?.nome_completo || "?")}
