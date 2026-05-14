@@ -576,13 +576,12 @@ export async function fetchEventosAluno(alunoId: string) {
     .filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
     .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()) as any[];
 
-  // Client-side filter: if global event has participantes list, only show to included alunos
+  // Client-side filter
   return all.filter(e => {
-    const isGlobal = e.aluno_id === null || e.aluno_id === '__todos__';
-    if (!isGlobal) return true;
-    const parts: string[] = e.participantes ?? [];
-    if (parts.length === 0) return true;
-    return parts.includes(alunoId);
+    // Explicitly global: visible to all students
+    if (e.aluno_id === '__todos__' || e.aluno_id === null) return true;
+    // Single-student event: already filtered by the DB query → always include
+    return true;
   }) as Evento[];
 }
 

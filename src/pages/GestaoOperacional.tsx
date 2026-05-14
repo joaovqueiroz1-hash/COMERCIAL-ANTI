@@ -660,13 +660,20 @@ export default function GestaoOperacional() {
     if (!novoEvento.titulo || !novoEvento.data_hora) return;
     setSavingEvento(true);
     try {
-      // participantes = selected aluno IDs + selected team profile IDs
-      const participantes = [...eventoAlunos, ...eventoEquipe];
+      // Determine aluno_id:
+      //   0 alunos selected  → "__todos__" (sentinel: visible to all students)
+      //   1 aluno selected   → that aluno's id
+      //   2+ alunos selected → null (multi-aluno; use participantes for access control)
       const alunoId = eventoAlunos.length === 0
-        ? null  // global (todos os alunos verão)
+        ? '__todos__'
         : eventoAlunos.length === 1
-          ? eventoAlunos[0]  // single aluno
-          : null; // multi-aluno → stored in participantes, aluno_id = null
+          ? eventoAlunos[0]
+          : null;
+      // For multi-aluno events, store only aluno IDs in participantes so the fetch
+      // filter can check membership reliably (no team profile IDs mixed in).
+      const participantes = alunoId === null
+        ? eventoAlunos  // multi-aluno: only aluno IDs
+        : eventoEquipe.length > 0 ? eventoEquipe : null; // single/global: team members only (informational)
       const ev = await createEvento({
         titulo: novoEvento.titulo, descricao: novoEvento.descricao || null,
         data_hora: new Date(novoEvento.data_hora).toISOString(),
@@ -674,7 +681,7 @@ export default function GestaoOperacional() {
         aluno_id: alunoId,
         sprint_id: novoEvento.sprint_id === "__none__" ? null : novoEvento.sprint_id,
         criado_por: profile?.id ?? null,
-        participantes: participantes.length > 0 ? participantes : null,
+        participantes: participantes && participantes.length > 0 ? participantes : null,
       } as any);
       setEventos(prev => [...prev, ev].sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()));
       toast({ title: "Evento criado!" });
