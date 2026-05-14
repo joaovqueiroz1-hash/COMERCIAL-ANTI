@@ -9,7 +9,6 @@ export interface DiagnosticoIndicador {
 }
 
 export interface DiagnosticoDimensao {
-  icon: string;
   nome: string;
   descricao: string;
   score: number; // 0-10
@@ -75,7 +74,6 @@ Retorne um JSON válido (sem markdown, sem texto extra) exatamente neste formato
   "summary": "<parágrafo com síntese executiva do negócio, pontos fortes e principais desafios>",
   "dimensions": [
     {
-      "icon": "<emoji representativo>",
       "nome": "<nome da dimensão>",
       "descricao": "<avaliação desta dimensão em 1-2 frases>",
       "score": <número de 0 a 10>,
@@ -91,15 +89,15 @@ Retorne um JSON válido (sem markdown, sem texto extra) exatamente neste formato
   ]
 }
 
-Analise obrigatoriamente as seguintes dimensões (use exatamente esses nomes):
-1. 🎯 Posicionamento & Proposta de Valor
-2. 📣 Marketing & Comunicação
-3. 💰 Vendas & Conversão
-4. 🚀 Tráfego & Aquisição
-5. 🤝 Relacionamento & Retenção
-6. ⚙️ Operações & Processos
-7. 💡 Produto & Entrega
-8. 📊 Métricas & Gestão
+Analise obrigatoriamente as seguintes dimensões (use exatamente esses nomes, sem emoji):
+1. Posicionamento & Proposta de Valor
+2. Marketing & Comunicação
+3. Vendas & Conversão
+4. Tráfego & Aquisição
+5. Relacionamento & Retenção
+6. Operações & Processos
+7. Produto & Entrega
+8. Métricas & Gestão
 
 Cada dimensão deve ter entre 3 e 5 indicadores.
 Status "forte" = funcionando bem (score 7-10).
