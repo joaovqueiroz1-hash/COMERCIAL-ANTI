@@ -550,22 +550,39 @@ export type Evento = Database['public']['Tables']['eventos']['Row'];
 export type EventoInsert = Database['public']['Tables']['eventos']['Insert'];
 
 export async function fetchEventosAluno(alunoId: string) {
-  const { data, error } = await db
+  const now = new Date().toISOString();
+
+  // Query 1: events for this aluno + events with no aluno assigned (null)
+  const { data: d1, error: e1 } = await db
     .from('eventos')
     .select('*, sprints(titulo)')
-    .or(`aluno_id.is.null,aluno_id.eq.${alunoId},aluno_id.eq.__todos__`)
-    .gte('data_hora', new Date().toISOString())
+    .or(`aluno_id.is.null,aluno_id.eq.${alunoId}`)
+    .gte('data_hora', now)
     .order('data_hora', { ascending: true });
-  if (error) throw error;
-  // Client-side filter: if evento has participantes, only show to included alunos
-  const all = (data ?? []) as any[];
+  if (e1) throw e1;
+
+  // Query 2: global events stored with the sentinel string "__todos__"
+  // Use .eq() so the SDK handles escaping — avoids PostgREST parsing issues with raw .or() strings
+  const { data: d2 } = await db
+    .from('eventos')
+    .select('*, sprints(titulo)')
+    .eq('aluno_id', '__todos__')
+    .gte('data_hora', now)
+    .order('data_hora', { ascending: true });
+
+  // Merge and de-duplicate by id, preserving chronological order
+  const seen = new Set<string>();
+  const all = [...(d1 ?? []), ...(d2 ?? [])]
+    .filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
+    .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()) as any[];
+
+  // Client-side filter: if global event has participantes list, only show to included alunos
   return all.filter(e => {
-    // Global events: aluno_id null or the sentinel "__todos__"
     const isGlobal = e.aluno_id === null || e.aluno_id === '__todos__';
-    if (!isGlobal) return true; // specific individual event — always include
+    if (!isGlobal) return true;
     const parts: string[] = e.participantes ?? [];
-    if (parts.length === 0) return true; // global with no filter → everyone sees it
-    return parts.includes(alunoId); // targeted multi-aluno event
+    if (parts.length === 0) return true;
+    return parts.includes(alunoId);
   }) as Evento[];
 }
 
