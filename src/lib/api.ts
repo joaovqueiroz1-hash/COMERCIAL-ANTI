@@ -549,26 +549,17 @@ export async function uploadMaterialFile(file: File) {
 export type Evento = Database['public']['Tables']['eventos']['Row'];
 export type EventoInsert = Database['public']['Tables']['eventos']['Insert'];
 
-export async function fetchEventosAluno(alunoId: string) {
+export async function fetchEventosAluno(alunoId: string, somenteFuturos = true) {
   const now = new Date().toISOString();
 
   // Query 1: events for this aluno + events with no aluno assigned (null)
-  const { data: d1, error: e1 } = await db
-    .from('eventos')
-    .select('*, sprints(titulo)')
-    .or(`aluno_id.is.null,aluno_id.eq.${alunoId}`)
-    .gte('data_hora', now)
-    .order('data_hora', { ascending: true });
+  const q1 = db.from('eventos').select('*, sprints(titulo)').or(`aluno_id.is.null,aluno_id.eq.${alunoId}`);
+  const { data: d1, error: e1 } = await (somenteFuturos ? q1.gte('data_hora', now) : q1).order('data_hora', { ascending: true });
   if (e1) throw e1;
 
   // Query 2: global events stored with the sentinel string "__todos__"
-  // Use .eq() so the SDK handles escaping — avoids PostgREST parsing issues with raw .or() strings
-  const { data: d2 } = await db
-    .from('eventos')
-    .select('*, sprints(titulo)')
-    .eq('aluno_id', '__todos__')
-    .gte('data_hora', now)
-    .order('data_hora', { ascending: true });
+  const q2 = db.from('eventos').select('*, sprints(titulo)').eq('aluno_id', '__todos__');
+  const { data: d2 } = await (somenteFuturos ? q2.gte('data_hora', now) : q2).order('data_hora', { ascending: true });
 
   // Merge and de-duplicate by id, preserving chronological order
   const seen = new Set<string>();

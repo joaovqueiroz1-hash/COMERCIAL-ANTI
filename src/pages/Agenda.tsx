@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { fetchProximasAcoes, fetchLeads, fetchProfiles, updateProximaAcao, fetchAlunoLogado, fetchEventosAluno } from '@/lib/api';
-import { Calendar, Clock, CheckCircle, Pencil, CalendarClock } from 'lucide-react';
+import {
+  fetchProximasAcoes, fetchLeads, fetchProfiles, updateProximaAcao,
+  fetchAlunoLogado, fetchEventosAluno, fetchTodosEventos, fetchAlunos,
+} from '@/lib/api';
+import { Calendar, Clock, CheckCircle, Pencil, CalendarClock, Users, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -45,22 +48,32 @@ export default function Agenda() {
   const { profile } = useAuth();
   const isAluno = profile?.perfil === 'aluno';
 
-  const { data: acoes = [], isLoading } = useQuery({ queryKey: ['proximas_acoes'], queryFn: () => fetchProximasAcoes(), enabled: !isAluno });
+  // ── Team queries ──────────────────────────────────────────────────────────
+  const { data: acoes = [], isLoading: loadingAcoes } = useQuery({
+    queryKey: ['proximas_acoes'], queryFn: fetchProximasAcoes, enabled: !isAluno,
+  });
   const { data: leads = [] } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads, enabled: !isAluno });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles, enabled: !isAluno });
+  const { data: todosEventos = [], isLoading: loadingEventosEquipe } = useQuery({
+    queryKey: ['todos-eventos'], queryFn: fetchTodosEventos, enabled: !isAluno,
+  });
+  const { data: alunos = [] } = useQuery({
+    queryKey: ['alunos'], queryFn: fetchAlunos, enabled: !isAluno,
+  });
 
+  // ── Student queries ───────────────────────────────────────────────────────
   const { data: alunoLogado } = useQuery({
     queryKey: ['aluno-logado', profile?.id],
     queryFn: () => fetchAlunoLogado(profile!.id),
     enabled: isAluno && !!profile?.id,
   });
-
-  const { data: eventosAluno = [], isLoading: loadingEventos } = useQuery({
-    queryKey: ['eventos-aluno', alunoLogado?.id],
-    queryFn: () => fetchEventosAluno(alunoLogado!.id),
+  const { data: eventosAluno = [], isLoading: loadingEventosAluno } = useQuery({
+    queryKey: ['eventos-aluno-agenda', alunoLogado?.id],
+    queryFn: () => fetchEventosAluno(alunoLogado!.id, false), // todos (passados + futuros)
     enabled: isAluno && !!alunoLogado?.id,
   });
 
+  // ── Edit CRM action ───────────────────────────────────────────────────────
   const [editAcao, setEditAcao] = useState<any | null>(null);
   const [editTitulo, setEditTitulo] = useState('');
   const [editTipo, setEditTipo] = useState('');
@@ -68,55 +81,94 @@ export default function Agenda() {
 
   const concluirMutation = useMutation({
     mutationFn: (id: string) => updateProximaAcao(id, { concluida: true }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proximas_acoes'] });
-      toast({ title: 'Ação concluída ✓' });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['proximas_acoes'] }); toast({ title: 'Ação concluída ✓' }); },
   });
-
   const editarMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: any }) => updateProximaAcao(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proximas_acoes'] });
-      toast({ title: 'Ação atualizada ✓' });
-      setEditAcao(null);
-    },
-    onError: (e: any) => {
-      toast({ title: 'Erro ao atualizar', description: e.message, variant: 'destructive' });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['proximas_acoes'] }); toast({ title: 'Ação atualizada ✓' }); setEditAcao(null); },
+    onError: (e: any) => { toast({ title: 'Erro ao atualizar', description: e.message, variant: 'destructive' }); },
   });
 
   const handleOpenEdit = (acao: any) => {
     setEditAcao(acao);
     setEditTitulo(acao.titulo || '');
     setEditTipo(acao.tipo || '');
-    // Format datetime-local value
     const d = new Date(acao.data_hora);
     const pad = (n: number) => String(n).padStart(2, '0');
     setEditDataHora(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
   };
-
   const handleSaveEdit = () => {
     if (!editAcao) return;
-    editarMutation.mutate({
-      id: editAcao.id,
-      updates: {
-        titulo: editTitulo,
-        tipo: editTipo,
-        data_hora: new Date(editDataHora).toISOString(),
-      },
-    });
+    editarMutation.mutate({ id: editAcao.id, updates: { titulo: editTitulo, tipo: editTipo, data_hora: new Date(editDataHora).toISOString() } });
   };
 
-  const pendentes = acoes.filter((a) => !a.concluida).sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime());
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function resolveParticipantes(participantes: string[] | null): string[] {
+    if (!participantes || participantes.length === 0) return [];
+    return participantes.map(id => {
+      const a = (alunos as any[]).find(x => x.id === id);
+      if (a) return a.profiles?.nome || a.leads?.nome_completo || 'Aluno';
+      const p = profiles.find(x => x.id === id);
+      if (p) return (p as any).nome || 'Membro';
+      return null;
+    }).filter(Boolean) as string[];
+  }
 
-  if (isAluno ? loadingEventos : isLoading) return <AppLayout title="Agenda"><Skeleton className="h-40 card-premium" /></AppLayout>;
+  const pendentes = acoes.filter(a => !a.concluida).sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime());
 
-  // ── Visão do Aluno ──────────────────────────────────────────────────────────
+  const isLoading = isAluno ? loadingEventosAluno : (loadingAcoes || loadingEventosEquipe);
+  if (isLoading) return <AppLayout title="Agenda"><Skeleton className="h-40 card-premium" /></AppLayout>;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VISÃO DO ALUNO
+  // ══════════════════════════════════════════════════════════════════════════
   if (isAluno) {
+    const futuros = eventosAluno.filter(e => new Date((e as any).data_hora) >= now);
+    const passados = eventosAluno.filter(e => new Date((e as any).data_hora) < now).reverse(); // mais recente primeiro
+
+    const renderEvento = (ev: any, isP: boolean) => {
+      const date = new Date(ev.data_hora);
+      const cor = TIPO_EVENTO_COLOR[ev.tipo] || '#8b7355';
+      return (
+        <div
+          key={ev.id}
+          className={`card-premium p-4 ${isP ? 'opacity-55' : ''}`}
+          style={{ borderLeft: `2px solid ${cor}40` }}
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: cor + '20' }}>
+              <CalendarClock size={18} style={{ color: cor }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 className="text-sm font-semibold text-foreground">{ev.titulo}</h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: cor + '18', color: cor }}>
+                  {TIPO_EVENTO_LABEL[ev.tipo] || ev.tipo}
+                </span>
+                {isP && <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Passado</span>}
+              </div>
+              {ev.descricao && <p className="text-xs text-muted-foreground mb-1">{ev.descricao}</p>}
+              <p className="text-xs text-primary font-medium">
+                {date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                {' · '}
+                {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+              {ev.link_meeting && (
+                <a href={ev.link_meeting} target="_blank" rel="noopener noreferrer"
+                  className="text-[11px] text-primary/80 hover:text-primary mt-1 inline-flex items-center gap-1 transition-colors">
+                  Entrar na reunião →
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return (
-      <AppLayout title="Agenda" subtitle="Seus eventos e reuniões agendadas">
+      <AppLayout title="Agenda" subtitle="Seus eventos e reuniões">
         <div className="max-w-3xl mx-auto space-y-4">
+          {/* Cabeçalho hoje */}
           <div className="card-premium p-4 border-l-2 border-l-primary">
             <div className="flex items-center gap-3">
               <Calendar size={18} className="text-primary" />
@@ -126,50 +178,23 @@ export default function Agenda() {
             </div>
           </div>
 
-          {eventosAluno.length > 0 ? eventosAluno.map((ev: any) => {
-            const date = new Date(ev.data_hora);
-            const isPast = date < now;
-            const cor = TIPO_EVENTO_COLOR[ev.tipo] || '#8b7355';
-            return (
-              <div
-                key={ev.id}
-                className={`card-premium p-4 ${isPast ? 'opacity-60' : ''}`}
-                style={{ borderLeft: `2px solid ${cor}40` }}
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: cor + '20' }}
-                  >
-                    <CalendarClock size={18} style={{ color: cor }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h3 className="text-sm font-semibold text-foreground">{ev.titulo}</h3>
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                        style={{ backgroundColor: cor + '18', color: cor }}
-                      >
-                        {TIPO_EVENTO_LABEL[ev.tipo] || ev.tipo}
-                      </span>
-                      {isPast && <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Passado</span>}
-                    </div>
-                    {ev.descricao && <p className="text-xs text-muted-foreground mb-1">{ev.descricao}</p>}
-                    <p className="text-xs text-primary font-medium">
-                      {date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-                      {' · '}
-                      {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    {ev.link_meeting && (
-                      <a href={ev.link_meeting} target="_blank" rel="noopener noreferrer" className="text-[11px] text-primary/80 hover:text-primary mt-1 inline-flex items-center gap-1 transition-colors">
-                        Entrar na reunião →
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          }) : (
+          {/* Próximos */}
+          {futuros.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Próximos</p>
+              {futuros.map(ev => renderEvento(ev, false))}
+            </div>
+          )}
+
+          {/* Passados */}
+          {passados.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Passados</p>
+              {passados.map(ev => renderEvento(ev, true))}
+            </div>
+          )}
+
+          {eventosAluno.length === 0 && (
             <div className="card-premium p-8 text-center">
               <Clock size={32} className="mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">Nenhum evento agendado para você ainda.</p>
@@ -180,9 +205,14 @@ export default function Agenda() {
     );
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // VISÃO DA EQUIPE
+  // ══════════════════════════════════════════════════════════════════════════
   return (
-    <AppLayout title="Agenda" subtitle="Próximas ações e reuniões">
-      <div className="max-w-3xl mx-auto space-y-4">
+    <AppLayout title="Agenda" subtitle="Eventos e próximas ações">
+      <div className="max-w-4xl mx-auto space-y-8">
+
+        {/* Cabeçalho hoje */}
         <div className="card-premium p-4 border-l-2 border-l-primary">
           <div className="flex items-center gap-3">
             <Calendar size={18} className="text-primary" />
@@ -192,64 +222,146 @@ export default function Agenda() {
           </div>
         </div>
 
-        {pendentes.length > 0 ? pendentes.map((acao) => {
-          const lead = leads.find((l) => l.id === acao.lead_id);
-          const resp = profiles.find((u) => u.id === acao.responsavel_id);
-          const date = new Date(acao.data_hora);
-          const isOverdue = date < now;
-          return (
-            <div key={acao.id} className={`card-premium p-4 ${isOverdue ? 'border-l-2 border-l-destructive' : ''}`}>
-              <div className="flex items-start gap-4">
-                <div className="text-center shrink-0 w-12">
-                  <p className="text-lg font-bold text-foreground">{date.getDate()}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase">{date.toLocaleDateString('pt-BR', { month: 'short' })}</p>
-                  <p className="text-xs text-primary font-medium">{date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-sm font-medium text-foreground">{acao.titulo}</h3>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${tipoColors[acao.tipo || ''] || 'bg-primary/10 text-primary'}`}>
-                      {tipoLabel[acao.tipo || ''] || acao.tipo}
-                    </span>
-                    {isOverdue && <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/20 text-destructive">Atrasada</span>}
-                  </div>
-                  {acao.descricao && <p className="text-xs text-muted-foreground mb-1">{acao.descricao}</p>}
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                    <span>Lead: {lead?.nome_completo || '—'}</span>
-                    <span>•</span>
-                    <span>Resp: {resp?.nome?.split(' ')[0] || '—'}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleOpenEdit(acao)}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                    title="Editar"
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    onClick={() => concluirMutation.mutate(acao.id)}
-                    disabled={concluirMutation.isPending}
-                    className="text-muted-foreground hover:text-success transition-colors"
-                    title="Concluir"
-                  >
-                    <CheckCircle size={20} />
-                  </button>
-                </div>
-              </div>
+        {/* ── Seção: Eventos ──────────────────────────────────────────────── */}
+        <section>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
+            Eventos Agendados
+          </h3>
+          {todosEventos.length === 0 ? (
+            <div className="card-premium p-8 text-center">
+              <CalendarClock size={28} className="mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">Nenhum evento criado ainda.</p>
             </div>
-          );
-        }) : (
-          <div className="card-premium p-8 text-center">
-            <Clock size={32} className="mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">Nenhuma ação pendente</p>
-          </div>
-        )}
+          ) : (
+            <div className="space-y-3">
+              {todosEventos.map((ev: any) => {
+                const date = new Date(ev.data_hora);
+                const isPast = date < now;
+                const cor = TIPO_EVENTO_COLOR[ev.tipo] || '#8b7355';
+                const isGlobal = ev.aluno_id === null || ev.aluno_id === '__todos__';
+                const alunoNome: string | null = ev.alunos?.profiles?.nome ?? null;
+                const participantesNomes = resolveParticipantes(ev.participantes);
+
+                return (
+                  <div
+                    key={ev.id}
+                    className={`card-premium p-4 transition-all ${isPast ? 'opacity-55' : ''}`}
+                    style={{ borderLeft: `2px solid ${cor}50` }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="text-center shrink-0 w-12">
+                        <p className="text-lg font-bold text-foreground">{date.getDate()}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">{date.toLocaleDateString('pt-BR', { month: 'short' })}</p>
+                        <p className="text-xs font-medium" style={{ color: cor }}>
+                          {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="text-sm font-semibold text-foreground">{ev.titulo}</h3>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                            style={{ backgroundColor: cor + '18', color: cor }}>
+                            {TIPO_EVENTO_LABEL[ev.tipo] || ev.tipo}
+                          </span>
+                          {isPast && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Passado</span>
+                          )}
+                        </div>
+
+                        {ev.descricao && (
+                          <p className="text-xs text-muted-foreground mb-1.5">{ev.descricao}</p>
+                        )}
+
+                        {/* Participantes */}
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          {/* Aluno(s) */}
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <User size={9} />
+                            {isGlobal ? (
+                              <span className="font-semibold text-primary/70">Todos os alunos</span>
+                            ) : alunoNome ? (
+                              <span className="font-medium text-foreground">{alunoNome}</span>
+                            ) : null}
+                          </div>
+
+                          {/* Equipe / outros participantes */}
+                          {participantesNomes.length > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <Users size={9} />
+                              <span>{participantesNomes.join(', ')}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* ── Seção: Ações CRM ─────────────────────────────────────────────── */}
+        <section>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
+            Ações CRM Pendentes
+          </h3>
+          {pendentes.length === 0 ? (
+            <div className="card-premium p-8 text-center">
+              <Clock size={28} className="mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">Nenhuma ação pendente</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendentes.map(acao => {
+                const lead = leads.find(l => l.id === acao.lead_id);
+                const resp = profiles.find(u => u.id === acao.responsavel_id);
+                const date = new Date(acao.data_hora);
+                const isOverdue = date < now;
+                return (
+                  <div key={acao.id} className={`card-premium p-4 ${isOverdue ? 'border-l-2 border-l-destructive' : ''}`}>
+                    <div className="flex items-start gap-4">
+                      <div className="text-center shrink-0 w-12">
+                        <p className="text-lg font-bold text-foreground">{date.getDate()}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">{date.toLocaleDateString('pt-BR', { month: 'short' })}</p>
+                        <p className="text-xs text-primary font-medium">{date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="text-sm font-medium text-foreground">{acao.titulo}</h3>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${tipoColors[acao.tipo || ''] || 'bg-primary/10 text-primary'}`}>
+                            {tipoLabel[acao.tipo || ''] || acao.tipo}
+                          </span>
+                          {isOverdue && <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/20 text-destructive">Atrasada</span>}
+                        </div>
+                        {acao.descricao && <p className="text-xs text-muted-foreground mb-1">{acao.descricao}</p>}
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <span>Lead: {lead?.nome_completo || '—'}</span>
+                          <span>•</span>
+                          <span>Resp: {(resp as any)?.nome?.split(' ')[0] || '—'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => handleOpenEdit(acao)} className="text-muted-foreground hover:text-foreground transition-colors" title="Editar">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => concluirMutation.mutate(acao.id)} disabled={concluirMutation.isPending}
+                          className="text-muted-foreground hover:text-success transition-colors" title="Concluir">
+                          <CheckCircle size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
 
       {/* Edit dialog */}
-      <Dialog open={!!editAcao} onOpenChange={(o) => { if (!o) setEditAcao(null); }}>
+      <Dialog open={!!editAcao} onOpenChange={o => { if (!o) setEditAcao(null); }}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Editar Ação</DialogTitle>
@@ -257,17 +369,14 @@ export default function Agenda() {
           <div className="space-y-4">
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Título</Label>
-              <Input value={editTitulo} onChange={(e) => setEditTitulo(e.target.value)} className="bg-secondary border-border mt-1" />
+              <Input value={editTitulo} onChange={e => setEditTitulo(e.target.value)} className="bg-secondary border-border mt-1" />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Canal</Label>
               <div className="flex gap-2 mt-1 flex-wrap">
-                {['whatsapp', 'ligacao', 'reuniao', 'email'].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setEditTipo(t)}
-                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${editTipo === t ? 'border-primary/60 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-border-hover'}`}
-                  >
+                {['whatsapp', 'ligacao', 'reuniao', 'email'].map(t => (
+                  <button key={t} onClick={() => setEditTipo(t)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${editTipo === t ? 'border-primary/60 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-border-hover'}`}>
                     {tipoLabel[t]}
                   </button>
                 ))}
@@ -275,18 +384,9 @@ export default function Agenda() {
             </div>
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Data e Hora</Label>
-              <Input
-                type="datetime-local"
-                value={editDataHora}
-                onChange={(e) => setEditDataHora(e.target.value)}
-                className="bg-secondary border-border mt-1"
-              />
+              <Input type="datetime-local" value={editDataHora} onChange={e => setEditDataHora(e.target.value)} className="bg-secondary border-border mt-1" />
             </div>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={editarMutation.isPending}
-              className="w-full gold-gradient text-primary-foreground font-semibold"
-            >
+            <Button onClick={handleSaveEdit} disabled={editarMutation.isPending} className="w-full gold-gradient text-primary-foreground font-semibold">
               {editarMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
             </Button>
           </div>
