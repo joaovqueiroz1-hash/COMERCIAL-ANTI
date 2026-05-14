@@ -418,7 +418,14 @@ export default function PortalAluno() {
                   <p className="text-sm text-muted-foreground">Os Sprints estão sendo estruturados pela equipe.</p>
                 ) : (
                   sprints.map((sprint, idx) => {
-                    const minhasTarefas = tarefas.filter(t => t.sprint_id === sprint.id);
+                    const minhasTarefas = tarefas
+                      .filter(t => t.sprint_id === sprint.id)
+                      .sort((a, b) => {
+                        if (!a.prazo && !b.prazo) return 0;
+                        if (!a.prazo) return 1;
+                        if (!b.prazo) return -1;
+                        return new Date(a.prazo).getTime() - new Date(b.prazo).getTime();
+                      });
                     const sprintAnterior = idx > 0 ? sprints[idx - 1] : null;
                     // Visual: "ativo" = primeiro sprint ou o anterior tem alguma aprovada
                     const isAtivo = idx === 0 || tarefas.some(
@@ -459,12 +466,22 @@ export default function PortalAluno() {
                               const diasPrazo = tarefa.prazo ? calendarDiff(tarefa.prazo) : null;
                               const prazoUrgente = diasPrazo !== null && diasPrazo <= 2 && !tarefa.aprovada_por_equipe;
 
+                              const urgencyClass = (() => {
+                                if (tarefa.aprovada_por_equipe) return "bg-emerald-500/5 border-emerald-500/20 opacity-70";
+                                if (tarefa.concluida) return "bg-card border-amber-300/40";
+                                if (diasPrazo === null) return "bg-card border-border";
+                                if (diasPrazo < 0)  return "bg-red-500/10 border-red-500/40 border-l-4 border-l-red-500";
+                                if (diasPrazo === 0) return "bg-orange-500/10 border-orange-500/40 border-l-4 border-l-orange-500";
+                                if (diasPrazo <= 2)  return "bg-amber-500/10 border-amber-500/40 border-l-4 border-l-amber-500";
+                                return "bg-card border-border";
+                              })();
+
                               return (
                               <div
                                 key={tarefa.id}
                                 className={cn(
-                                  "bg-secondary rounded-xl border overflow-hidden transition-all",
-                                  tarefa.aprovada_por_equipe ? "border-emerald-500/20 opacity-70" : "border-border",
+                                  "rounded-xl border overflow-hidden transition-all",
+                                  urgencyClass,
                                 )}
                               >
                                 {/* ── Cabeçalho da tarefa ── */}

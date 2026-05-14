@@ -553,16 +553,18 @@ export async function fetchEventosAluno(alunoId: string) {
   const { data, error } = await db
     .from('eventos')
     .select('*, sprints(titulo)')
-    .or(`aluno_id.is.null,aluno_id.eq.${alunoId}`)
+    .or(`aluno_id.is.null,aluno_id.eq.${alunoId},aluno_id.eq.__todos__`)
     .gte('data_hora', new Date().toISOString())
     .order('data_hora', { ascending: true });
   if (error) throw error;
   // Client-side filter: if evento has participantes, only show to included alunos
   const all = (data ?? []) as any[];
   return all.filter(e => {
-    if (e.aluno_id !== null) return true; // specific individual event
+    // Global events: aluno_id null or the sentinel "__todos__"
+    const isGlobal = e.aluno_id === null || e.aluno_id === '__todos__';
+    if (!isGlobal) return true; // specific individual event — always include
     const parts: string[] = e.participantes ?? [];
-    if (parts.length === 0) return true; // global (aluno_id null + empty participantes)
+    if (parts.length === 0) return true; // global with no filter → everyone sees it
     return parts.includes(alunoId); // targeted multi-aluno event
   }) as Evento[];
 }

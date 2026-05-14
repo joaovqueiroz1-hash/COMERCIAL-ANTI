@@ -1347,7 +1347,14 @@ export default function GestaoOperacional() {
                     ) : (
                       <div className="space-y-5">
                         {sprintsAluno.map(sprint => {
-                          const tarefasSprint = tarefasDetalhe.filter(t => t.sprint_id === sprint.id);
+                          const tarefasSprint = tarefasDetalhe
+                            .filter(t => t.sprint_id === sprint.id)
+                            .sort((a, b) => {
+                              if (!a.prazo && !b.prazo) return 0;
+                              if (!a.prazo) return 1;
+                              if (!b.prazo) return -1;
+                              return new Date(a.prazo).getTime() - new Date(b.prazo).getTime();
+                            });
                           return (
                             <div key={sprint.id}>
                               <div className="flex items-center justify-between mb-2">
@@ -1360,11 +1367,26 @@ export default function GestaoOperacional() {
                                 <p className="text-xs text-muted-foreground/60 pl-1 py-2 italic">Nenhuma tarefa neste sprint ainda.</p>
                               ) : (
                                 <div className="space-y-2">
-                                  {tarefasSprint.map((tarefa: any) => (
-                                    <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors",
-                                      tarefa.aprovada_por_equipe ? "bg-emerald-500/5 border-emerald-500/20"
-                                      : tarefa.concluida ? "bg-primary/5 border-primary/20"
-                                      : "bg-secondary/40 border-border")}>
+                                  {tarefasSprint.map((tarefa: any) => {
+                                    const _ps = tarefa.prazo ? tarefa.prazo.split('T')[0] : null;
+                                    const diasPrazoG = (() => {
+                                      if (!_ps || tarefa.aprovada_por_equipe || tarefa.concluida) return null;
+                                      const [y,m,d] = _ps.split('-').map(Number);
+                                      const target = new Date(y,m-1,d);
+                                      const today = new Date(); today.setHours(0,0,0,0);
+                                      return Math.round((target.getTime() - today.getTime()) / 86400000);
+                                    })();
+                                    const urgG = (() => {
+                                      if (tarefa.aprovada_por_equipe) return "bg-emerald-500/5 border-emerald-500/20";
+                                      if (tarefa.concluida) return "bg-primary/5 border-primary/20";
+                                      if (diasPrazoG === null) return "bg-secondary/40 border-border";
+                                      if (diasPrazoG < 0)  return "bg-red-500/10 border-red-500/40 border-l-4 border-l-red-500";
+                                      if (diasPrazoG === 0) return "bg-orange-500/10 border-orange-500/40 border-l-4 border-l-orange-500";
+                                      if (diasPrazoG <= 2)  return "bg-amber-500/10 border-amber-500/40 border-l-4 border-l-amber-500";
+                                      return "bg-secondary/40 border-border";
+                                    })();
+                                    return (
+                                    <div key={tarefa.id} className={cn("p-4 rounded-xl border transition-colors", urgG)}>
                                       <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-start gap-3 flex-1 min-w-0">
                                           {tarefa.aprovada_por_equipe ? <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -1437,7 +1459,7 @@ export default function GestaoOperacional() {
                                         {tarefa.aprovada_por_equipe && <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wide shrink-0">Aprovado</span>}
                                       </div>
                                     </div>
-                                  ))}
+                                  ); })}
                                 </div>
                               )}
                             </div>
@@ -1537,7 +1559,14 @@ export default function GestaoOperacional() {
                       ) : (
                         <div className="space-y-4">
                           {sprintsAluno.map(sprint => {
-                            const tarefasSprint = tarefasDetalhe.filter(t => t.sprint_id === sprint.id);
+                            const tarefasSprint = tarefasDetalhe
+                              .filter(t => t.sprint_id === sprint.id)
+                              .sort((a, b) => {
+                                if (!a.prazo && !b.prazo) return 0;
+                                if (!a.prazo) return 1;
+                                if (!b.prazo) return -1;
+                                return new Date(a.prazo).getTime() - new Date(b.prazo).getTime();
+                              });
                             return (
                               <div key={sprint.id}>
                                 <p className="text-xs font-semibold text-foreground mb-2">{sprint.titulo}</p>
