@@ -86,32 +86,19 @@ async function extractPptx(file: File): Promise<string> {
 
 // ── prompt de diagnóstico ─────────────────────────────────────────────────────
 
-const DIAGNOSTIC_PROMPT = `Você é um especialista em diagnóstico empresarial estratégico.
+const DIAGNOSTIC_PROMPT = `Você é um especialista em diagnóstico empresarial. Analise o negócio e retorne APENAS um JSON válido, sem markdown, sem texto fora do JSON.
 
-Com base no conteúdo do documento fornecido, analise o negócio do cliente e gere um diagnóstico completo e estruturado.
+REGRAS OBRIGATÓRIAS DE FORMATO (para caber no limite de tokens):
+- summary: máximo 2 frases curtas
+- descricao de cada dimensão: máximo 1 frase (15 palavras)
+- descricao de cada indicador: máximo 1 frase (12 palavras)
+- Exatamente 3 indicadores por dimensão
+- Nenhum campo pode ser omitido
 
-Retorne um JSON válido (sem markdown, sem texto extra) exatamente neste formato:
-{
-  "overall_score": <número de 0 a 10>,
-  "summary": "<parágrafo com síntese executiva do negócio, pontos fortes e principais desafios>",
-  "dimensions": [
-    {
-      "nome": "<nome da dimensão>",
-      "descricao": "<avaliação desta dimensão em 1-2 frases>",
-      "score": <número de 0 a 10>,
-      "status": "<forte|oportunidade|critico>",
-      "indicadores": [
-        {
-          "nome": "<nome do indicador>",
-          "descricao": "<avaliação específica deste indicador>",
-          "status": "<forte|oportunidade|critico>"
-        }
-      ]
-    }
-  ]
-}
+JSON a retornar:
+{"overall_score":0,"summary":"","dimensions":[{"nome":"","descricao":"","score":0,"status":"forte","indicadores":[{"nome":"","descricao":"","status":"forte"}]}]}
 
-Analise obrigatoriamente as seguintes dimensões (use exatamente esses nomes, sem emoji):
+Use exatamente estas 8 dimensões (nesta ordem, nomes exatos):
 1. Posicionamento & Proposta de Valor
 2. Marketing & Comunicação
 3. Vendas & Conversão
@@ -121,12 +108,52 @@ Analise obrigatoriamente as seguintes dimensões (use exatamente esses nomes, se
 7. Produto & Entrega
 8. Métricas & Gestão
 
-Cada dimensão deve ter entre 3 e 5 indicadores.
-Status "forte" = funcionando bem (score 7-10).
-Status "oportunidade" = pode melhorar (score 4-6).
-Status "critico" = precisa ação urgente (score 0-3).
+Status: "forte" (score 7-10), "oportunidade" (4-6), "critico" (0-3).
+Seja específico ao negócio. Retorne SOMENTE o JSON completo e fechado.`;
 
-Seja direto, específico ao negócio descrito, e evite generalismos.`;
+// ── reparo de JSON truncado ────────────────────────────────────────────────────
+
+function repairJson(json: string): string {
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  let i = 0;
+
+  for (; i < json.length; i++) {
+    const ch = json[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === "\\" && inString) { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{" || ch === "[") stack.push(ch);
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+
+  // Se terminamos dentro de uma string, corta até o último campo completo
+  let trimmed = json;
+  if (inString) {
+    // Recua até a última vírgula ou chave que não esteja dentro de string
+    const lastSafe = json.lastIndexOf('",');
+    trimmed = lastSafe > 0 ? json.slice(0, lastSafe + 1) : json;
+    // Recalcula o stack
+    stack.length = 0;
+    inString = false; escaped = false;
+    for (const ch of trimmed) {
+      if (escaped) { escaped = false; continue; }
+      if (ch === "\\" && inString) { escaped = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{" || ch === "[") stack.push(ch);
+      else if (ch === "}" || ch === "]") stack.pop();
+    }
+  }
+
+  // Remove vírgula solta no final
+  trimmed = trimmed.replace(/,\s*$/, "");
+  // Fecha estruturas abertas na ordem inversa
+  const closing = stack.reverse().map(c => c === "{" ? "}" : "]").join("");
+  return trimmed + closing;
+}
 
 // ── geração do diagnóstico via Claude ─────────────────────────────────────────
 
@@ -158,26 +185,14 @@ export async function gerarDiagnostico(docText: string, apiKeyOverride?: string)
 
   let jsonStr = jsonMatch[0];
 
-  // Se o JSON foi truncado, tenta fechar os colchetes/chaves abertos
   try {
     return JSON.parse(jsonStr) as DiagnosticoData;
   } catch {
-    // Conta colchetes e chaves abertos para fechar o JSON truncado
-    let opens = 0;
-    let arrOpens = 0;
-    for (const ch of jsonStr) {
-      if (ch === "{") opens++;
-      else if (ch === "}") opens--;
-      else if (ch === "[") arrOpens++;
-      else if (ch === "]") arrOpens--;
-    }
-    // Remove trailing vírgula solta se houver
-    jsonStr = jsonStr.replace(/,\s*$/, "");
-    for (let i = 0; i < arrOpens; i++) jsonStr += "]";
-    for (let i = 0; i < opens; i++) jsonStr += "}";
+    // Reparo via máquina de estados: ignora { } [ ] dentro de strings
+    const repaired = repairJson(jsonStr);
     try {
-      return JSON.parse(jsonStr) as DiagnosticoData;
-    } catch (e2) {
+      return JSON.parse(repaired) as DiagnosticoData;
+    } catch {
       throw new Error("Resposta da IA incompleta. Tente novamente com um documento menor.");
     }
   }
