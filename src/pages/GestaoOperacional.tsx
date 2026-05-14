@@ -845,9 +845,9 @@ export default function GestaoOperacional() {
                           <span className="text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-bold">{tarefasAbertas.length}</span>
                         </h2>
                         <div className="bg-card border border-primary/15 rounded-xl overflow-hidden shadow-sm">
-                          <div className="overflow-x-auto">
+                          <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
                             <table className="w-full text-sm">
-                              <thead>
+                              <thead className="sticky top-0 z-10">
                                 <tr className="border-b border-primary/10 bg-primary/5">
                                   <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Aluno</th>
                                   <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-primary/70">Tarefa</th>
@@ -953,9 +953,9 @@ export default function GestaoOperacional() {
                           <span className="text-xs bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">{concluidas.length}</span>
                         </h2>
                         <div className="bg-card border border-emerald-500/15 rounded-xl overflow-hidden shadow-sm">
-                          <div className="overflow-x-auto">
+                          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
                             <table className="w-full text-sm">
-                              <thead>
+                              <thead className="sticky top-0 z-10">
                                 <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
                                   <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Aluno</th>
                                   <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Tarefa</th>
