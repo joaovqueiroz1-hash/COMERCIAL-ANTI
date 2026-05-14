@@ -154,6 +154,7 @@ export default function GestaoOperacional() {
   const [savingDiagnostico,  setSavingDiagnostico]  = useState(false);
   const [diagFile,           setDiagFile]           = useState<File | null>(null);
   const [diagError,          setDiagError]          = useState<string | null>(null);
+  const [diagApiKey,         setDiagApiKey]         = useState(() => localStorage.getItem("anthropic_api_key") || import.meta.env.VITE_ANTHROPIC_API_KEY || "");
   const [premioEdit,      setPremioEdit]      = useState({ titulo: "", descricao: "", xp_meta: 1000 });
   const [savingPremio,    setSavingPremio]    = useState(false);
   const [sprintsAluno,    setSprintsAluno]    = useState<any[]>([]);
@@ -306,9 +307,10 @@ export default function GestaoOperacional() {
     setGerandoDiagnostico(true);
     setDiagError(null);
     try {
+      if (diagApiKey) localStorage.setItem("anthropic_api_key", diagApiKey);
       const text = await extractTextFromFile(diagFile);
       if (!text.trim()) throw new Error("Não foi possível extrair texto do arquivo.");
-      const dados = await gerarDiagnostico(text);
+      const dados = await gerarDiagnostico(text, diagApiKey);
       const row = await upsertDiagnostico(alunoDetalhes.id, dados);
       setDiagnostico(row);
       setDiagFile(null);
@@ -1807,6 +1809,20 @@ export default function GestaoOperacional() {
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         {diagnostico ? "Regerar diagnóstico" : "Gerar diagnóstico"}
                       </p>
+
+                      {/* Chave da API */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Chave Anthropic API</label>
+                        <Input
+                          type="password"
+                          placeholder="sk-ant-..."
+                          value={diagApiKey}
+                          onChange={e => setDiagApiKey(e.target.value)}
+                          className="h-8 text-xs bg-secondary border-border font-mono"
+                        />
+                        {diagApiKey && <p className="text-[10px] text-emerald-600">Chave salva localmente</p>}
+                      </div>
+
                       <label className="block cursor-pointer">
                         <div className={cn(
                           "flex items-center gap-3 p-3 rounded-lg border-2 border-dashed transition-all",

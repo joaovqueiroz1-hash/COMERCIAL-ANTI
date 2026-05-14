@@ -130,9 +130,13 @@ Seja direto, específico ao negócio descrito, e evite generalismos.`;
 
 // ── geração do diagnóstico via Claude ─────────────────────────────────────────
 
-export async function gerarDiagnostico(docText: string): Promise<DiagnosticoData> {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("VITE_ANTHROPIC_API_KEY não configurada no .env");
+export async function gerarDiagnostico(docText: string, apiKeyOverride?: string): Promise<DiagnosticoData> {
+  const apiKey =
+    apiKeyOverride ||
+    import.meta.env.VITE_ANTHROPIC_API_KEY ||
+    localStorage.getItem("anthropic_api_key") ||
+    "";
+  if (!apiKey) throw new Error("Chave da API não configurada. Insira a chave no campo abaixo.");
 
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
 
