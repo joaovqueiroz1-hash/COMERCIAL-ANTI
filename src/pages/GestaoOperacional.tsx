@@ -829,6 +829,15 @@ export default function GestaoOperacional() {
                   {(() => {
                     const tarefasAbertas = todasTarefas.filter(t => !t.aprovada_por_equipe);
                     if (tarefasAbertas.length === 0) return null;
+
+                    function calcDias(prazoRaw: string | null, concluida: boolean): number | null {
+                      if (!prazoRaw || concluida) return null;
+                      const [y, m, d] = prazoRaw.split('T')[0].split('-').map(Number);
+                      const target = new Date(y, m - 1, d);
+                      const today = new Date(); today.setHours(0, 0, 0, 0);
+                      return Math.round((target.getTime() - today.getTime()) / 86400000);
+                    }
+
                     return (
                       <section>
                         <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
@@ -849,20 +858,20 @@ export default function GestaoOperacional() {
                                   <th className="px-4 py-3" />
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-border/50">
+                              <tbody className="divide-y divide-border/40">
                                 {tarefasAbertas.map(t => {
-                                  const isOverdue = t.prazo && (() => {
-                                    const [y, m, d] = t.prazo.split('T')[0].split('-').map(Number);
-                                    const prazoLocal = new Date(y, m - 1, d);
-                                    const today = new Date(); today.setHours(0, 0, 0, 0);
-                                    return prazoLocal < today;
-                                  })();
+                                  const dias = calcDias(t.prazo, t.concluida);
                                   const alunoNome = t.alunos?.profiles?.nome ?? "—";
                                   const sprintTitulo = t.sprints?.titulo ?? "—";
                                   const responsavelNome = t.responsavel?.nome ?? null;
                                   const linkEntrega = (t as any).link_entrega;
+
+                                  // Row urgency (only for pending tasks with prazo)
+                                  const rowBg = dias === null ? "" : dias < 0 ? "bg-red-500/8" : dias === 0 ? "bg-orange-500/8" : dias <= 2 ? "bg-amber-500/8" : "";
+                                  const prazoColor = dias === null ? "text-muted-foreground/50" : dias < 0 ? "text-red-400 font-semibold" : dias === 0 ? "text-orange-400 font-semibold" : dias <= 2 ? "text-amber-500 font-semibold" : "text-foreground";
+
                                   return (
-                                    <tr key={t.id} className="hover:bg-primary/5 transition-colors">
+                                    <tr key={t.id} className={cn("transition-colors hover:brightness-95", rowBg)}>
                                       <td className="px-4 py-3 text-xs font-semibold text-foreground whitespace-nowrap">{alunoNome}</td>
                                       <td className="px-4 py-3 max-w-[200px]">
                                         <p className="text-xs text-foreground truncate">{t.titulo}</p>
@@ -880,14 +889,22 @@ export default function GestaoOperacional() {
                                           <span className="text-[11px] text-muted-foreground/40">—</span>
                                         )}
                                       </td>
-                                      <td className={cn("px-4 py-3 text-xs whitespace-nowrap font-medium", isOverdue ? "text-red-400" : t.prazo ? "text-foreground" : "text-muted-foreground/50")}>
-                                        {t.prazo ? (() => { const [y,m,d] = t.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })() : "—"}
-                                        {isOverdue && <span className="ml-1 text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1 rounded">Atrasado</span>}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        {t.prazo ? (
+                                          <div>
+                                            <span className={cn("text-xs", prazoColor)}>
+                                              {(() => { const [y,m,d] = t.prazo.split('T')[0].split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR'); })()}
+                                            </span>
+                                            {dias !== null && (
+                                              <p className={cn("text-[9px] font-bold mt-0.5", prazoColor)}>
+                                                {dias < 0 ? `Atrasado ${Math.abs(dias)}d` : dias === 0 ? 'Vence hoje' : `Falta ${dias}d`}
+                                              </p>
+                                            )}
+                                          </div>
+                                        ) : <span className="text-[11px] text-muted-foreground/40">—</span>}
                                       </td>
                                       <td className="px-4 py-3">
-                                        {t.aprovada_por_equipe ? (
-                                          <Badge className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Aprovado</Badge>
-                                        ) : t.concluida ? (
+                                        {t.concluida ? (
                                           <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">Em revisão</Badge>
                                         ) : (
                                           <Badge variant="outline" className="text-[10px] text-muted-foreground">Pendente</Badge>
@@ -904,6 +921,93 @@ export default function GestaoOperacional() {
                                           <button onClick={() => handleConcluirAdmin(t.id, t.aluno_id, t.xp_recompensa)} disabled={aprovando === t.id}
                                             className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50">
                                             {aprovando === t.id ? <Loader2 size={10} className="animate-spin inline" /> : "Concluir"}
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </section>
+                    );
+                  })()}
+
+                  {/* ── Painel de Tarefas Concluídas ────────────────────── */}
+                  {(() => {
+                    const concluidas = todasTarefas
+                      .filter(t => t.concluida)
+                      .sort((a, b) => {
+                        // Sort by completion/update time descending (most recent first)
+                        const ta = (a as any).updated_at || a.created_at;
+                        const tb = (b as any).updated_at || b.created_at;
+                        return new Date(tb).getTime() - new Date(ta).getTime();
+                      });
+                    if (concluidas.length === 0) return null;
+                    return (
+                      <section>
+                        <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                          <CheckCircle2 className="text-emerald-500" size={20} /> Tarefas Concluídas
+                          <span className="text-xs bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">{concluidas.length}</span>
+                        </h2>
+                        <div className="bg-card border border-emerald-500/15 rounded-xl overflow-hidden shadow-sm">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Aluno</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Tarefa</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Sprint</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Data de Entrega</th>
+                                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Status</th>
+                                  <th className="px-4 py-3" />
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/40">
+                                {concluidas.map(t => {
+                                  const alunoNome = t.alunos?.profiles?.nome ?? "—";
+                                  const sprintTitulo = t.sprints?.titulo ?? "—";
+                                  const linkEntrega = (t as any).link_entrega;
+                                  const entregaTs = (t as any).updated_at || t.created_at;
+                                  const entregaDate = entregaTs ? new Date(entregaTs) : null;
+                                  return (
+                                    <tr key={t.id} className="hover:bg-emerald-500/5 transition-colors">
+                                      <td className="px-4 py-3 text-xs font-semibold text-foreground whitespace-nowrap">{alunoNome}</td>
+                                      <td className="px-4 py-3 max-w-[200px]">
+                                        <p className="text-xs text-foreground truncate">{t.titulo}</p>
+                                        {linkEntrega && (
+                                          <a href={linkEntrega} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-0.5 truncate">
+                                            <Link2 size={9} /> Ver entrega
+                                          </a>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-[11px] text-muted-foreground max-w-[150px] truncate">{sprintTitulo}</td>
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        {entregaDate ? (
+                                          <div>
+                                            <p className="text-xs text-foreground font-medium">
+                                              {entregaDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                              {entregaDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                          </div>
+                                        ) : <span className="text-[11px] text-muted-foreground/40">—</span>}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {t.aprovada_por_equipe ? (
+                                          <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Aprovado</Badge>
+                                        ) : (
+                                          <Badge className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20">Aguardando revisão</Badge>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                                        {!t.aprovada_por_equipe && (
+                                          <button onClick={() => handleAprovar(t.id, t.aluno_id, t.xp_recompensa)} disabled={aprovando === t.id}
+                                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 disabled:opacity-50">
+                                            {aprovando === t.id ? <Loader2 size={10} className="animate-spin inline" /> : "Aprovar"}
                                           </button>
                                         )}
                                       </td>
