@@ -142,21 +142,43 @@ export async function gerarDiagnostico(docText: string, apiKeyOverride?: string)
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 4096,
+    max_tokens: 8000,
     messages: [
       {
         role: "user",
-        content: `${DIAGNOSTIC_PROMPT}\n\n---\n\nCONTEÚDO DO DOCUMENTO:\n\n${docText.slice(0, 60000)}`,
+        content: `${DIAGNOSTIC_PROMPT}\n\n---\n\nCONTEÚDO DO DOCUMENTO:\n\n${docText.slice(0, 40000)}`,
       },
     ],
   });
 
   const rawText = (message.content[0] as any).text as string;
 
-  // Extrai o JSON mesmo que haja texto ao redor
   const jsonMatch = rawText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("Claude não retornou JSON válido.");
 
-  const parsed = JSON.parse(jsonMatch[0]) as DiagnosticoData;
-  return parsed;
+  let jsonStr = jsonMatch[0];
+
+  // Se o JSON foi truncado, tenta fechar os colchetes/chaves abertos
+  try {
+    return JSON.parse(jsonStr) as DiagnosticoData;
+  } catch {
+    // Conta colchetes e chaves abertos para fechar o JSON truncado
+    let opens = 0;
+    let arrOpens = 0;
+    for (const ch of jsonStr) {
+      if (ch === "{") opens++;
+      else if (ch === "}") opens--;
+      else if (ch === "[") arrOpens++;
+      else if (ch === "]") arrOpens--;
+    }
+    // Remove trailing vírgula solta se houver
+    jsonStr = jsonStr.replace(/,\s*$/, "");
+    for (let i = 0; i < arrOpens; i++) jsonStr += "]";
+    for (let i = 0; i < opens; i++) jsonStr += "}";
+    try {
+      return JSON.parse(jsonStr) as DiagnosticoData;
+    } catch (e2) {
+      throw new Error("Resposta da IA incompleta. Tente novamente com um documento menor.");
+    }
+  }
 }
