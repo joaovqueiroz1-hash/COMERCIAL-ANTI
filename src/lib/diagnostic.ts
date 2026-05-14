@@ -34,7 +34,12 @@ export async function extractTextFromFile(file: File): Promise<string> {
   ) {
     return extractDocx(file);
   }
-  // Fallback: plain text
+  if (
+    file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    file.name.endsWith(".pptx")
+  ) {
+    return extractPptx(file);
+  }
   return file.text();
 }
 
@@ -60,6 +65,23 @@ async function extractDocx(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer });
   return result.value;
+}
+
+async function extractPptx(file: File): Promise<string> {
+  const { unzipSync, strFromU8 } = await import("fflate");
+  const arrayBuffer = await file.arrayBuffer();
+  const zipped = unzipSync(new Uint8Array(arrayBuffer));
+  const texts: string[] = [];
+  for (const [path, data] of Object.entries(zipped)) {
+    if (/^ppt\/slides\/slide\d+\.xml$/.test(path)) {
+      const xml = strFromU8(data);
+      // Extrai apenas o texto dos elementos <a:t>
+      const matches = xml.match(/<a:t[^>]*>([^<]+)<\/a:t>/g) ?? [];
+      const slideText = matches.map(m => m.replace(/<[^>]+>/g, "")).join(" ");
+      if (slideText.trim()) texts.push(slideText);
+    }
+  }
+  return texts.join("\n\n");
 }
 
 // ── prompt de diagnóstico ─────────────────────────────────────────────────────

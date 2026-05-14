@@ -1820,7 +1820,7 @@ export default function GestaoOperacional() {
                                 <p className="text-xs text-muted-foreground">{(diagFile.size / 1024).toFixed(0)} KB</p>
                               </>
                             ) : (
-                              <p className="text-sm text-muted-foreground">Clique para selecionar PDF ou DOCX</p>
+                              <p className="text-sm text-muted-foreground">Clique para selecionar PDF, DOCX ou PPTX</p>
                             )}
                           </div>
                           {diagFile && (
@@ -1834,7 +1834,7 @@ export default function GestaoOperacional() {
                         </div>
                         <input
                           type="file"
-                          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          accept=".pdf,.docx,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                           className="hidden"
                           onChange={e => { setDiagFile(e.target.files?.[0] ?? null); setDiagError(null); }}
                         />
