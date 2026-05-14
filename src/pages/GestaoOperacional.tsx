@@ -8,17 +8,20 @@ import {
   createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
   resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
   fetchTodasSprintTarefas, fetchProfiles, renamePasta, deletePasta,
-  deleteSprintTarefa,
+  fetchDiagnosticoAluno, upsertDiagnostico, updateDiagnostico,
 } from "@/lib/api";
-import type { Material, Evento } from "@/lib/api";
+import type { Material, Evento, DiagnosticoRow } from "@/lib/api";
+import DiagnosticView from "@/components/DiagnosticView";
+import { extractTextFromFile, gerarDiagnostico } from "@/lib/diagnostic";
+import type { DiagnosticoData } from "@/lib/diagnostic";
 import { Badge } from "@/components/ui/badge";
 import {
   Users, Award, PlusCircle, GraduationCap, Loader2,
   CheckCircle2, XCircle, Clock, BookOpen, Video,
   FileText, Link2, Trash2, Globe, UserCheck, ChevronRight,
   Star, Calendar, Zap, Layers, LayoutTemplate,
-  MapPin, KeyRound, UserMinus, ExternalLink, Pencil, Upload, XCircle,
-  GripVertical,
+  MapPin, KeyRound, UserMinus, ExternalLink, Pencil, Upload,
+  GripVertical, Brain,
 } from "lucide-react";
 import { getInitials } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -142,7 +145,15 @@ export default function GestaoOperacional() {
   const [tarefasDetalhe,  setTarefasDetalhe]  = useState<any[]>([]);
   const [loadingTarefas,  setLoadingTarefas]  = useState(false);
   const [aprovando,       setAprovando]       = useState<string | null>(null);
-  const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca" | "premio">("tarefas");
+  const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca" | "premio" | "diagnostico">("tarefas");
+
+  // ── diagnóstico ───────────────────────────────────────────────────────────
+  const [diagnostico,        setDiagnostico]        = useState<DiagnosticoRow | null>(null);
+  const [loadingDiagnostico, setLoadingDiagnostico] = useState(false);
+  const [gerandoDiagnostico, setGerandoDiagnostico] = useState(false);
+  const [savingDiagnostico,  setSavingDiagnostico]  = useState(false);
+  const [diagFile,           setDiagFile]           = useState<File | null>(null);
+  const [diagError,          setDiagError]          = useState<string | null>(null);
   const [premioEdit,      setPremioEdit]      = useState({ titulo: "", descricao: "", xp_meta: 1000 });
   const [savingPremio,    setSavingPremio]    = useState(false);
   const [sprintsAluno,    setSprintsAluno]    = useState<any[]>([]);
@@ -259,6 +270,9 @@ export default function GestaoOperacional() {
     setAlunoDetalhes(aluno);
     setSheetTab("tarefas");
     setSprintsAluno([]);
+    setDiagnostico(null);
+    setDiagError(null);
+    setDiagFile(null);
     setPremioEdit({
       titulo: aluno.premio_titulo ?? "",
       descricao: aluno.premio_descricao ?? "",
@@ -277,6 +291,47 @@ export default function GestaoOperacional() {
       setTarefaXpEdit(xpInit);
     }
     finally { setLoadingTarefas(false); }
+
+    // Carrega diagnóstico em paralelo (não bloqueia as tarefas)
+    setLoadingDiagnostico(true);
+    try {
+      const diag = await fetchDiagnosticoAluno(aluno.id);
+      setDiagnostico(diag);
+    } catch { /* tabela pode ainda não existir */ }
+    finally { setLoadingDiagnostico(false); }
+  }
+
+  async function handleGerarDiagnostico() {
+    if (!diagFile || !alunoDetalhes) return;
+    setGerandoDiagnostico(true);
+    setDiagError(null);
+    try {
+      const text = await extractTextFromFile(diagFile);
+      if (!text.trim()) throw new Error("Não foi possível extrair texto do arquivo.");
+      const dados = await gerarDiagnostico(text);
+      const row = await upsertDiagnostico(alunoDetalhes.id, dados);
+      setDiagnostico(row);
+      setDiagFile(null);
+      toast({ title: "Diagnóstico gerado com sucesso!" });
+    } catch (err: any) {
+      setDiagError(err?.message ?? "Erro ao gerar diagnóstico.");
+    } finally {
+      setGerandoDiagnostico(false);
+    }
+  }
+
+  async function handleSalvarDiagnostico(dados: DiagnosticoData) {
+    if (!diagnostico) return;
+    setSavingDiagnostico(true);
+    try {
+      const row = await updateDiagnostico(diagnostico.id, dados);
+      setDiagnostico(row);
+      toast({ title: "Diagnóstico salvo!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err?.message, variant: "destructive" });
+    } finally {
+      setSavingDiagnostico(false);
+    }
   }
 
   async function handleSalvarPremio(e: React.FormEvent) {
@@ -1411,6 +1466,9 @@ export default function GestaoOperacional() {
                 <button onClick={() => setSheetTab("premio")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "premio" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
                   <Award size={14} /> Prêmio
                 </button>
+                <button onClick={() => setSheetTab("diagnostico")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "diagnostico" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  <Brain size={14} /> Diagnóstico
+                </button>
               </div>
 
               <div className="flex-1 px-6 py-5 overflow-y-auto space-y-6">
@@ -1720,6 +1778,94 @@ export default function GestaoOperacional() {
                 )}
 
                 {/* ── ABA: BIBLIOTECA ─────────────────────────────────────── */}
+                {/* ── ABA: DIAGNÓSTICO ────────────────────────────────────── */}
+                {sheetTab === "diagnostico" && (
+                  <div className="space-y-5">
+                    {loadingDiagnostico ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                      </div>
+                    ) : diagnostico ? (
+                      <DiagnosticView
+                        data={diagnostico.dados}
+                        editable
+                        onSave={handleSalvarDiagnostico}
+                        saving={savingDiagnostico}
+                      />
+                    ) : (
+                      <div className="rounded-xl border border-border bg-secondary/30 p-6 text-center space-y-4">
+                        <Brain size={36} className="mx-auto text-muted-foreground/50" />
+                        <div>
+                          <p className="font-semibold text-foreground">Nenhum diagnóstico gerado</p>
+                          <p className="text-xs text-muted-foreground mt-1">Faça upload do documento do cliente (PDF ou DOCX) para gerar o diagnóstico com IA.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upload + gerar */}
+                    <div className="rounded-xl border border-border bg-secondary/20 p-4 space-y-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {diagnostico ? "Regerar diagnóstico" : "Gerar diagnóstico"}
+                      </p>
+                      <label className="block cursor-pointer">
+                        <div className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border-2 border-dashed transition-all",
+                          diagFile ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30"
+                        )}>
+                          <Upload size={16} className="text-muted-foreground shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            {diagFile ? (
+                              <>
+                                <p className="text-sm font-medium text-foreground truncate">{diagFile.name}</p>
+                                <p className="text-xs text-muted-foreground">{(diagFile.size / 1024).toFixed(0)} KB</p>
+                              </>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">Clique para selecionar PDF ou DOCX</p>
+                            )}
+                          </div>
+                          {diagFile && (
+                            <button
+                              onClick={e => { e.preventDefault(); setDiagFile(null); }}
+                              className="text-muted-foreground hover:text-destructive shrink-0"
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          className="hidden"
+                          onChange={e => { setDiagFile(e.target.files?.[0] ?? null); setDiagError(null); }}
+                        />
+                      </label>
+
+                      {diagError && (
+                        <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">{diagError}</p>
+                      )}
+
+                      <Button
+                        onClick={handleGerarDiagnostico}
+                        disabled={!diagFile || gerandoDiagnostico}
+                        className="w-full gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                      >
+                        {gerandoDiagnostico ? (
+                          <><Loader2 size={14} className="animate-spin" /> Mapeando...</>
+                        ) : (
+                          <><Brain size={14} /> {diagnostico ? "Regerar Diagnóstico" : "Gerar Diagnóstico"}</>
+                        )}
+                      </Button>
+                      {gerandoDiagnostico ? (
+                        <p className="text-xs text-primary text-center font-medium animate-pulse">
+                          A IA desenvolvida e treinada pela Letícia Vaz está mapeando o negócio e trará o relatório completo em instantes...
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground text-center">Pode levar 30–60 segundos</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {sheetTab === "biblioteca" && (() => {
                   const materiaisAluno = materiais.filter(m => m.aluno_id === alunoDetalhes.id || m.aluno_id === null || m.aluno_id === "__global__");
                   return (

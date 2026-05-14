@@ -5,13 +5,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchAlunoLogado, fetchAlunoById, fetchSprintsForAluno, fetchSprintTarefas,
   fetchMateriaisAluno, fetchEventosAluno, marcarTarefaConcluida,
+  fetchDiagnosticoAluno,
 } from "@/lib/api";
-import type { Material, Evento } from "@/lib/api";
+import type { Material, Evento, DiagnosticoRow } from "@/lib/api";
+import DiagnosticView from "@/components/DiagnosticView";
 import {
   CheckCircle2, Lock, Star, Trophy,
   FileText, Video, Link2, BookOpen, ExternalLink,
   Clock, Loader2, CalendarClock, AlertTriangle, Zap,
-  User, Send,
+  User, Send, Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -94,6 +96,7 @@ export default function PortalAluno() {
   const [tarefas, setTarefas] = useState<any[]>([]);
   const [materiais, setMateriais] = useState<Material[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
+  const [diagnostico, setDiagnostico] = useState<DiagnosticoRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [filtroMaterial, setFiltroMaterial] = useState<TipoFiltro>('todos');
   const [concluindo, setConcluindo] = useState<string | null>(null);
@@ -124,6 +127,12 @@ export default function PortalAluno() {
         setTarefas(tarefasData || []);
         setMateriais((materiaisData || []) as Material[]);
         setEventos((eventosData || []) as Evento[]);
+
+        // Diagnóstico isolado para não quebrar os dados acima se a tabela ainda não existir
+        try {
+          const diag = await fetchDiagnosticoAluno(targetAluno.id);
+          setDiagnostico(diag);
+        } catch { /* tabela ainda não existe */ }
       }
     } catch (e) {
       console.error(e);
@@ -628,6 +637,17 @@ export default function PortalAluno() {
                   </div>
                 </div>
               </section>
+
+              {/* ── Diagnóstico do Negócio ──────────────────────────────── */}
+              {diagnostico && (
+                <section className="bg-card rounded-2xl border border-border p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Brain size={18} className="text-primary" />
+                    <h3 className="text-lg font-bold text-foreground">Diagnóstico do Negócio</h3>
+                  </div>
+                  <DiagnosticView data={diagnostico.dados} editable={false} />
+                </section>
+              )}
             </div>
             )}
           </div>

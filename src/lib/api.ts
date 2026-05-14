@@ -691,3 +691,44 @@ export async function fetchAllLeadTagsMap(): Promise<Record<string, TagSistema[]
   }
   return map;
 }
+
+// ── DIAGNÓSTICOS ──────────────────────────────────────────────────────────────
+
+export interface DiagnosticoRow {
+  id: string;
+  aluno_id: string;
+  dados: import('./diagnostic').DiagnosticoData;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export async function fetchDiagnosticoAluno(alunoId: string): Promise<DiagnosticoRow | null> {
+  const { data, error } = await db
+    .from('diagnosticos')
+    .select('*')
+    .eq('aluno_id', alunoId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as DiagnosticoRow | null;
+}
+
+export async function upsertDiagnostico(alunoId: string, dados: import('./diagnostic').DiagnosticoData): Promise<DiagnosticoRow> {
+  const { data, error } = await db
+    .from('diagnosticos')
+    .upsert({ aluno_id: alunoId, dados, atualizado_em: new Date().toISOString() }, { onConflict: 'aluno_id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DiagnosticoRow;
+}
+
+export async function updateDiagnostico(id: string, dados: import('./diagnostic').DiagnosticoData): Promise<DiagnosticoRow> {
+  const { data, error } = await db
+    .from('diagnosticos')
+    .update({ dados, atualizado_em: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DiagnosticoRow;
+}
