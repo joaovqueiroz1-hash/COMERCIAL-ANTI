@@ -9,6 +9,7 @@ import {
   resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
   fetchTodasSprintTarefas, fetchProfiles, renamePasta, deletePasta,
   fetchDiagnosticoAluno, upsertDiagnostico, updateDiagnostico,
+  deleteLead,
 } from "@/lib/api";
 import type { Material, Evento, DiagnosticoRow } from "@/lib/api";
 import DiagnosticView from "@/components/DiagnosticView";
@@ -875,7 +876,24 @@ export default function GestaoOperacional() {
                                 <h3 className={`font-bold truncate ${isDark ? 'text-white' : 'text-foreground'}`}>{lead.nome_completo}</h3>
                                 <p className={`text-xs truncate ${isDark ? 'text-white/50' : 'text-muted-foreground'}`}>{lead.email || "⚠️ Sem e-mail"}</p>
                               </div>
-                              <Button size="sm" onClick={() => { setTargetLead(lead); setOpenMatricula(true); }} className="gold-gradient text-primary-foreground font-bold whitespace-nowrap">Matricular</Button>
+                              <div className="flex items-center gap-2">
+                                {!lead.email && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 px-2"
+                                    title="Remover lead"
+                                    onClick={async () => {
+                                      if (!window.confirm(`Remover "${lead.nome_completo}" permanentemente?`)) return;
+                                      await deleteLead(lead.id);
+                                      setLeadsFechados(prev => prev.filter(l => l.id !== lead.id));
+                                    }}
+                                  >
+                                    <Trash2 size={15} />
+                                  </Button>
+                                )}
+                                <Button size="sm" onClick={() => { setTargetLead(lead); setOpenMatricula(true); }} className="gold-gradient text-primary-foreground font-bold whitespace-nowrap" disabled={!lead.email} title={!lead.email ? "Adicione um e-mail ao lead para matricular" : undefined}>Matricular</Button>
+                              </div>
                             </div>
                           );
                         })}
