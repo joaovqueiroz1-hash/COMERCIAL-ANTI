@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import type { Material, Evento, DiagnosticoRow } from "@/lib/api";
 import DiagnosticView from "@/components/DiagnosticView";
+import AbaCriativa from "@/components/AbaCriativa";
 import {
   CheckCircle2, Lock, Star, Trophy,
   FileText, Video, Link2, BookOpen, ExternalLink,
@@ -90,6 +91,7 @@ export default function PortalAluno() {
   const location = useLocation();
   const activeView = location.pathname.endsWith('/tarefas') ? 'tarefas'
     : location.pathname.endsWith('/biblioteca') ? 'biblioteca'
+    : location.pathname.endsWith('/criativa') ? 'criativa'
     : 'home';
   const [aluno, setAluno] = useState<any>(null);
   const [sprints, setSprints] = useState<any[]>([]);
@@ -262,6 +264,9 @@ export default function PortalAluno() {
 
         <main className="flex-1 p-6 overflow-y-auto space-y-8">
 
+          {/* ── Aba Criativa ──────────────────────────────────────────── */}
+          {activeView === 'criativa' && <AbaCriativa alunoId={aluno.id} />}
+
           {/* ── Cards de Destaque ─────────────────────────────────────── */}
           {activeView === 'home' && (proximoEvento || proximaTarefa) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -411,7 +416,7 @@ export default function PortalAluno() {
           </div>}
 
           {/* ── Trilha de Sprints ──────────────────────────────────────── */}
-          {activeView !== 'biblioteca' && (
+          {activeView !== 'biblioteca' && activeView !== 'criativa' && (
           <div className={activeView === 'home' ? 'grid grid-cols-1 lg:grid-cols-2 gap-6' : ''}>
             <section className="bg-card rounded-2xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
@@ -654,7 +659,7 @@ export default function PortalAluno() {
           )}
 
           {/* ── Biblioteca de Conteúdo ─────────────────────────────────────── */}
-          {activeView !== 'tarefas' && <section>
+          {activeView !== 'tarefas' && activeView !== 'criativa' && <section>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <h3 className="text-xl font-bold text-foreground">Biblioteca de Conteúdo</h3>
               <div className="flex items-center gap-1 flex-wrap">

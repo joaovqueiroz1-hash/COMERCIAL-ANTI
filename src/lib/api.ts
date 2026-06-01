@@ -384,6 +384,13 @@ export async function createSprint(titulo: string, descricao?: string, ordem: nu
   return data;
 }
 
+// Renomear/editar um sprint — restrito à equipe (RLS bloqueia aluno)
+export async function updateSprint(id: string, updates: { titulo?: string; descricao?: string | null }) {
+  const { data, error } = await db.from('sprints').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 // ── SPRINT TAREFAS ────────────────────────────────────────────────────────────
 
 export async function fetchSprintTarefas(alunoId: string) {
@@ -414,16 +421,14 @@ export async function createSprintTarefa(tarefa: {
 }
 
 export async function marcarTarefaConcluida(tarefaId: string, linkEntrega?: string | null) {
-  const updates: Record<string, unknown> = { concluida: true };
-  if (linkEntrega) updates.link_entrega = linkEntrega;
-  const { data, error } = await db
-    .from('sprint_tarefas')
-    .update(updates)
-    .eq('id', tarefaId)
-    .select()
-    .single();
+  // O aluno não tem UPDATE direto em sprint_tarefas (RLS). A conclusão passa
+  // por uma função SECURITY DEFINER que seta apenas concluida + link_entrega
+  // na própria tarefa — impede fraudar XP ou auto-aprovar.
+  const { error } = await db.rpc('aluno_marcar_tarefa_concluida', {
+    p_tarefa_id: tarefaId,
+    p_link: linkEntrega ?? null,
+  });
   if (error) throw error;
-  return data;
 }
 
 export async function aprovarTarefa(tarefaId: string, alunoId: string, xp: number) {
@@ -731,4 +736,48 @@ export async function updateDiagnostico(id: string, dados: import('./diagnostic'
     .single();
   if (error) throw error;
   return data as DiagnosticoRow;
+}
+
+// ── ABA CRIATIVA (notas_criativas) ───────────────────────────────────────────
+
+export interface NotaCriativa {
+  id: string;
+  aluno_id: string;
+  autor_id: string | null;
+  conteudo: string;
+  tipo: 'nota' | 'link';
+  url: string | null;
+  created_at: string;
+  profiles?: { nome: string; perfil: string } | null;
+}
+
+export async function fetchNotasCriativas(alunoId: string): Promise<NotaCriativa[]> {
+  const { data, error } = await db
+    .from('notas_criativas')
+    .select('*, profiles:autor_id(nome, perfil)')
+    .eq('aluno_id', alunoId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as NotaCriativa[];
+}
+
+export async function createNotaCriativa(nota: {
+  aluno_id: string;
+  autor_id: string;
+  conteudo: string;
+  tipo?: 'nota' | 'link';
+  url?: string | null;
+}): Promise<NotaCriativa> {
+  const { data, error } = await db
+    .from('notas_criativas')
+    .insert({ tipo: 'nota', url: null, ...nota })
+    .select('*, profiles:autor_id(nome, perfil)')
+    .single();
+  if (error) throw error;
+  return data as NotaCriativa;
+}
+
+export async function deleteNotaCriativa(id: string): Promise<void> {
+  const { error } = await db.from('notas_criativas').delete().eq('id', id);
+  if (error) throw error;
 }

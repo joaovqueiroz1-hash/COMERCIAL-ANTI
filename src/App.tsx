@@ -94,6 +94,7 @@ const App = () => {
                 <Route path="/portal"                element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
                 <Route path="/portal/tarefas"        element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
                 <Route path="/portal/biblioteca"     element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
+                <Route path="/portal/criativa"       element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
                 <Route path="/portal/:aluno_id"      element={<ProtectedRoute><PortalAluno /></ProtectedRoute>} />
 
                 {/* Operacional */}

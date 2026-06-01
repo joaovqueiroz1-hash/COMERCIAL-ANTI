@@ -5,7 +5,7 @@ import {
   aprovarTarefa, rejeitarTarefa,
   fetchTodosMateriais, createMaterial, deleteMaterial,
   fetchTodosEventos, createEvento, deleteEvento,
-  createSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
+  createSprint, updateSprint, deleteSprint, createSprintTarefa, deleteSprintTarefa,
   resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
   fetchTodasSprintTarefas, fetchProfiles, renamePasta, deletePasta,
   fetchDiagnosticoAluno, upsertDiagnostico, updateDiagnostico,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import type { Material, Evento, DiagnosticoRow } from "@/lib/api";
 import DiagnosticView from "@/components/DiagnosticView";
+import AbaCriativa from "@/components/AbaCriativa";
 import { extractTextFromFile, gerarDiagnostico } from "@/lib/diagnostic";
 import type { DiagnosticoData } from "@/lib/diagnostic";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,7 @@ import {
   FileText, Link2, Trash2, Globe, UserCheck, ChevronRight,
   Star, Calendar, Zap, Layers, LayoutTemplate,
   MapPin, KeyRound, UserMinus, ExternalLink, Pencil, Upload,
-  GripVertical, Brain,
+  GripVertical, Brain, Sparkles,
 } from "lucide-react";
 import { getInitials } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -146,7 +147,7 @@ export default function GestaoOperacional() {
   const [tarefasDetalhe,  setTarefasDetalhe]  = useState<any[]>([]);
   const [loadingTarefas,  setLoadingTarefas]  = useState(false);
   const [aprovando,       setAprovando]       = useState<string | null>(null);
-  const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca" | "premio" | "diagnostico">("tarefas");
+  const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca" | "premio" | "diagnostico" | "criativa">("tarefas");
 
   // ── diagnóstico ───────────────────────────────────────────────────────────
   const [diagnostico,        setDiagnostico]        = useState<DiagnosticoRow | null>(null);
@@ -181,6 +182,11 @@ export default function GestaoOperacional() {
   const [savingTarefa,     setSavingTarefa]     = useState(false);
   const [importandoParaAluno, setImportandoParaAluno] = useState<string | null>(null);
   const [novoSprint, setNovoSprint] = useState({ titulo: "", descricao: "", aluno_id: null as string | null });
+  // edição (renomear) de sprint existente — só equipe
+  const [editandoSprint, setEditandoSprint] = useState<any | null>(null);
+  const [editSprintTitulo, setEditSprintTitulo] = useState("");
+  const [editSprintDescricao, setEditSprintDescricao] = useState("");
+  const [salvandoSprintEdit, setSalvandoSprintEdit] = useState(false);
   const [novaTarefa, setNovaTarefa] = useState({
     sprint_id: "", aluno_id: "", titulo: "", xp_recompensa: 50, prazo: "", responsavel_id: "",
     descricao_equipe: "", arquivo_url: "", arquivo_nome: "",
@@ -600,6 +606,32 @@ export default function GestaoOperacional() {
       toast({ title: "Sprint removido." });
     }
     catch { toast({ title: "Erro ao remover.", variant: "destructive" }); }
+  }
+
+  function abrirEdicaoSprint(sprint: any) {
+    setEditandoSprint(sprint);
+    setEditSprintTitulo(sprint.titulo || "");
+    setEditSprintDescricao(sprint.descricao || "");
+  }
+
+  async function handleSalvarSprintEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editandoSprint || !editSprintTitulo.trim()) {
+      toast({ title: "O nome do sprint não pode ficar vazio.", variant: "destructive" });
+      return;
+    }
+    setSalvandoSprintEdit(true);
+    try {
+      const updates = { titulo: editSprintTitulo.trim(), descricao: editSprintDescricao.trim() || null };
+      await updateSprint(editandoSprint.id, updates);
+      setSprintsAluno(prev => prev.map(s => s.id === editandoSprint.id ? { ...s, ...updates } : s));
+      toast({ title: "Sprint atualizado!" });
+      setEditandoSprint(null);
+    } catch {
+      toast({ title: "Erro ao atualizar sprint.", variant: "destructive" });
+    } finally {
+      setSalvandoSprintEdit(false);
+    }
   }
 
   function handleCriarPastaLocal() {
@@ -1489,6 +1521,9 @@ export default function GestaoOperacional() {
                 <button onClick={() => setSheetTab("diagnostico")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "diagnostico" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
                   <Brain size={14} /> Diagnóstico
                 </button>
+                <button onClick={() => setSheetTab("criativa")} className={cn("flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap", sheetTab === "criativa" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  <Sparkles size={14} /> Criativa
+                </button>
               </div>
 
               <div className="flex-1 px-6 py-5 overflow-y-auto space-y-6">
@@ -1548,9 +1583,14 @@ export default function GestaoOperacional() {
                             <div key={sprint.id}>
                               <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-xs uppercase tracking-widest text-muted-foreground/60 font-bold">{sprint.titulo}</h4>
-                                <button onClick={() => handleDeletarSprint(sprint.id)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded" title="Remover sprint">
-                                  <Trash2 size={12} />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => abrirEdicaoSprint(sprint)} className="text-muted-foreground/30 hover:text-primary transition-colors p-1 rounded" title="Renomear sprint">
+                                    <Pencil size={12} />
+                                  </button>
+                                  <button onClick={() => handleDeletarSprint(sprint.id)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded" title="Remover sprint">
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
                               </div>
                               {tarefasSprint.length === 0 ? (
                                 <p className="text-xs text-muted-foreground/60 pl-1 py-2 italic">Nenhuma tarefa neste sprint ainda.</p>
@@ -1900,6 +1940,10 @@ export default function GestaoOperacional() {
                   </div>
                 )}
 
+                {sheetTab === "criativa" && (
+                  <AbaCriativa alunoId={alunoDetalhes.id} />
+                )}
+
                 {sheetTab === "biblioteca" && (() => {
                   const materiaisAluno = materiais.filter(m => m.aluno_id === alunoDetalhes.id || m.aluno_id === null || m.aluno_id === "__global__");
                   return (
@@ -2007,6 +2051,30 @@ export default function GestaoOperacional() {
             <Button type="submit" disabled={savingSprint || !novoSprint.aluno_id} className="w-full h-11 font-bold">
               {savingSprint ? <Loader2 size={16} className="animate-spin" /> : "Criar Sprint"}
             </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══ DIALOG: Editar Sprint (renomear) ══════════════════════════════════ */}
+      <Dialog open={!!editandoSprint} onOpenChange={open => { if (!open) setEditandoSprint(null); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="text-primary" size={18} /> Editar Sprint</DialogTitle>
+            <DialogDescription>Renomeie o sprint ou ajuste a descrição.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSalvarSprintEdit} className="space-y-4">
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Título *</Label>
+              <Input value={editSprintTitulo} onChange={e => setEditSprintTitulo(e.target.value)} className="bg-secondary border-border" placeholder="Ex: Sprint 1 — Diagnóstico & Base" required autoFocus />
+            </div>
+            <div><Label className="text-xs text-muted-foreground uppercase mb-2 block">Descrição</Label>
+              <Textarea value={editSprintDescricao} onChange={e => setEditSprintDescricao(e.target.value)} className="bg-secondary border-border resize-none" rows={2} />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={salvandoSprintEdit || !editSprintTitulo.trim()} className="flex-1 h-11 font-bold">
+                {salvandoSprintEdit ? <Loader2 size={16} className="animate-spin" /> : "Salvar"}
+              </Button>
+              <Button type="button" variant="outline" className="border-border" onClick={() => setEditandoSprint(null)}>Cancelar</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

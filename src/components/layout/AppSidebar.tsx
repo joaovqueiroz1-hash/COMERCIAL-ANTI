@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Kanban, Users, Calendar, BarChart3,
   UsersRound, Settings, X, LogOut, MessageSquare, Target, History,
-  CheckSquare, Library,
+  CheckSquare, Library, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials } from '@/lib/types';
@@ -16,6 +16,7 @@ const navItems: { to: string; label: string; icon: any; roles: string[]; badge?:
   { to: '/portal',             label: 'Meu Portal',          icon: LayoutDashboard, roles: ['aluno'], exact: true },
   { to: '/portal/tarefas',     label: 'Tarefas',             icon: CheckSquare,     roles: ['aluno'] },
   { to: '/portal/biblioteca',  label: 'Biblioteca',          icon: Library,         roles: ['aluno'] },
+  { to: '/portal/criativa',    label: 'Aba Criativa',        icon: Sparkles,        roles: ['aluno'], badge: 'NOVO' },
   { to: '/suporte-interno',    label: 'Mensagens',           icon: MessageSquare,   roles: ['admin', 'operacional', 'aluno'], badge: 'CHAT' },
   { to: '/agenda',             label: 'Agenda',              icon: Calendar,        roles: ['admin', 'gestor', 'vendedor', 'operacional', 'aluno'] },
   { to: '/metas',              label: 'Metas',               icon: Target,          roles: ['admin', 'gestor', 'vendedor', 'operacional'] },
