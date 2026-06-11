@@ -460,6 +460,67 @@ export async function rejeitarTarefa(tarefaId: string) {
   if (error) throw error;
 }
 
+// ── ENTREGAS DE TAREFA (histórico append-only) ───────────────────────────────
+
+export interface TarefaEntrega {
+  id: string;
+  tarefa_id: string;
+  autor_id: string | null;
+  tipo: 'link' | 'arquivo';
+  url: string;
+  nome: string | null;
+  observacao: string | null;
+  apos_aprovacao: boolean;
+  created_at: string;
+  profiles?: { nome: string; perfil: string } | null;
+}
+
+export async function fetchEntregasTarefas(tarefaIds: string[]): Promise<TarefaEntrega[]> {
+  if (!tarefaIds.length) return [];
+  const { data, error } = await db
+    .from('tarefa_entregas')
+    .select('*, profiles:autor_id(nome, perfil)')
+    .in('tarefa_id', tarefaIds)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as TarefaEntrega[];
+}
+
+// Registra a entrega do aluno via RPC SECURITY DEFINER: marca concluida,
+// atualiza link_entrega (compat) e insere no histórico. Sem url, só conclui.
+export async function alunoRegistrarEntrega(args: {
+  tarefaId: string;
+  url?: string | null;
+  nome?: string | null;
+  tipo?: 'link' | 'arquivo';
+  observacao?: string | null;
+}): Promise<TarefaEntrega | null> {
+  const { data, error } = await db.rpc('aluno_registrar_entrega', {
+    p_tarefa_id: args.tarefaId,
+    p_url: args.url ?? null,
+    p_nome: args.nome ?? null,
+    p_tipo: args.tipo ?? 'link',
+    p_observacao: args.observacao ?? null,
+  });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row ?? null) as TarefaEntrega | null;
+}
+
+export async function uploadEntregaFile(alunoId: string, file: File) {
+  const fileExt = file.name.split('.').pop();
+  const filePath = `${alunoId}/${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('entregas')
+    .upload(filePath, file);
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from('entregas').getPublicUrl(filePath);
+  return data.publicUrl;
+}
+
 // ── CHAT INTERNO ──────────────────────────────────────────────────────────────
 
 export async function fetchChatInterno(alunoId: string) {

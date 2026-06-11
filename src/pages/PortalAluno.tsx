@@ -5,22 +5,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchAlunoLogado, fetchAlunoById, fetchSprintsForAluno, fetchSprintTarefas,
   fetchMateriaisAluno, fetchEventosAluno, marcarTarefaConcluida,
-  fetchDiagnosticoAluno,
+  fetchDiagnosticoAluno, fetchEntregasTarefas, alunoRegistrarEntrega, uploadEntregaFile,
 } from "@/lib/api";
-import type { Material, Evento, DiagnosticoRow } from "@/lib/api";
+import type { Material, Evento, DiagnosticoRow, TarefaEntrega } from "@/lib/api";
 import DiagnosticView from "@/components/DiagnosticView";
 import AbaCriativa from "@/components/AbaCriativa";
 import {
   CheckCircle2, Lock, Star, Trophy,
   FileText, Video, Link2, BookOpen, ExternalLink,
   Clock, Loader2, CalendarClock, AlertTriangle, Zap,
-  User, Send, Brain,
+  User, Send, Brain, Plus, Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -104,6 +105,9 @@ export default function PortalAluno() {
   const [concluindo, setConcluindo] = useState<string | null>(null);
   const [linkModal, setLinkModal] = useState<string | null>(null);
   const [linkEntrega, setLinkEntrega] = useState("");
+  const [entregaFile, setEntregaFile] = useState<File | null>(null);
+  const [entregaObs, setEntregaObs] = useState("");
+  const [entregas, setEntregas] = useState<Record<string, TarefaEntrega[]>>({});
 
   const isAdminOrGestor = profile && ['admin', 'gestor', 'equipe'].includes(profile.perfil);
 
@@ -130,6 +134,14 @@ export default function PortalAluno() {
         setMateriais((materiaisData || []) as Material[]);
         setEventos((eventosData || []) as Evento[]);
 
+        // Histórico de entregas isolado para não quebrar se a tabela ainda não existir
+        try {
+          const ents = await fetchEntregasTarefas((tarefasData || []).map((t: any) => t.id));
+          const porTarefa: Record<string, TarefaEntrega[]> = {};
+          for (const e of ents) (porTarefa[e.tarefa_id] ??= []).push(e);
+          setEntregas(porTarefa);
+        } catch { /* tabela ainda não existe */ }
+
         // Diagnóstico isolado para não quebrar os dados acima se a tabela ainda não existir
         try {
           const diag = await fetchDiagnosticoAluno(targetAluno.id);
@@ -145,14 +157,56 @@ export default function PortalAluno() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  async function handleMarcarConcluida(tarefaId: string, link?: string) {
-    setConcluindo(tarefaId);
+  function fecharModalEntrega() {
     setLinkModal(null);
     setLinkEntrega("");
+    setEntregaFile(null);
+    setEntregaObs("");
+  }
+
+  async function handleEnviarEntrega(tarefaId: string) {
+    const link = linkEntrega.trim();
+    const file = entregaFile;
+    const obs = entregaObs.trim() || null;
+    const tarefa = tarefas.find(t => t.id === tarefaId);
+    const jaConcluida = !!tarefa?.concluida;
+
+    if (jaConcluida && !link && !file) {
+      toast({ title: 'Adicione um link ou um arquivo para acrescentar à entrega.', variant: 'destructive' });
+      return;
+    }
+
+    setConcluindo(tarefaId);
+    fecharModalEntrega();
     try {
-      await marcarTarefaConcluida(tarefaId, link || null);
-      setTarefas(prev => prev.map(t => t.id === tarefaId ? { ...t, concluida: true, link_entrega: link || null } : t));
-      toast({ title: 'Entrega enviada!', description: 'Aguardando validação da equipe para ganhar os XP.' });
+      const novas: TarefaEntrega[] = [];
+      try {
+        if (file) {
+          const url = await uploadEntregaFile(aluno.id, file);
+          const e = await alunoRegistrarEntrega({ tarefaId, url, nome: file.name, tipo: 'arquivo', observacao: obs });
+          if (e) novas.push(e);
+        }
+        if (link) {
+          const e = await alunoRegistrarEntrega({ tarefaId, url: link, tipo: 'link', observacao: file ? null : obs });
+          if (e) novas.push(e);
+        }
+        if (!file && !link) {
+          await alunoRegistrarEntrega({ tarefaId });
+        }
+      } catch (err: any) {
+        // RPC/tabela ainda não existem no banco: cai no fluxo antigo (só link)
+        if (err?.code === 'PGRST202') await marcarTarefaConcluida(tarefaId, link || null);
+        else throw err;
+      }
+      setTarefas(prev => prev.map(t => t.id === tarefaId
+        ? { ...t, concluida: true, link_entrega: link || t.link_entrega }
+        : t));
+      if (novas.length) {
+        setEntregas(prev => ({ ...prev, [tarefaId]: [...(prev[tarefaId] ?? []), ...novas] }));
+      }
+      toast(jaConcluida
+        ? { title: 'Entrega atualizada!', description: 'O novo material foi adicionado ao histórico da tarefa.' }
+        : { title: 'Entrega enviada!', description: 'Aguardando validação da equipe para ganhar os XP.' });
     } catch {
       toast({ title: 'Erro ao registrar entrega.', variant: 'destructive' });
     } finally {
@@ -561,8 +615,8 @@ export default function PortalAluno() {
                                       </p>
                                     )}
 
-                                    {/* Links e anexos */}
-                                    {(t.arquivo_url || t.link_externo || t.link_entrega) && (
+                                    {/* Links e anexos da equipe */}
+                                    {(t.arquivo_url || t.link_externo) && (
                                       <div className="flex flex-wrap gap-2 mt-2">
                                         {t.arquivo_url && (
                                           <a href={t.arquivo_url} target="_blank" rel="noopener noreferrer"
@@ -576,28 +630,68 @@ export default function PortalAluno() {
                                             <Link2 size={9} /> Link externo
                                           </a>
                                         )}
-                                        {t.link_entrega && (
-                                          <a href={t.link_entrega} target="_blank" rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors">
-                                            <Send size={9} /> Sua entrega
-                                          </a>
-                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Suas entregas — histórico completo, sempre acessível */}
+                                    {(entregas[tarefa.id]?.length ?? 0) > 0 ? (
+                                      <div className="mt-2 space-y-1">
+                                        <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold">
+                                          Suas entregas
+                                        </p>
+                                        {entregas[tarefa.id].map(e => (
+                                          <div key={e.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                            <a href={e.url} target="_blank" rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors min-w-0 max-w-full">
+                                              {e.tipo === 'arquivo' ? <Paperclip size={9} className="shrink-0" /> : <Link2 size={9} className="shrink-0" />}
+                                              <span className="truncate">{e.nome || 'Link da entrega'}</span>
+                                            </a>
+                                            <span className="text-[9px] text-muted-foreground/60">
+                                              {new Date(e.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                                            </span>
+                                            {e.apos_aprovacao && (
+                                              <span className="text-[9px] text-amber-500 font-medium">enviado após aprovação</span>
+                                            )}
+                                            {e.observacao && (
+                                              <p className="w-full text-[10px] text-muted-foreground italic leading-snug">{e.observacao}</p>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : t.link_entrega && (
+                                      <div className="mt-2">
+                                        <a href={t.link_entrega} target="_blank" rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 rounded transition-colors">
+                                          <Send size={9} /> Sua entrega
+                                        </a>
                                       </div>
                                     )}
                                   </div>
                                 </div>
 
-                                {/* ── Botão Entregar ── */}
-                                {!tarefa.concluida && (
+                                {/* ── Botão Entregar / Acrescentar ── */}
+                                {!tarefa.concluida ? (
                                   <div className="px-3 pb-3">
                                     <button
-                                      onClick={() => { setLinkModal(tarefa.id); setLinkEntrega(""); }}
+                                      onClick={() => { setLinkModal(tarefa.id); setLinkEntrega(""); setEntregaFile(null); setEntregaObs(""); }}
                                       disabled={concluindo === tarefa.id}
                                       className="w-full text-[11px] font-bold py-1.5 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                                     >
                                       {concluindo === tarefa.id
                                         ? <Loader2 size={11} className="animate-spin" />
                                         : <><Send size={10} /> Entregar tarefa</>}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="px-3 pb-3">
+                                    <button
+                                      onClick={() => { setLinkModal(tarefa.id); setLinkEntrega(""); setEntregaFile(null); setEntregaObs(""); }}
+                                      disabled={concluindo === tarefa.id}
+                                      className="w-full text-[10px] font-semibold py-1 rounded-lg border border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                                    >
+                                      {concluindo === tarefa.id
+                                        ? <Loader2 size={10} className="animate-spin" />
+                                        : <><Plus size={10} /> Acrescentar à entrega</>}
                                     </button>
                                   </div>
                                 )}
@@ -735,15 +829,23 @@ export default function PortalAluno() {
         </main>
       </div>
 
-      {/* ── Modal: Entregar Tarefa ─────────────────────────────────────────── */}
-      <Dialog open={!!linkModal} onOpenChange={open => { if (!open) { setLinkModal(null); setLinkEntrega(""); } }}>
+      {/* ── Modal: Entregar / Acrescentar à Entrega ────────────────────────── */}
+      {(() => {
+        const modalTarefa = tarefas.find(t => t.id === linkModal);
+        const acrescentando = !!modalTarefa?.concluida;
+        return (
+      <Dialog open={!!linkModal} onOpenChange={open => { if (!open) fecharModalEntrega(); }}>
         <DialogContent className="bg-card border-border sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="text-primary" size={18} /> Entregar Tarefa
+              {acrescentando
+                ? <><Plus className="text-primary" size={18} /> Acrescentar à Entrega</>
+                : <><CheckCircle2 className="text-primary" size={18} /> Entregar Tarefa</>}
             </DialogTitle>
             <DialogDescription>
-              Cole um link do Google Docs, Notion, Drive ou qualquer URL com sua entrega. O link é opcional — você pode entregar sem ele.
+              {acrescentando
+                ? 'Adicione um novo link ou arquivo. As versões anteriores continuam no histórico da tarefa.'
+                : 'Cole um link (Google Docs, Notion, Drive...) e/ou anexe um arquivo. Ambos são opcionais — você pode entregar sem eles.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
@@ -757,23 +859,48 @@ export default function PortalAluno() {
                 placeholder="https://docs.google.com/..."
               />
             </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Arquivo (opcional)</Label>
+              <Input
+                type="file"
+                onChange={e => setEntregaFile(e.target.files?.[0] ?? null)}
+                className="bg-secondary border-border file:text-primary file:font-semibold cursor-pointer"
+              />
+              {entregaFile && (
+                <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                  <Paperclip size={10} /> {entregaFile.name}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase mb-2 block">Observação (opcional)</Label>
+              <Textarea
+                value={entregaObs}
+                onChange={e => setEntregaObs(e.target.value)}
+                className="bg-secondary border-border min-h-[60px] text-sm"
+                placeholder={acrescentando ? 'Ex: versão atualizada com os ajustes pedidos...' : 'Algo que a equipe precise saber sobre a entrega...'}
+              />
+            </div>
             <div className="flex gap-2">
               <Button
                 className="flex-1 h-11 font-bold"
                 disabled={concluindo === linkModal}
-                onClick={() => linkModal && handleMarcarConcluida(linkModal, linkEntrega)}
+                onClick={() => linkModal && handleEnviarEntrega(linkModal)}
               >
                 {concluindo === linkModal
                   ? <Loader2 size={16} className="animate-spin" />
-                  : linkEntrega ? 'Entregar com Link' : 'Entregar sem Link'}
+                  : acrescentando ? 'Adicionar ao Histórico'
+                  : (linkEntrega || entregaFile) ? 'Entregar' : 'Entregar sem Anexo'}
               </Button>
-              <Button variant="outline" className="border-border" onClick={() => { setLinkModal(null); setLinkEntrega(""); }}>
+              <Button variant="outline" className="border-border" onClick={fecharModalEntrega}>
                 Cancelar
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+        );
+      })()}
     </AppLayout>
   );
 }

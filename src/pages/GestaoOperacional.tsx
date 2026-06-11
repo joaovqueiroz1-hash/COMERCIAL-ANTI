@@ -9,9 +9,9 @@ import {
   resetUserPasswordAdmin, uploadMaterialFile, updateAluno, updateSprintTarefa,
   fetchTodasSprintTarefas, fetchProfiles, renamePasta, deletePasta,
   fetchDiagnosticoAluno, upsertDiagnostico, updateDiagnostico,
-  deleteLead,
+  deleteLead, fetchEntregasTarefas,
 } from "@/lib/api";
-import type { Material, Evento, DiagnosticoRow } from "@/lib/api";
+import type { Material, Evento, DiagnosticoRow, TarefaEntrega } from "@/lib/api";
 import DiagnosticView from "@/components/DiagnosticView";
 import AbaCriativa from "@/components/AbaCriativa";
 import { extractTextFromFile, gerarDiagnostico } from "@/lib/diagnostic";
@@ -145,6 +145,7 @@ export default function GestaoOperacional() {
   // ── detalhe aluno ─────────────────────────────────────────────────────────
   const [alunoDetalhes,   setAlunoDetalhes]   = useState<any | null>(null);
   const [tarefasDetalhe,  setTarefasDetalhe]  = useState<any[]>([]);
+  const [entregasDetalhe, setEntregasDetalhe] = useState<TarefaEntrega[]>([]);
   const [loadingTarefas,  setLoadingTarefas]  = useState(false);
   const [aprovando,       setAprovando]       = useState<string | null>(null);
   const [sheetTab,        setSheetTab]        = useState<"tarefas" | "eventos" | "biblioteca" | "premio" | "diagnostico" | "criativa">("tarefas");
@@ -297,6 +298,9 @@ export default function GestaoOperacional() {
       const xpInit: Record<string, number> = {};
       for (const t of (tarefas || [])) xpInit[t.id] = t.xp_recompensa ?? 100;
       setTarefaXpEdit(xpInit);
+      // Histórico de entregas isolado para não quebrar se a tabela ainda não existir
+      try { setEntregasDetalhe(await fetchEntregasTarefas((tarefas || []).map((t: any) => t.id))); }
+      catch { setEntregasDetalhe([]); }
     }
     finally { setLoadingTarefas(false); }
 
@@ -1660,11 +1664,42 @@ export default function GestaoOperacional() {
                                                 <Link2 size={9} /> Link externo
                                               </a>
                                             )}
-                                            {(tarefa as any).link_entrega && (
-                                              <a href={(tarefa as any).link_entrega} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1">
-                                                <ExternalLink size={9} /> Ver entrega do aluno
-                                              </a>
-                                            )}
+                                            {(() => {
+                                              const entregasTarefa = entregasDetalhe.filter(e => e.tarefa_id === tarefa.id);
+                                              if (entregasTarefa.length === 0) {
+                                                return (tarefa as any).link_entrega ? (
+                                                  <a href={(tarefa as any).link_entrega} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1">
+                                                    <ExternalLink size={9} /> Ver entrega do aluno
+                                                  </a>
+                                                ) : null;
+                                              }
+                                              return (
+                                                <div className="mt-1.5 space-y-1">
+                                                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-bold">
+                                                    Entregas do aluno ({entregasTarefa.length})
+                                                  </p>
+                                                  {entregasTarefa.map(e => (
+                                                    <div key={e.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                                      <a href={e.url} target="_blank" rel="noopener noreferrer"
+                                                        className="text-[10px] text-primary hover:underline flex items-center gap-1 min-w-0">
+                                                        {e.tipo === 'arquivo' ? <FileText size={9} className="shrink-0" /> : <ExternalLink size={9} className="shrink-0" />}
+                                                        <span className="truncate max-w-[220px]">{e.nome || 'Link da entrega'}</span>
+                                                      </a>
+                                                      <span className="text-[9px] text-muted-foreground/60">
+                                                        {new Date(e.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                                                        {e.profiles?.nome ? ` · ${e.profiles.nome.split(' ')[0]}` : ''}
+                                                      </span>
+                                                      {e.apos_aprovacao && (
+                                                        <span className="text-[9px] text-amber-500 font-medium">após aprovação</span>
+                                                      )}
+                                                      {e.observacao && (
+                                                        <p className="w-full text-[10px] text-muted-foreground italic leading-snug">{e.observacao}</p>
+                                                      )}
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              );
+                                            })()}
                                           </div>
                                         </div>
                                         {tarefa.concluida && !tarefa.aprovada_por_equipe && (
