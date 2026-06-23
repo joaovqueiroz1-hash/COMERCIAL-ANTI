@@ -8,7 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DndContext, DragEndEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Flame, Clock, Plus, Search, GripVertical, Users, DollarSign, SlidersHorizontal, Archive, ArchiveRestore } from 'lucide-react';
+import { Flame, Clock, Plus, Search, GripVertical, Users, DollarSign, SlidersHorizontal, Archive, ArchiveRestore, Download } from 'lucide-react';
+import { exportLeadsToExcel } from '@/lib/export-leads';
 import { useMemo } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -147,6 +148,7 @@ export default function Pipeline() {
   const [closedMetaId, setClosedMetaId] = useState('');
   const [closedValorAcordado, setClosedValorAcordado] = useState('');
   const [showArquivados, setShowArquivados] = useState(false);
+  const [exportandoArquivados, setExportandoArquivados] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({ queryKey: ['leads'], queryFn: fetchLeads });
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: fetchProfiles });
@@ -219,6 +221,19 @@ export default function Pipeline() {
     mutationFn: (leadId: string) => updateLeadExtra(leadId, { arquivado: false }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['leads'] }); toast({ title: 'Lead desarquivado ✓' }); },
   });
+
+  const handleExportArquivados = async () => {
+    if (arquivadosLeads.length === 0) return;
+    setExportandoArquivados(true);
+    try {
+      const n = await exportLeadsToExcel(arquivadosLeads, profiles as any);
+      toast({ title: `Planilha gerada · ${n} leads arquivados` });
+    } catch {
+      toast({ title: 'Erro ao gerar a planilha.', variant: 'destructive' });
+    } finally {
+      setExportandoArquivados(false);
+    }
+  };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -544,6 +559,17 @@ export default function Pipeline() {
               Leads arquivados não aparecem no kanban. Clique em Desarquivar para reativá-los.
             </DialogDescription>
           </DialogHeader>
+          {arquivadosLeads.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 self-start h-8 text-xs"
+              onClick={handleExportArquivados}
+              disabled={exportandoArquivados}
+            >
+              <Download size={13} /> {exportandoArquivados ? 'Gerando planilha...' : 'Exportar Excel'}
+            </Button>
+          )}
           <div className="max-h-[60vh] overflow-y-auto space-y-2 mt-1 pr-1">
             {arquivadosLeads.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-10">Nenhum lead arquivado.</p>
