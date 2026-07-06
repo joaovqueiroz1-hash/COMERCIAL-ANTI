@@ -35,6 +35,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Autorização por papel: só comercial pode importar leads em massa.
+    // Sem isto, qualquer usuário logado (aluno/vendedor) inseriria leads via
+    // service-role, burlando o RLS. Checamos o perfil no banco (fonte da verdade).
+    const { data: perfilRow } = await callerClient
+      .from("profiles")
+      .select("perfil")
+      .eq("id", user.id)
+      .single();
+    if (!perfilRow || !["admin", "gestor", "vendedor"].includes(perfilRow.perfil)) {
+      return new Response(JSON.stringify({ error: "Sem permissão para importar leads." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { leads } = await req.json();
     if (!Array.isArray(leads) || leads.length === 0) {
       return new Response(JSON.stringify({ error: "Nenhum lead enviado" }), {

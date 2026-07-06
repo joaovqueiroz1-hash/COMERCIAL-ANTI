@@ -6,6 +6,18 @@ import type { Database } from '@/integrations/supabase/types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
+// Segurança: valores interpolados em filtros PostgREST string (.or(...)) precisam
+// ser UUIDs limpos. Um id vindo de rota/URL sem validação seria vetor de injeção
+// na gramática de filtro (quebrar o filtro e ler outras linhas). Isto garante que
+// só um UUID canônico chega na string do filtro.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function assertUuid(v: string, campo = 'id'): string {
+  if (typeof v !== 'string' || !UUID_RE.test(v)) {
+    throw new Error(`Valor inválido para ${campo}.`);
+  }
+  return v;
+}
+
 type Lead = Database['public']['Tables']['leads']['Row'];
 type LeadInsert = Database['public']['Tables']['leads']['Insert'];
 type LeadUpdate = Database['public']['Tables']['leads']['Update'];
@@ -546,6 +558,7 @@ export async function enviaMensagemInterna(aluno_id: string, remetente_id: strin
 // ── MATERIAIS ─────────────────────────────────────────────────────────────────
 
 export async function fetchMateriaisAluno(alunoId: string) {
+  assertUuid(alunoId, 'aluno_id');
   const { data, error } = await supabase
     .from('materiais')
     .select('*, sprints(titulo)')
@@ -616,6 +629,7 @@ export type Evento = Database['public']['Tables']['eventos']['Row'];
 export type EventoInsert = Database['public']['Tables']['eventos']['Insert'];
 
 export async function fetchEventosAluno(alunoId: string, somenteFuturos = true) {
+  assertUuid(alunoId, 'aluno_id');
   const now = new Date().toISOString();
 
   // Query 1: events for this aluno + events with no aluno assigned (null)

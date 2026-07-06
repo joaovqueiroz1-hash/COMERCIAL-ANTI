@@ -5,7 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedRoute, roleHome } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -53,9 +53,8 @@ function RootRedirect() {
   if (loading) return <PageLoader />;
   // Sem usuário ou sem perfil → login
   if (!user || !profile) return <Navigate to="/login" replace />;
-  // Redireciona pelo perfil
-  if (profile.perfil === "aluno") return <Navigate to="/portal" replace />;
-  return <Navigate to="/dashboard" replace />;
+  // Redireciona para a casa do papel (evita mandar vendedor/operacional p/ tela sem acesso)
+  return <Navigate to={roleHome(profile.perfil)} replace />;
 }
 
 const App = () => {
