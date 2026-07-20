@@ -245,6 +245,7 @@ export default function GestaoOperacional() {
   const [savingMaterial,   setSavingMaterial]   = useState(false);
   const [deletingMaterial, setDeletingMaterial] = useState<string | null>(null);
   const [deletingEvento,   setDeletingEvento]   = useState<string | null>(null);
+  const [confirmEvento,    setConfirmEvento]    = useState<any | null>(null);
   const [materialMode,     setMaterialMode]     = useState<"link" | "upload">("link");
 
   // ── fase inline edit ──────────────────────────────────────────────────────
@@ -791,7 +792,7 @@ export default function GestaoOperacional() {
     setDeletingEvento(id);
     try { await deleteEvento(id); setEventos(prev => prev.filter(e => e.id !== id)); toast({ title: "Evento removido." }); }
     catch { toast({ title: "Erro.", variant: "destructive" }); }
-    finally { setDeletingEvento(null); }
+    finally { setDeletingEvento(null); setConfirmEvento(null); }
   }
 
   // ── materiais ─────────────────────────────────────────────────────────────
@@ -1355,7 +1356,7 @@ export default function GestaoOperacional() {
                               </div>
                               {ev.descricao && <p className="text-xs text-muted-foreground mt-1 truncate">{ev.descricao}</p>}
                             </div>
-                            <button onClick={() => handleDeletarEvento(ev.id)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded shrink-0">
+                            <button onClick={() => setConfirmEvento(ev)} className="text-muted-foreground/30 hover:text-destructive transition-colors p-1 rounded shrink-0">
                               <Trash2 size={13} />
                             </button>
                           </div>
@@ -1760,7 +1761,7 @@ export default function GestaoOperacional() {
                                   <Calendar size={12} /> {new Date(ev.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                                 </p>
                               </div>
-                              <button onClick={() => handleDeletarEvento(ev.id)} disabled={deletingEvento === ev.id} className="text-muted-foreground hover:text-destructive shrink-0">
+                              <button onClick={() => setConfirmEvento(ev)} disabled={deletingEvento === ev.id} className="text-muted-foreground hover:text-destructive shrink-0">
                                 {deletingEvento === ev.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                               </button>
                             </div>
@@ -2271,6 +2272,40 @@ export default function GestaoOperacional() {
       </Dialog>
 
       {/* ══ DIALOG: Criar Evento ══════════════════════════════════════════════ */}
+      {/* Confirmação de exclusão de evento (evita apagar sem querer) */}
+      <Dialog open={!!confirmEvento} onOpenChange={open => { if (!open) setConfirmEvento(null); }}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 size={18} /> Excluir evento?
+            </DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. O evento será removido do painel do aluno.
+            </DialogDescription>
+          </DialogHeader>
+          {confirmEvento && (
+            <div className="rounded-lg border border-border bg-secondary/40 p-3 my-1">
+              <p className="text-sm font-semibold text-foreground">{confirmEvento.titulo}</p>
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Calendar size={12} /> {new Date(confirmEvento.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+              </p>
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" className="flex-1 border-border" onClick={() => setConfirmEvento(null)}>
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
+              disabled={deletingEvento === confirmEvento?.id}
+              onClick={() => confirmEvento && handleDeletarEvento(confirmEvento.id)}
+            >
+              {deletingEvento === confirmEvento?.id ? <Loader2 size={16} className="animate-spin" /> : "Sim, excluir"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={openCriarEvento} onOpenChange={setOpenCriarEvento}>
         <DialogContent className="bg-card border-border sm:max-w-lg">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Calendar className="text-primary" size={18} /> Criar Evento / Reunião</DialogTitle>
